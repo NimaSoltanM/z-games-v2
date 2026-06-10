@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import { cors } from "@elysia/cors";
 import { cron, Patterns } from "@elysia/cron";
 import { auth } from "./modules/auth";
 import { db } from "./database";
@@ -14,6 +15,12 @@ if (!process.env.DATABASE_URL) {
 }
 
 const app = new Elysia()
+  .use(
+    cors({
+      origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+      credentials: true,
+    }),
+  )
   .use(
     cron({
       name: "otp-cleanup",
@@ -45,6 +52,6 @@ const app = new Elysia()
   })
   .use(auth)
   .get("/health", () => ({ status: "ok" }))
-  .listen(process.env.PORT ?? 3000);
+  .listen(process.env.PORT ?? 3001);
 
 console.log(`Server running at ${app.server?.hostname}:${app.server?.port}`);

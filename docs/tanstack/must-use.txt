@@ -1,0 +1,75 @@
+import { createFileRoute, ErrorComponent } from "@tanstack/react-router";
+import type { ErrorComponentProps } from "@tanstack/react-router";
+import {
+  queryOptions,
+  useQueryErrorResetBoundary,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+import { Suspense } from "react";
+import { ErrorBoundary } from "react-error-boundary";
+
+const postQueryOptions = () =>
+  queryOptions({
+    queryKey: ["post", 1],
+    queryFn: async () => {
+      const res = await fetch("https://jsonplaceholder.typicode.com/posts/1");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json() as Promise<{
+        userId: number;
+        id: number;
+        title: string;
+        body: string;
+      }>;
+    },
+  });
+
+function UserError({ error, reset }: ErrorComponentProps) {
+  return <ErrorComponent error={error} />;
+}
+
+export const Route = createFileRoute("/")({
+  loader: ({ context }) => {
+    context.queryClient.prefetchQuery(postQueryOptions());
+  },
+  component: Home,
+  errorComponent: UserError,
+});
+
+function Home() {
+  const { reset } = useQueryErrorResetBoundary();
+
+  return (
+    <div>
+      <div>
+        <h1 className="font-bold">error free zone</h1>
+      </div>
+      <ErrorBoundary
+        onReset={reset}
+        fallbackRender={({ resetErrorBoundary }) => (
+          <div>
+            <p>Something went wrong</p>
+            <button onClick={resetErrorBoundary}>Retry</button>
+          </div>
+        )}
+      >
+        <Suspense fallback={<p>Loading...</p>}>
+          <Post />
+        </Suspense>
+      </ErrorBoundary>
+    </div>
+  );
+}
+
+function Post() {
+  const { data } = useSuspenseQuery(postQueryOptions());
+
+  return (
+    <div>
+      <h1>{data.title}</h1>
+      <p>{data.body}</p>
+      <small>
+        Post ID: {data.id} — User ID: {data.userId}
+      </small>
+    </div>
+  );
+}

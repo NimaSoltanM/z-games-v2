@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createId } from "@paralleldrive/cuid2";
 
 export const users = pgTable("users", {
@@ -21,7 +21,9 @@ export const otp_codes = pgTable("otp_codes", {
   used_at: timestamp("used_at"),
   attempts: integer("attempts").default(0).notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("otp_codes_phone_idx").on(table.phone),
+]);
 
 export const table = {
   users,
