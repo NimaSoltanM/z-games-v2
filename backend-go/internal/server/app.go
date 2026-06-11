@@ -1,7 +1,14 @@
 package server
 
 import (
+	"context"
+	"os"
+
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/compress"
+	"github.com/gofiber/fiber/v3/middleware/healthcheck"
+	"github.com/gofiber/fiber/v3/middleware/helmet"
+	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/modules/auth"
 )
@@ -11,9 +18,20 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 		ErrorHandler: errorHandler,
 	})
 
-	app.Get("/health", func(c fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
-	})
+	app.Use(recoverer.New(recoverer.Config{
+		EnableStackTrace: os.Getenv("APP_ENV") != "production",
+	}))
+	app.Use(helmet.New())
+	app.Use(compress.New(compress.Config{
+		Level: compress.LevelBestSpeed,
+	}))
+
+	app.Get(healthcheck.LivenessEndpoint, healthcheck.New())
+	app.Get(healthcheck.ReadinessEndpoint, healthcheck.New(healthcheck.Config{
+		Probe: func(c fiber.Ctx) bool {
+			return db.Ping(context.Background()) == nil
+		},
+	}))
 
 	auth.RegisterRoutes(app, db)
 
