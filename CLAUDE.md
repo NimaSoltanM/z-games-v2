@@ -1,5 +1,7 @@
 # z-games-v2
 
+> **New to this project?** Read [`PROJECT.md`](./PROJECT.md) first — it explains the business model, zarfiat tiers, why delivery is manual, and V1 scope.
+
 ## Stack
 
 - **Backend**: Bun + ElysiaJS + Drizzle ORM (PostgreSQL)
@@ -130,3 +132,5 @@ function MyDataComponent() {
 check stuff in .heroui-docs in frontend folder.
 
 <!-- HEROUI-REACT-AGENTS-MD-END -->
+
+the folders are feature/module based. check the files to do that exact patterns

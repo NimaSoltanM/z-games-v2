@@ -38,7 +38,7 @@ export const auth = new Elysia({ prefix: "/auth" })
       return status(401, { message: "نشست منقضی شده است. لطفاً دوباره وارد شوید" });
 
     const [user] = await db
-      .select({ first_name: users.first_name, last_name: users.last_name })
+      .select({ first_name: users.first_name, last_name: users.last_name, role: users.role })
       .from(users)
       .where(eq(users.id, payload.userId as string))
       .limit(1);
@@ -48,6 +48,7 @@ export const auth = new Elysia({ prefix: "/auth" })
       phone: payload.phone as string,
       firstName: user?.first_name ?? null,
       lastName: user?.last_name ?? null,
+      role: user?.role ?? "user",
     };
   })
   .post("/logout", ({ cookie: { auth_token } }) => {

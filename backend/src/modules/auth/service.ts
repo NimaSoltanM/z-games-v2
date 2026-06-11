@@ -130,10 +130,14 @@ export async function register(
   lastName: string,
 ) {
   const phone = normalizePhone(rawPhone);
+  const superAdminPhone = process.env.SUPER_ADMIN_PHONE
+    ? normalizePhone(process.env.SUPER_ADMIN_PHONE)
+    : null;
+  const role = superAdminPhone === phone ? "super_admin" as const : "user" as const;
 
   const [user] = await db
     .insert(users)
-    .values({ phone, first_name: firstName, last_name: lastName })
+    .values({ phone, first_name: firstName, last_name: lastName, role })
     .returning();
 
   return user;
