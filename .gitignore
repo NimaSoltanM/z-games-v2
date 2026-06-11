@@ -4,3 +4,8 @@ node_modules
 .DS_Store
 dist
 *.log
+
+# Go
+backend-go/tmp/
+backend-go/*.exe
+backend-go/*.test

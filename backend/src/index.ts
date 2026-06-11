@@ -1,7 +1,9 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysia/cors";
 import { cron, Patterns } from "@elysia/cron";
+import { staticPlugin } from "@elysia/static";
 import { auth } from "./modules/auth";
+import { gamesRouter } from "./modules/games";
 import { db } from "./database";
 import { otp_codes } from "./database/schema";
 import { lt } from "drizzle-orm";
@@ -40,7 +42,9 @@ const app = new Elysia()
   .onError(({ code, error, status }) => {
     console.error(`[Error] code=${code}`, error);
 
-    if (code === "VALIDATION") return;
+    if (code === "VALIDATION") {
+      return status(422, { message: "اطلاعات ورودی نامعتبر است" });
+    }
 
     if (code === "NOT_FOUND") {
       return status(404, { message: "مسیر مورد نظر یافت نشد" });
@@ -50,7 +54,9 @@ const app = new Elysia()
       message: "خطایی رخ داده است. لطفاً دوباره تلاش کنید",
     });
   })
+  .use(staticPlugin({ assets: "uploads", prefix: "/uploads" }))
   .use(auth)
+  .use(gamesRouter)
   .get("/health", () => ({ status: "ok" }))
   .listen(process.env.PORT ?? 3001);
 

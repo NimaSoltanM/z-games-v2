@@ -1,0 +1,600 @@
+{
+  "info": {
+    "_postman_id": "z-games-api-v1",
+    "name": "z-games API",
+    "description": "Full API collection for z-games backend.\n\nVariables:\n- baseUrl: http://localhost:3001\n- phone: your phone number (e.g. 09019697619)\n- registration_token: auto-captured from verify-otp when user is new\n- game_id: auto-captured from create game\n\nCookies: Postman handles auth_token cookie automatically. Make sure 'Automatically follow redirects' and cookie management are enabled.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001", "type": "string" },
+    { "key": "phone", "value": "09019697619", "type": "string" },
+    { "key": "registration_token", "value": "", "type": "string" },
+    { "key": "game_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "description": "Confirms the server is running."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "1. Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/request-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Sends OTP to the phone. In dev mode, the code is returned in the response as dev_code."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('message exists', () => pm.expect(json.message).to.exist);",
+                  "if (json.dev_code) {",
+                  "  pm.collectionVariables.set('otp_code', json.dev_code);",
+                  "  console.log('OTP code captured:', json.dev_code);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "1b. Request OTP — rate limit check (send 4 times)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/request-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Hit this 4 times quickly — 4th should return 429 rate limited."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('429 on 4th hit', () => {",
+                  "  pm.expect([200, 429]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2a. Verify OTP — existing user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["auth", "verify-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"code\": \"{{otp_code}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Use this if the account already exists. Sets auth_token cookie. Response: { status: 'existing' }."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('existing status', () => pm.expect(json.status).to.eql('existing'));",
+                  "console.log('auth_token cookie should be set by server now');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2b. Verify OTP — new user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["auth", "verify-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"code\": \"{{otp_code}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Use this for a brand new phone number. Returns registration_token. Does NOT set auth cookie yet."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.status === 'new' && json.registration_token) {",
+                  "  pm.collectionVariables.set('registration_token', json.registration_token);",
+                  "  console.log('registration_token captured');",
+                  "}",
+                  "pm.test('has status field', () => pm.expect(json.status).to.exist);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2c. Verify OTP — wrong code",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["auth", "verify-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"code\": \"00000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Should return 400. Enter a wrong code 3 times and the OTP gets burned."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Register (new user only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{registration_token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"تست\",\n  \"last_name\": \"کاربر\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Requires Bearer registration_token from step 2b. Sets auth_token cookie on success."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success message', () => pm.expect(pm.response.json().message).to.exist);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Get Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] },
+            "description": "Returns current user info including role. Requires auth_token cookie."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('has userId', () => pm.expect(json.userId).to.exist);",
+                  "pm.test('has role', () => pm.expect(json.role).to.be.oneOf(['user', 'admin', 'super_admin']));",
+                  "console.log('role:', json.role, '| name:', json.firstName, json.lastName);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "4b. Get Me — unauthenticated",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] },
+            "description": "Call this after logout or without a cookie. Should return 401."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] },
+            "description": "Clears the auth_token cookie."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Games — Public",
+      "item": [
+        {
+          "name": "List Active Games",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/games", "host": ["{{baseUrl}}"], "path": ["games"] },
+            "description": "Returns only active games + current exchange rate. No auth required."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('has games array', () => pm.expect(json.games).to.be.an('array'));",
+                  "pm.test('has exchange_rate', () => pm.expect(json).to.have.property('exchange_rate'));",
+                  "if (json.games.length > 0) {",
+                  "  pm.collectionVariables.set('game_id', json.games[0].id);",
+                  "  console.log('First game id captured:', json.games[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Game by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/games/{{game_id}}", "host": ["{{baseUrl}}"], "path": ["games", "{{game_id}}"] },
+            "description": "Returns a single game + exchange rate. game_id auto-set from List Active Games test."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('has game', () => pm.expect(json.game).to.exist);",
+                  "pm.test('has id', () => pm.expect(json.game.id).to.exist);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Game — not found",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/games/nonexistent-id", "host": ["{{baseUrl}}"], "path": ["games", "nonexistent-id"] },
+            "description": "Should return 404 with Persian error message."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Persian message', () => pm.expect(pm.response.json().message).to.exist);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Games — Admin",
+      "description": "All routes require admin or super_admin role. Must be logged in.",
+      "item": [
+        {
+          "name": "Get Exchange Rate",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/games/admin/exchange-rate", "host": ["{{baseUrl}}"], "path": ["games", "admin", "exchange-rate"] },
+            "description": "Returns current USD/Toman rate. Requires admin+."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Exchange Rate",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/games/admin/exchange-rate", "host": ["{{baseUrl}}"], "path": ["games", "admin", "exchange-rate"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usd_to_toman\": 95000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Sets the USD/Toman rate used for dynamic pricing. Upserts (safe to call multiple times)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('usd_to_toman saved', () => pm.expect(pm.response.json().usd_to_toman).to.eql(95000));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List All Games (admin)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/games/admin/all", "host": ["{{baseUrl}}"], "path": ["games", "admin", "all"] },
+            "description": "Returns ALL games including inactive ones. Admin+ only."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has games array', () => pm.expect(pm.response.json().games).to.be.an('array'));",
+                  "if (pm.response.json().games.length > 0) {",
+                  "  pm.collectionVariables.set('game_id', pm.response.json().games[0].id);",
+                  "  console.log('game_id set to:', pm.response.json().games[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Game — dynamic pricing",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/games/admin", "host": ["{{baseUrl}}"], "path": ["games", "admin"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Bloodborne", "type": "text" },
+                { "key": "platform", "value": "ps4", "type": "text" },
+                { "key": "price_mode", "value": "dynamic", "type": "text" },
+                { "key": "z2_price_usd", "value": "4.99", "type": "text" },
+                { "key": "z3_price_usd", "value": "2.99", "type": "text" },
+                { "key": "active", "value": "true", "type": "text" }
+              ]
+            },
+            "description": "Creates a game with dynamic (USD-based) pricing. Cover image is optional — leave the file field empty or remove it."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('has id', () => pm.expect(json.id).to.exist);",
+                  "pm.collectionVariables.set('game_id', json.id);",
+                  "console.log('new game_id:', json.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Game — fixed pricing",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/games/admin", "host": ["{{baseUrl}}"], "path": ["games", "admin"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "God of War Ragnarok", "type": "text" },
+                { "key": "platform", "value": "ps5", "type": "text" },
+                { "key": "price_mode", "value": "fixed", "type": "text" },
+                { "key": "z2_price_toman", "value": "450000", "type": "text" },
+                { "key": "z3_price_toman", "value": "250000", "type": "text" },
+                { "key": "z2_slots", "value": "1", "type": "text" },
+                { "key": "z3_slots", "value": "2", "type": "text" },
+                { "key": "active", "value": "true", "type": "text" }
+              ]
+            },
+            "description": "Creates a game with fixed Toman pricing. Includes slot counts."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('game_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Game",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/games/admin/{{game_id}}", "host": ["{{baseUrl}}"], "path": ["games", "admin", "{{game_id}}"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Bloodborne — Updated", "type": "text" },
+                { "key": "active", "value": "false", "type": "text" }
+              ]
+            },
+            "description": "Partial update — only send fields you want to change. game_id auto-set from previous requests."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('name updated', () => pm.expect(pm.response.json().name).to.include('Updated'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Game",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/games/admin/{{game_id}}", "host": ["{{baseUrl}}"], "path": ["games", "admin", "{{game_id}}"] },
+            "description": "Permanently deletes a game. game_id auto-set from previous requests."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Persian message', () => pm.expect(pm.response.json().message).to.exist);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin route — user role blocked",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/games/admin/all", "host": ["{{baseUrl}}"], "path": ["games", "admin", "all"] },
+            "description": "Log in as a regular user first, then hit this. Should return 403."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 for regular user', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin route — unauthenticated",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/games/admin/all", "host": ["{{baseUrl}}"], "path": ["games", "admin", "all"] },
+            "description": "Call without any cookie. Should return 401."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 unauthenticated', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

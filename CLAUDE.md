@@ -4,18 +4,19 @@
 
 ## Stack
 
-- **Backend**: Bun + ElysiaJS + Drizzle ORM (PostgreSQL)
+- **Backend (Go)**: Fiber v3 + pgx + sqlc (PostgreSQL)
+- **Backend (JS, legacy)**: Bun + ElysiaJS + Drizzle ORM (PostgreSQL) — kept for reference, not actively developed
 - **Frontend**: React 19 + TanStack Start + TanStack Router + TanStack Query + HeroUI + Tailwind CSS v4
 
 ---
 
 ## MANDATORY: Always read docs before coding
 
-Before writing or editing ANY code that touches ElysiaJS, TanStack (Router, Query, Start), HeroUI, or Drizzle — you MUST read the relevant local doc file first. No exceptions, even if you already know the API.
+Before writing or editing ANY code that touches Fiber, TanStack (Router, Query, Start), HeroUI, or Drizzle — you MUST read the relevant local doc file first. No exceptions, even if you already know the API.
 
 | Library         | Doc file                     |
 | --------------- | ---------------------------- |
-| ElysiaJS        | `docs/elysia/llms-full.txt`  |
+| Fiber v3        | `docs/fiber/llms-full.md`    |
 | TanStack Router | `docs/tanstack/router.md`    |
 | TanStack Query  | `docs/tanstack/query.md`     |
 | TanStack Start  | `docs/tanstack/start.md`     |
@@ -23,6 +24,26 @@ Before writing or editing ANY code that touches ElysiaJS, TanStack (Router, Quer
 | Drizzle ORM     | `docs/drizzle/llms-full.txt` |
 
 Do not rely on training knowledge for these libraries. Always verify the exact API, hook name, import path, and option shape from the doc file before using it.
+
+---
+
+## MANDATORY: Fiber middleware — check before coding
+
+Fiber v3 has built-in middleware that may already solve what you're about to write manually. Before implementing any cross-cutting concern (auth, logging, CORS, rate limiting, compression, etc.), check this list first.
+
+**Available middleware:**
+
+```
+adaptor       basicauth     cache         compress      cors
+csrf          earlydata     encryptcookie envvar        etag
+expvar        favicon       healthcheck   helmet        hostauthorization
+idempotency   keyauth       limiter       logger        paginate
+pprof         proxy         recover       redirect      requestid
+responsetime  rewrite       session       skip          sse
+static        timeout
+```
+
+Full docs for each middleware are NOT included in the local doc file. **If you want to use a middleware from this list, ask the user to provide its docs before writing any code that depends on it.**
 
 ---
 
@@ -36,14 +57,14 @@ Any message returned to the client inside an HTTP response (e.g. `status(400, { 
 **Developer-facing errors → English**
 Anything thrown as an exception, written to logs, or used as an internal error code (e.g. `throw new Error(...)`, `throw new AuthError(...)`, `console.error(...)`) must be in English.
 
-```ts
+```go
 // ✅ correct
-throw new AuthError('OTP_INVALID'); // English — developer sees this
-return status(400, { message: 'کد تأیید اشتباه است' }); // Persian — user sees this
+return fmt.Errorf("OTP_INVALID: code mismatch") // English — developer/logs
+return c.Status(400).JSON(fiber.Map{"message": "کد تأیید اشتباه است"}) // Persian — user sees this
 
 // ❌ wrong
-throw new AuthError('کد اشتباه است');
-return status(400, { message: 'OTP is invalid' });
+return fmt.Errorf("کد اشتباه است")
+return c.Status(400).JSON(fiber.Map{"message": "OTP is invalid"})
 ```
 
 Never mix the two. If you're writing a new error, ask: will a user read this in the UI, or will a developer read it in logs/code? Answer that, then pick the language.

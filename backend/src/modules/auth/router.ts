@@ -43,12 +43,14 @@ export const auth = new Elysia({ prefix: "/auth" })
       .where(eq(users.id, payload.userId as string))
       .limit(1);
 
+    if (!user) return status(401, { message: "نشست منقضی شده است. لطفاً دوباره وارد شوید" });
+
     return {
       userId: payload.userId as string,
       phone: payload.phone as string,
-      firstName: user?.first_name ?? null,
-      lastName: user?.last_name ?? null,
-      role: user?.role ?? "user",
+      firstName: user.first_name ?? null,
+      lastName: user.last_name ?? null,
+      role: user.role,
     };
   })
   .post("/logout", ({ cookie: { auth_token } }) => {
