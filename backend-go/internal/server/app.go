@@ -11,6 +11,7 @@ import (
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/modules/auth"
+	"github.com/soltanmohammdi/z-games/internal/modules/games"
 )
 
 func NewApp(db *pgxpool.Pool) *fiber.App {
@@ -34,6 +35,7 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 	}))
 
 	auth.RegisterRoutes(app, db)
+	games.RegisterRoutes(app, db)
 
 	return app
 }
