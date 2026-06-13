@@ -1,8 +1,15 @@
 import { apiFetch } from "#/shared/lib/api-client";
-import type { GamesListResponse, GameDetailResponse, Game } from "./types";
+import type { GamesListResponse, GameDetailResponse, Game, GamesParams, PaginatedGamesResponse } from "./types";
 
-export function getGames() {
-  return apiFetch<GamesListResponse>("/games");
+export function getGames(params: GamesParams = {}) {
+  const q = new URLSearchParams();
+  if (params.page) q.set("page", String(params.page));
+  if (params.platform) q.set("platform", params.platform);
+  if (params.price_mode) q.set("price_mode", params.price_mode);
+  if (params.search) q.set("search", params.search);
+  if (params.sort) q.set("sort", params.sort);
+  const qs = q.toString();
+  return apiFetch<PaginatedGamesResponse>(`/games${qs ? `?${qs}` : ""}`);
 }
 
 export function getGame(id: string) {

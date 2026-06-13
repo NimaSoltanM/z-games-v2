@@ -30,9 +30,28 @@ export type ExchangeRate = {
   updated_at: string;
 } | null;
 
+export type GamesParams = {
+  page?: number;
+  platform?: string;
+  price_mode?: string;
+  search?: string;
+  sort?: string;
+};
+
 export type GamesListResponse = {
   games: Game[];
   exchange_rate: ExchangeRate;
+};
+
+export type PaginatedGamesResponse = {
+  games: Game[];
+  exchange_rate: ExchangeRate;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
 };
 
 export type GameDetailResponse = {

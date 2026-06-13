@@ -28,7 +28,7 @@ func (h *handler) listGamesHandler(c fiber.Ctx) error {
 
 	filter := listFilter{
 		platform:   strings.TrimSpace(c.Query("platform")),
-		priceMode:  strings.TrimSpace(c.Query("price_mode")),
+		zarfiat:    strings.TrimSpace(c.Query("zarfiat")),
 		search:     strings.TrimSpace(c.Query("search")),
 		onlyActive: true,
 	}

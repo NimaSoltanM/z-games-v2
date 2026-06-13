@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/healthcheck"
 	"github.com/gofiber/fiber/v3/middleware/helmet"
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
@@ -21,6 +22,18 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 
 	app.Use(recoverer.New(recoverer.Config{
 		EnableStackTrace: os.Getenv("APP_ENV") != "production",
+	}))
+	app.Use(cors.New(cors.Config{
+		AllowOriginsFunc: func(origin string) bool {
+			if os.Getenv("APP_ENV") == "production" {
+				return origin == os.Getenv("FRONTEND_URL")
+			}
+			return true
+		},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           3600,
 	}))
 	app.Use(helmet.New())
 	app.Use(compress.New(compress.Config{

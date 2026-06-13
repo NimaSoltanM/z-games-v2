@@ -2,6 +2,16 @@
 
 > **New to this project?** Read [`PROJECT.md`](./PROJECT.md) first — it explains the business model, zarfiat tiers, why delivery is manual, and V1 scope.
 
+## THIS IS A PRODUCTION PROJECT
+
+This is a real business the owner earns a living from — not a side project or a learning exercise. Every line of code ships to real paying customers.
+
+**What this means:**
+- Write production-quality code only. No TODOs, no shortcuts, no "we'll fix this later."
+- Safe and correct over clever. If something can go wrong for a user, it must be handled.
+- No bloat. Don't add abstractions, configs, or features that aren't asked for.
+- When in doubt about a business decision (pricing, wording, flow), ask — don't guess.
+
 ## Stack
 
 - **Backend (Go)**: Fiber v3 + pgx + sqlc (PostgreSQL)
@@ -155,3 +165,9 @@ check stuff in .heroui-docs in frontend folder.
 <!-- HEROUI-REACT-AGENTS-MD-END -->
 
 the folders are feature/module based. check the files to do that exact patterns
+
+---
+
+## TODO / Future Work
+
+- **View transitions on back navigation**: `router.history.back()` bypasses TanStack Router's `navigate()` so `viewTransition: true` doesn't apply. The nuclear option is `defaultViewTransition: true` on the router (in `front-shadcn/src/router.tsx`) which wraps every navigation globally — but that adds overhead to filter/sort/pagination changes. Pending a cleaner per-call solution.

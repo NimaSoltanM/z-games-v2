@@ -13,6 +13,7 @@ function HomePage() {
       </p>
       <Link
         to="/games"
+        search={{ page: 1, platform: "", price_mode: "", search: "", sort: "-created_at" }}
         className="px-6 py-3 bg-primary text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity">
         مشاهده بازی‌ها
       </Link>
