@@ -6,6 +6,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ModeToggle } from "@/components/mode-toggle"
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools"
 import type { QueryClient } from "@tanstack/react-query"
+import { useSelector } from "@tanstack/react-store"
+import { ShoppingCart } from "lucide-react"
+import { cartStore } from "@/features/cart"
 
 import appCss from "../styles.css?url"
 
@@ -29,6 +32,25 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   ),
   shellComponent: RootDocument,
 })
+
+function CartBadge() {
+  const count = useSelector(cartStore, (s) =>
+    s.items.reduce((sum, i) => sum + i.quantity, 0),
+  )
+  return (
+    <Link
+      to="/cart"
+      className="relative text-muted-foreground transition-colors hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+    >
+      <ShoppingCart className="size-5" />
+      {count > 0 && (
+        <span className="absolute -top-1.5 -left-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
@@ -57,6 +79,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                   >
                     ورود
                   </Link>
+                  <CartBadge />
                   <ModeToggle />
                 </nav>
               </div>

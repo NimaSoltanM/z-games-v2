@@ -106,3 +106,23 @@ export const ZARFIAT_LABEL: Record<Zarfiat, string> = {
 
 export const ZARFIATS: Zarfiat[] = ["z1", "z2", "z3"]
 export const CONSOLE_PLATFORMS: ConsolePlatform[] = ["ps4", "ps5"]
+
+// Real PlayStation brand colors
+export const PLATFORM_BADGE_CLASS: Record<Platform, string> = {
+  ps4: "bg-blue-600/15 text-blue-400 border-blue-600/30",
+  ps5: "bg-white/8 text-zinc-200 border-white/15",
+  ps4_ps5: "bg-gradient-to-r from-blue-600/15 to-white/8 text-blue-300 border-blue-400/20",
+}
+
+// Used for glow effects (detail page cover)
+export const PLATFORM_GLOW_CLASS: Record<Platform, string> = {
+  ps4: "bg-blue-600",
+  ps5: "bg-white",
+  ps4_ps5: "bg-blue-400",
+}
+
+// Used for accent borders (cart items)
+export const PLATFORM_ACCENT_CLASS: Record<ConsolePlatform, string> = {
+  ps4: "border-r-blue-500/70",
+  ps5: "border-r-white/25",
+}

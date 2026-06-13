@@ -1,12 +1,9 @@
 import { createFileRoute, ErrorComponent, useRouter } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
-import {
-  useSuspenseQuery,
-  useQueryErrorResetBoundary,
-} from "@tanstack/react-query"
+import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { ArrowRight, ExternalLink } from "lucide-react"
+import { ArrowRight, ExternalLink, ShoppingCart } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,10 +14,16 @@ import {
   calcPrice,
   formatToman,
   PLATFORM_LABEL,
+  PLATFORM_BADGE_CLASS,
+  PLATFORM_GLOW_CLASS,
   ZARFIATS,
   ZARFIAT_LABEL,
   type ConsolePlatform,
+  type Zarfiat,
+  type Game,
 } from "@/features/games"
+import { addToCart, cartStore } from "@/features/cart"
+import { useSelector } from "@tanstack/react-store"
 
 function GameError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -41,20 +44,19 @@ function GameDetailPage() {
     if (window.history.length > 1) {
       router.history.back()
     } else {
-      router.navigate({ to: "/games", search: { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" } })
+      router.navigate({
+        to: "/games",
+        search: { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" },
+      })
     }
   }
 
   return (
-    <div className="relative min-h-screen bg-background bg-grid-lines">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute right-1/4 -bottom-32 h-64 w-64 rounded-full bg-violet-500/8 blur-3xl" />
-      </div>
-      <div className="relative mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="relative min-h-screen bg-background bg-grid-lines overflow-hidden">
+      <div className="relative z-10 mx-auto max-w-4xl px-4 pt-10 pb-16 sm:px-6 lg:px-8">
         <button
           onClick={goBack}
-          className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-6 sm:mb-10 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowRight className="size-4" />
           بازگشت به لیست
@@ -90,43 +92,40 @@ function GameDetail() {
     ? `${import.meta.env.VITE_API_URL ?? "http://localhost:3002"}${game.cover_image}`
     : `https://picsum.photos/seed/${game.id}/300/400`
 
-  const platformClass =
-    game.platform === "ps4"
-      ? "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400"
-      : game.platform === "ps5"
-        ? "bg-violet-500/10 text-violet-600 border-violet-500/20 dark:text-violet-400"
-        : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:text-indigo-400"
+  const platformGlow = PLATFORM_GLOW_CLASS[game.platform]
+  const platformBadgeClass = PLATFORM_BADGE_CLASS[game.platform]
 
   return (
-    <div className="flex flex-col gap-8 sm:flex-row sm:gap-12">
-      {/* Cover — view transition target */}
-      <div className="shrink-0 sm:w-64">
+    <div className="flex flex-col gap-10 sm:flex-row sm:gap-12">
+      {/* Cover with platform glow — the signature detail */}
+      <div className="relative w-44 shrink-0 self-center sm:self-auto sm:w-56">
+        <div
+          className={`absolute inset-4 rounded-2xl blur-2xl opacity-25 ${platformGlow}`}
+        />
         <img
           src={imgSrc}
           alt={game.name}
-          className="aspect-3/4 w-full rounded-2xl object-cover shadow-2xl shadow-black/30"
+          className="relative aspect-3/4 w-full rounded-2xl object-cover shadow-2xl shadow-black/40"
           style={{ viewTransitionName: `game-cover-${game.id}` }}
         />
       </div>
 
       {/* Info */}
-      <div className="flex flex-1 flex-col gap-5">
+      <div className="flex flex-1 flex-col gap-6">
         <div className="space-y-2">
-          <Badge
-            variant="secondary"
-            className={`border text-xs ${platformClass}`}
-          >
+          <Badge variant="secondary" className={`border text-xs ${platformBadgeClass}`}>
             {PLATFORM_LABEL[game.platform]}
           </Badge>
-          <h1 className="text-2xl leading-snug font-bold">{game.name}</h1>
+          <h1 className="text-2xl font-bold leading-snug">{game.name}</h1>
         </div>
 
         <Separator />
 
-        {/* Pricing */}
         {game.prices.length > 0 && (
-          <div className="space-y-4">
-            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">قیمت</p>
+          <div className="space-y-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              قیمت
+            </p>
             {platforms.map((pl) => {
               const entries = ZARFIATS.map((z) => ({
                 z,
@@ -137,14 +136,20 @@ function GameDetail() {
               return (
                 <div key={pl} className="space-y-2">
                   {platforms.length > 1 && (
-                    <p className="text-xs font-medium text-muted-foreground">{pl.toUpperCase()}</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {pl.toUpperCase()}
+                    </p>
                   )}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {entries.map(({ z, label, price }) => (
-                      <div key={z} className="rounded-xl border border-border/60 bg-background/60 p-4 backdrop-blur-sm">
-                        <p className="mb-1 text-xs text-muted-foreground">{label}</p>
-                        <p className="text-sm font-bold text-primary">{formatToman(price)}</p>
-                      </div>
+                      <PriceTile
+                        key={z}
+                        game={game}
+                        platform={pl}
+                        zarfiat={z}
+                        label={label}
+                        price={price!}
+                      />
                     ))}
                   </div>
                 </div>
@@ -153,10 +158,9 @@ function GameDetail() {
           </div>
         )}
 
-        {/* Links */}
         {game.links.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               لینک‌ها
             </p>
             <div className="flex flex-wrap gap-2">
@@ -180,17 +184,64 @@ function GameDetail() {
   )
 }
 
+function PriceTile({
+  game,
+  platform,
+  zarfiat,
+  label,
+  price,
+}: {
+  game: Game
+  platform: ConsolePlatform
+  zarfiat: Zarfiat
+  label: string
+  price: number
+}) {
+  const inCart = useSelector(
+    cartStore,
+    (s) =>
+      s.items.find(
+        (i) => i.gameId === game.id && i.platform === platform && i.zarfiat === zarfiat,
+      )?.quantity ?? 0,
+  )
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/60 p-3 backdrop-blur-sm space-y-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-bold text-primary">{formatToman(price)}</p>
+      <Button
+        size="sm"
+        variant={inCart > 0 ? "secondary" : "outline"}
+        className="w-full h-8 text-xs gap-1.5"
+        onClick={() =>
+          addToCart({
+            gameId: game.id,
+            gameName: game.name,
+            coverImage: game.cover_image,
+            platform,
+            zarfiat,
+          })
+        }
+      >
+        <ShoppingCart className="size-3" />
+        {inCart > 0 ? `در سبد (${inCart})` : "افزودن"}
+      </Button>
+    </div>
+  )
+}
+
 function GameDetailSkeleton() {
   return (
-    <div className="flex flex-col gap-8 sm:flex-row sm:gap-12">
-      <Skeleton className="aspect-3/4 w-full rounded-2xl sm:w-64" />
-      <div className="flex flex-1 flex-col gap-4">
-        <Skeleton className="h-5 w-20 rounded-full" />
+    <div className="flex flex-col gap-10 sm:flex-row sm:gap-12">
+      <Skeleton className="aspect-3/4 w-44 self-center rounded-2xl sm:self-auto sm:w-56" />
+      <div className="flex flex-1 flex-col gap-5">
+        <Skeleton className="h-5 w-16 rounded-full" />
         <Skeleton className="h-8 w-3/4" />
         <Skeleton className="h-px w-full" />
-        <div className="grid grid-cols-2 gap-3">
-          <Skeleton className="h-20 rounded-xl" />
-          <Skeleton className="h-20 rounded-xl" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
         </div>
       </div>
     </div>

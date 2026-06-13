@@ -168,6 +168,30 @@ the folders are feature/module based. check the files to do that exact patterns
 
 ---
 
+## Client-side state: TanStack Store
+
+This project has `@tanstack/react-store` installed. Before reaching for `useState` + prop drilling or a context for shared client state, consider using this first.
+
+**When to use it:** state that is client-only (not server/URL), shared across multiple components or pages, and needs to survive navigation — e.g. cart, draft forms, UI panels.
+
+**The entire API:**
+```ts
+import { createStore, useSelector } from "@tanstack/react-store"
+
+// Define state outside React — module level
+const myStore = createStore({ count: 0 })
+
+// Update (always immutable — spread old state)
+myStore.setState((s) => ({ ...s, count: s.count + 1 }))
+
+// Subscribe to a slice — only re-renders when that slice changes
+const count = useSelector(myStore, (s) => s.count)
+```
+
+Doc file: `docs/tanstack/store.md`
+
+---
+
 ## TODO / Future Work
 
 - **View transitions on back navigation**: `router.history.back()` bypasses TanStack Router's `navigate()` so `viewTransition: true` doesn't apply. The nuclear option is `defaultViewTransition: true` on the router (in `front-shadcn/src/router.tsx`) which wraps every navigation globally — but that adds overhead to filter/sort/pagination changes. Pending a cleaner per-call solution.

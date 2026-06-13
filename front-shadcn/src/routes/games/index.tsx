@@ -34,6 +34,7 @@ import {
   cheapestPrice,
   formatToman,
   PLATFORM_LABEL,
+  PLATFORM_BADGE_CLASS,
 } from "@/features/games"
 
 const SORT_OPTIONS = [
@@ -76,7 +77,7 @@ export const Route = createFileRoute("/games/")({
   errorComponent: GamesError,
 })
 
-function FilterSidebar() {
+function FilterContent() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: "/games/" })
 
@@ -87,14 +88,13 @@ function FilterSidebar() {
   const hasActiveFilters = search.platform || search.zarfiat
 
   return (
-    <aside className="w-56 shrink-0 space-y-1 rounded-xl border border-border/50 bg-background/60 backdrop-blur-md p-4 sticky top-24 h-fit">
-      <div className="flex items-center justify-between pb-2">
-        <span className="text-sm font-semibold">فیلترها</span>
-        {hasActiveFilters && (
+    <div className="space-y-1">
+      {hasActiveFilters && (
+        <div className="pb-2">
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 gap-1 text-xs text-muted-foreground"
+            className="h-7 w-full gap-1 text-xs text-muted-foreground justify-start"
             onClick={() =>
               navigate({
                 search: (prev) => ({ ...prev, platform: "", zarfiat: "", page: 1 }),
@@ -104,9 +104,8 @@ function FilterSidebar() {
             <X className="size-3" />
             حذف فیلترها
           </Button>
-        )}
-      </div>
-      <Separator />
+        </div>
+      )}
       <Accordion defaultValue={["platform", "zarfiat"]} multiple>
         <AccordionItem value="platform">
           <AccordionTrigger>کنسول</AccordionTrigger>
@@ -149,6 +148,16 @@ function FilterSidebar() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+    </div>
+  )
+}
+
+function FilterSidebar() {
+  return (
+    <aside className="w-56 shrink-0 rounded-xl border border-border/50 bg-background/60 backdrop-blur-md p-4 sticky top-24 h-fit">
+      <p className="text-sm font-semibold pb-2">فیلترها</p>
+      <Separator className="mb-1" />
+      <FilterContent />
     </aside>
   )
 }
@@ -180,7 +189,7 @@ function GamesPage() {
       </div>
 
       {/* Top bar */}
-      <div className="relative border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-10 after:absolute after:bottom-0 after:inset-x-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-primary/40 after:to-transparent">
+      <div className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:bottom-0 after:inset-x-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 py-3">
             <Sheet>
@@ -188,14 +197,14 @@ function GamesPage() {
                 render={<Button variant="outline" size="sm" className="shrink-0 lg:hidden" />}
               >
                 <SlidersHorizontal className="size-4" />
-                <span className="mr-1.5">فیلترها</span>
+                <span className="mr-1.5 hidden sm:inline">فیلترها</span>
               </SheetTrigger>
               <SheetContent side="right" className="w-72 overflow-y-auto p-4">
                 <SheetHeader>
                   <SheetTitle>فیلترها</SheetTitle>
                 </SheetHeader>
                 <div className="mt-4">
-                  <FilterSidebar />
+                  <FilterContent />
                 </div>
               </SheetContent>
             </Sheet>
@@ -208,7 +217,7 @@ function GamesPage() {
             />
           </div>
           <div className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-none">
-            <span className="shrink-0 text-xs text-muted-foreground">مرتب‌سازی:</span>
+            <span className="shrink-0 text-xs text-muted-foreground hidden sm:inline">مرتب‌سازی:</span>
             <ToggleGroup
               value={[search.sort]}
               onValueChange={(v) => {
@@ -300,13 +309,7 @@ function GamesContent() {
                 <div className="p-3 space-y-2">
                   <Badge
                     variant="secondary"
-                    className={`text-xs px-2 py-0.5 border ${
-                      game.platform === "ps4"
-                        ? "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400"
-                        : game.platform === "ps5"
-                          ? "bg-violet-500/10 text-violet-600 border-violet-500/20 dark:text-violet-400"
-                          : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:text-indigo-400"
-                    }`}
+                    className={`text-xs px-2 py-0.5 border ${PLATFORM_BADGE_CLASS[game.platform]}`}
                   >
                     {PLATFORM_LABEL[game.platform]}
                   </Badge>
@@ -333,21 +336,31 @@ function GamesContent() {
           >
             قبلی
           </Button>
-          {getPages(page, total_pages).map((p, i) =>
-            p === "ellipsis" ? (
-              <span key={`e-${i}`} className="px-1 text-muted-foreground text-sm">...</span>
-            ) : (
-              <Button
-                key={p}
-                variant={p === page ? "default" : "outline"}
-                size="sm"
-                className="min-w-9"
-                onClick={() => navigate({ search: (prev) => ({ ...prev, page: p }) })}
-              >
-                {p}
-              </Button>
-            )
-          )}
+
+          {/* Full page numbers on sm+ */}
+          <div className="hidden sm:flex items-center gap-1">
+            {getPages(page, total_pages).map((p, i) =>
+              p === "ellipsis" ? (
+                <span key={`e-${i}`} className="px-1 text-muted-foreground text-sm">...</span>
+              ) : (
+                <Button
+                  key={p}
+                  variant={p === page ? "default" : "outline"}
+                  size="sm"
+                  className="min-w-9"
+                  onClick={() => navigate({ search: (prev) => ({ ...prev, page: p }) })}
+                >
+                  {p}
+                </Button>
+              )
+            )}
+          </div>
+
+          {/* Compact indicator on mobile */}
+          <span className="sm:hidden px-3 text-sm text-muted-foreground tabular-nums">
+            {page} / {total_pages}
+          </span>
+
           <Button
             variant="outline"
             size="sm"

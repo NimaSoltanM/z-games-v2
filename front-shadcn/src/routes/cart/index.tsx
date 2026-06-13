@@ -1,0 +1,315 @@
+import { createFileRoute, ErrorComponent, Link } from "@tanstack/react-router"
+import type { ErrorComponentProps } from "@tanstack/react-router"
+import {
+  useSuspenseQuery,
+  useQueries,
+  useQueryErrorResetBoundary,
+} from "@tanstack/react-query"
+import { Suspense } from "react"
+import { ErrorBoundary } from "react-error-boundary"
+import { useSelector } from "@tanstack/react-store"
+import { Minus, Plus, Trash2, ShoppingCart, AlertTriangle } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  gameQueryOptions,
+  calcPrice,
+  formatToman,
+  PLATFORM_LABEL,
+  PLATFORM_BADGE_CLASS,
+  PLATFORM_ACCENT_CLASS,
+  ZARFIAT_LABEL,
+} from "@/features/games"
+import { cartStore, removeFromCart, setQuantity, clearCart, type CartItem } from "@/features/cart"
+
+function CartError({ error }: ErrorComponentProps) {
+  return <ErrorComponent error={error} />
+}
+
+export const Route = createFileRoute("/cart/")({
+  component: CartPage,
+  errorComponent: CartError,
+})
+
+function CartPage() {
+  const { reset } = useQueryErrorResetBoundary()
+  const items = useSelector(cartStore, (s) => s.items)
+
+  if (items.length === 0) {
+    return (
+      <div className="flex min-h-[calc(100vh-57px)] flex-col items-center justify-center gap-5 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm">
+          <ShoppingCart className="size-8 text-muted-foreground/40" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-base font-semibold">سبد خرید خالی است</p>
+          <p className="text-sm text-muted-foreground">بازی مورد نظرت رو انتخاب کن</p>
+        </div>
+        <Link to="/games" search={{ page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" }}>
+          <Button>مشاهده بازی‌ها</Button>
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative min-h-screen bg-background bg-grid-lines">
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">سبد خرید</h1>
+          <button
+            onClick={() => clearCart()}
+            className="text-xs text-muted-foreground transition-colors hover:text-destructive"
+          >
+            حذف همه
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Items list — extra bottom padding on mobile so items aren't hidden behind sticky bar */}
+          <div className="space-y-3 pb-24 lg:pb-0 lg:col-span-2">
+            {items.map((item) => (
+              <ErrorBoundary
+                key={`${item.gameId}:${item.platform}:${item.zarfiat}`}
+                onReset={reset}
+                fallbackRender={({ resetErrorBoundary }) => (
+                  <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                    <p className="text-sm text-destructive">خطا در بارگذاری این بازی</p>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={resetErrorBoundary}>
+                        تلاش مجدد
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => removeFromCart(item.gameId, item.platform, item.zarfiat)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              >
+                <Suspense fallback={<CartItemSkeleton />}>
+                  <CartItemRow item={item} />
+                </Suspense>
+              </ErrorBoundary>
+            ))}
+          </div>
+
+          {/* Summary sidebar — desktop only */}
+          <div className="hidden lg:block lg:col-span-1">
+            <CartSummary items={items} />
+          </div>
+        </div>
+
+        {/* Sticky bottom bar — mobile only */}
+        <CartMobileBar items={items} />
+      </div>
+    </div>
+  )
+}
+
+function CartItemRow({ item }: { item: CartItem }) {
+  const { data } = useSuspenseQuery(gameQueryOptions(item.gameId))
+  const { game, exchange_rate } = data
+
+  const priceEntry = game.prices.find(
+    (p) => p.platform === item.platform && p.zarfiat === item.zarfiat,
+  )
+  const isValid = game.active && !!priceEntry
+  const currentPrice = isValid
+    ? calcPrice(game, item.platform, item.zarfiat, exchange_rate)
+    : null
+
+  const imgSrc = game.cover_image
+    ? `${import.meta.env.VITE_API_URL ?? "http://localhost:3002"}${game.cover_image}`
+    : `https://picsum.photos/seed/${game.id}/300/400`
+
+  const accentClass = PLATFORM_ACCENT_CLASS[item.platform]
+
+  return (
+    <div
+      className={`rounded-xl border border-border/60 border-r-2 bg-card/75 backdrop-blur-sm p-4 transition-colors ${
+        isValid ? accentClass : "border-r-destructive/50 bg-destructive/5"
+      }`}
+    >
+      {!isValid && (
+        <div className="mb-3 flex items-center gap-2 text-xs text-destructive">
+          <AlertTriangle className="size-3.5 shrink-0" />
+          <span>
+            {!game.active ? "این بازی دیگر موجود نیست" : "این ظرفیت حذف شده است"}
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-center gap-4">
+        <img
+          src={imgSrc}
+          alt={game.name}
+          className={`h-16 w-12 shrink-0 rounded-lg object-cover ${!isValid ? "opacity-40" : ""}`}
+        />
+
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <p className="truncate text-sm font-medium">{game.name}</p>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className={`border text-xs ${PLATFORM_BADGE_CLASS[item.platform]}`}
+            >
+              {PLATFORM_LABEL[item.platform]}
+            </Badge>
+            <span className="text-xs text-muted-foreground">{ZARFIAT_LABEL[item.zarfiat]}</span>
+          </div>
+          {isValid && currentPrice !== null && (
+            <p className="text-sm font-semibold text-primary">{formatToman(currentPrice)}</p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isValid && (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() =>
+                  setQuantity(item.gameId, item.platform, item.zarfiat, item.quantity - 1)
+                }
+              >
+                <Minus className="size-3" />
+              </Button>
+              <span className="w-6 text-center text-sm tabular-nums font-medium">
+                {item.quantity}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() =>
+                  setQuantity(item.gameId, item.platform, item.zarfiat, item.quantity + 1)
+                }
+              >
+                <Plus className="size-3" />
+              </Button>
+            </>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={() => removeFromCart(item.gameId, item.platform, item.zarfiat)}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function useCartTotal(items: CartItem[]) {
+  const results = useQueries({
+    queries: items.map((item) => gameQueryOptions(item.gameId)),
+  })
+
+  const totalQuantity = items.reduce((s, i) => s + i.quantity, 0)
+  const allLoaded = results.every((r) => r.isSuccess)
+
+  if (!allLoaded) {
+    return { total: 0, allKnown: false, totalQuantity }
+  }
+
+  let total = 0
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const data = results[i].data
+    if (!data || !data.game.active) continue
+    const hasEntry = data.game.prices.some(
+      (p) => p.platform === item.platform && p.zarfiat === item.zarfiat,
+    )
+    if (!hasEntry) continue
+    const price = calcPrice(data.game, item.platform, item.zarfiat, data.exchange_rate)
+    if (price === null) continue
+    total += price * item.quantity
+  }
+
+  return { total, allKnown: true, totalQuantity }
+}
+
+function CartSummary({ items }: { items: CartItem[] }) {
+  const { total, allKnown, totalQuantity } = useCartTotal(items)
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-5 space-y-5 lg:sticky lg:top-24">
+      <p className="text-sm font-semibold">خلاصه سفارش</p>
+      <Separator />
+      <div className="space-y-3 text-sm">
+        <div className="flex justify-between text-muted-foreground">
+          <span>تعداد</span>
+          <span>{totalQuantity} عدد</span>
+        </div>
+        <div className="flex justify-between font-semibold">
+          <span>مجموع</span>
+          <span className="text-primary">
+            {allKnown ? formatToman(total) : "در حال محاسبه..."}
+          </span>
+        </div>
+      </div>
+      <Button className="w-full" disabled>
+        تکمیل خرید
+      </Button>
+      <p className="text-center text-xs text-muted-foreground">پرداخت به زودی فعال می‌شود</p>
+      <Link
+        to="/games"
+        search={{ page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" }}
+        className="block text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        ادامه خرید ←
+      </Link>
+    </div>
+  )
+}
+
+function CartMobileBar({ items }: { items: CartItem[] }) {
+  const { total, allKnown, totalQuantity } = useCartTotal(items)
+
+  return (
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur-md px-4 py-3 flex items-center gap-4">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-muted-foreground">{totalQuantity} کالا</p>
+        <p className="text-sm font-bold text-primary truncate">
+          {allKnown ? formatToman(total) : "در حال محاسبه..."}
+        </p>
+      </div>
+      <Button className="shrink-0" disabled size="sm">
+        تکمیل خرید
+      </Button>
+    </div>
+  )
+}
+
+function CartItemSkeleton() {
+  return (
+    <div className="rounded-xl border border-border/60 border-r-2 border-r-border p-4">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-16 w-12 shrink-0 rounded-lg" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <Skeleton className="h-4 w-6" />
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
+        </div>
+      </div>
+    </div>
+  )
+}
