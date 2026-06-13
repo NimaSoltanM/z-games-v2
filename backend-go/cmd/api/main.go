@@ -14,6 +14,15 @@ func main() {
 		log.Fatal("error loading .env file")
 	}
 
+	// Fail fast on missing/weak secrets. An empty JWT_SECRET would sign tokens
+	// with an empty key, making every auth token trivially forgeable.
+	if secret := os.Getenv("JWT_SECRET"); len(secret) < 32 {
+		log.Fatal("JWT_SECRET must be set and at least 32 characters")
+	}
+	if os.Getenv("DATABASE_URL") == "" {
+		log.Fatal("DATABASE_URL must be set")
+	}
+
 	db, err := database.Connect()
 	if err != nil {
 		log.Fatalf("database connection failed: %v", err)

@@ -9,6 +9,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// execer is satisfied by both *pgxpool.Pool and pgx.Tx, so the same upsert
+// works for a standalone call and inside a merge transaction.
+type execer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
 type CartItemRow struct {
 	ID         string
 	GameID     string
@@ -51,10 +57,12 @@ type upsertInput struct {
 	Quantity int
 }
 
-func upsertCartItem(ctx context.Context, db *pgxpool.Pool, userID string, in upsertInput) error {
+func upsertCartItem(ctx context.Context, db execer, userID string, in upsertInput) error {
+	// LEAST(..., 10) on both the insert and the conflict path so quantity can
+	// never exceed the cap regardless of caller (the DB CHECK is the backstop).
 	_, err := db.Exec(ctx, `
 		INSERT INTO cart_items (user_id, game_id, platform, zarfiat, quantity)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4, LEAST($5, 10))
 		ON CONFLICT (user_id, game_id, platform, zarfiat)
 		DO UPDATE SET quantity = LEAST(cart_items.quantity + EXCLUDED.quantity, 10)
 	`, userID, in.GameID, in.Platform, in.Zarfiat, in.Quantity)
@@ -108,22 +116,51 @@ func isDataConstraintError(err error) bool {
 }
 
 // mergeCart upserts anonymous cart items into the user's server cart.
-// Items that fail due to data constraints (game deleted, invalid values) are skipped.
-// Infrastructure errors abort the merge and are returned to the caller.
+//
+// The whole merge runs in one transaction so it is atomic: if an infrastructure
+// error occurs partway through, everything rolls back and nothing is persisted.
+// That keeps the operation safe to retry — a retry always runs against the
+// original cart state instead of double-counting already-merged quantities.
+//
+// Individual items that fail on a data constraint (game deleted, invalid
+// platform/zarfiat) are skipped via a per-item savepoint, so one bad item never
+// aborts the rest of the merge.
 func mergeCart(ctx context.Context, db *pgxpool.Pool, userID string, items []mergeItem) error {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("mergeCart begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
 	for _, item := range items {
 		if item.Quantity <= 0 {
 			continue
 		}
-		err := upsertCartItem(ctx, db, userID, upsertInput{
+
+		// Per-item savepoint: a data-constraint failure rolls back only this
+		// item, leaving the outer transaction usable for the remaining items.
+		sp, err := tx.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("mergeCart savepoint: %w", err)
+		}
+
+		err = upsertCartItem(ctx, sp, userID, upsertInput{
 			GameID:   item.GameID,
 			Platform: item.Platform,
 			Zarfiat:  item.Zarfiat,
 			Quantity: item.Quantity,
 		})
-		if err != nil && !isDataConstraintError(err) {
+		if err != nil {
+			_ = sp.Rollback(ctx)
+			if isDataConstraintError(err) {
+				continue
+			}
 			return fmt.Errorf("mergeCart: %w", err)
 		}
+		if err := sp.Commit(ctx); err != nil {
+			return fmt.Errorf("mergeCart savepoint commit: %w", err)
+		}
 	}
-	return nil
+
+	return tx.Commit(ctx)
 }
