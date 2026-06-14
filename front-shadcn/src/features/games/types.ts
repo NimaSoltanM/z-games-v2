@@ -69,9 +69,11 @@ export function calcPrice(
   game: Game,
   platform: ConsolePlatform,
   zarfiat: Zarfiat,
-  rate: ExchangeRate,
+  rate: ExchangeRate
 ): number | null {
-  const entry = game.prices.find((p) => p.platform === platform && p.zarfiat === zarfiat)
+  const entry = game.prices.find(
+    (p) => p.platform === platform && p.zarfiat === zarfiat
+  )
   if (!entry) return null
   if (game.price_mode === "fixed") return entry.price_toman
   if (!entry.price_usd || !rate) return null
@@ -110,8 +112,9 @@ export const CONSOLE_PLATFORMS: ConsolePlatform[] = ["ps4", "ps5"]
 // Real PlayStation brand colors
 export const PLATFORM_BADGE_CLASS: Record<Platform, string> = {
   ps4: "bg-blue-600/15 text-blue-400 border-blue-600/30",
-  ps5: "bg-white/8 text-zinc-200 border-white/15",
-  ps4_ps5: "bg-gradient-to-r from-blue-600/15 to-white/8 text-blue-300 border-blue-400/20",
+  ps5: "bg-black/8 text-zinc-200 border-dark/15",
+  ps4_ps5:
+    "bg-gradient-to-r from-blue-600/15 to-white/8 text-blue-300 border-blue-400/20",
 }
 
 // Used for glow effects (detail page cover)

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { Gamepad2, ShoppingCart, Menu, LogOut, ChevronDown } from "lucide-react"
+import { ShoppingCart, Menu, LogOut, ChevronDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -69,9 +69,7 @@ export function Navbar() {
         {/* Brand + desktop nav */}
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2 font-bold text-lg tracking-tight">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
-              <Gamepad2 className="size-5" />
-            </span>
+            <img src="/logo.png" alt="Z-Games" className="size-8 object-contain" />
             Z-Games
           </Link>
 
