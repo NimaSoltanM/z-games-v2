@@ -14,15 +14,14 @@ This is a real business the owner earns a living from — not a side project or 
 
 ## Stack
 
-- **Backend (Go)**: Fiber v3 + pgx + sqlc (PostgreSQL)
-- **Backend (JS, legacy)**: Bun + ElysiaJS + Drizzle ORM (PostgreSQL) — kept for reference, not actively developed
-- **Frontend**: React 19 + TanStack Start + TanStack Router + TanStack Query + HeroUI + Tailwind CSS v4
+- **Backend**: Go — Fiber v3 + pgx + sqlc (PostgreSQL), in `backend-go/`
+- **Frontend**: React 19 + TanStack Start + TanStack Router + TanStack Query + shadcn/ui + Tailwind CSS v4, in `front-shadcn/`
 
 ---
 
 ## MANDATORY: Always read docs before coding
 
-Before writing or editing ANY code that touches Fiber, TanStack (Router, Query, Start), HeroUI, or Drizzle — you MUST read the relevant local doc file first. No exceptions, even if you already know the API.
+Before writing or editing ANY code that touches Fiber or TanStack (Router, Query, Start) — you MUST read the relevant local doc file first. No exceptions, even if you already know the API.
 
 | Library         | Doc file                     |
 | --------------- | ---------------------------- |
@@ -30,8 +29,6 @@ Before writing or editing ANY code that touches Fiber, TanStack (Router, Query, 
 | TanStack Router | `docs/tanstack/router.md`    |
 | TanStack Query  | `docs/tanstack/query.md`     |
 | TanStack Start  | `docs/tanstack/start.md`     |
-| HeroUI          | `docs/heroui/llms-full.txt`  |
-| Drizzle ORM     | `docs/drizzle/llms-full.txt` |
 
 Do not rely on training knowledge for these libraries. Always verify the exact API, hook name, import path, and option shape from the doc file before using it.
 
@@ -39,7 +36,7 @@ Do not rely on training knowledge for these libraries. Always verify the exact A
 
 ## MANDATORY: Frontend design language
 
-The active frontend is **`front-shadcn`** — React 19 + TanStack Start/Router/Query, **shadcn/ui** components (in `front-shadcn/src/components/ui`), Tailwind CSS v4. (The HeroUI references elsewhere in this file predate the shadcn migration.)
+The frontend uses **shadcn/ui** components (in `front-shadcn/src/components/ui`) on Tailwind CSS v4.
 
 Before building or changing ANY UI, read [`front-shadcn/DESIGN.md`](./front-shadcn/DESIGN.md). It is the source of truth for the page shell, surfaces, color tokens, selected/active styling, RTL rules, empty/loading/error states, and responsive patterns. Every new screen must look like it belongs next to `/games`, `/games/$id`, `/cart`, and `/auth`.
 
@@ -167,14 +164,7 @@ function MyDataComponent() {
 - Skip the ErrorBoundary or Suspense wrapper
 - Skip `errorComponent` on the route
 
-<!-- HEROUI-REACT-AGENTS-MD-START -->
-
-[HeroUI React v3 Docs Index]|root: ./.heroui-docs/react|STOP. What you remember about HeroUI React v3 is WRONG for this project. 
-check stuff in .heroui-docs in frontend folder.
-
-<!-- HEROUI-REACT-AGENTS-MD-END -->
-
-the folders are feature/module based. check the files to do that exact patterns
+The frontend is organized by feature/module (see `front-shadcn/src/features/*`). Follow the patterns already established in those files.
 
 ---
 
