@@ -1,0 +1,238 @@
+import { useState } from "react"
+import { Link, useNavigate } from "@tanstack/react-router"
+import { useQueryClient } from "@tanstack/react-query"
+import { Gamepad2, ShoppingCart, Menu, LogOut, ChevronDown } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ModeToggle } from "@/components/mode-toggle"
+import { logout } from "@/features/auth"
+import type { MeResponse } from "@/features/auth"
+import { useCart, SERVER_CART_KEY } from "@/features/cart"
+
+const GAMES_SEARCH = { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" } as const
+
+const NAV_LINKS = [
+  { to: "/", label: "خانه", exact: true },
+  { to: "/games", label: "بازی‌ها", exact: false },
+] as const
+
+function initialsOf(me: MeResponse) {
+  const f = me.firstName?.trim()[0] ?? ""
+  const l = me.lastName?.trim()[0] ?? ""
+  const init = (f + l).trim()
+  if (init) return init
+  return me.phone ? me.phone.slice(-2) : "؟"
+}
+
+function fullNameOf(me: MeResponse) {
+  const name = [me.firstName, me.lastName].filter(Boolean).join(" ").trim()
+  return name || "حساب کاربری"
+}
+
+export function Navbar() {
+  const { me, isLoggedIn, totalQuantity } = useCart()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  async function handleLogout() {
+    setMobileOpen(false)
+    try {
+      await logout()
+    } catch {
+      // even if the network call fails, clear local auth state below
+    }
+    await queryClient.invalidateQueries({ queryKey: ["me"] })
+    queryClient.invalidateQueries({ queryKey: SERVER_CART_KEY })
+    navigate({ to: "/games", search: GAMES_SEARCH })
+  }
+
+  return (
+    <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        {/* Brand + desktop nav */}
+        <div className="flex items-center gap-6">
+          <Link to="/" className="flex items-center gap-2 font-bold text-lg tracking-tight">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+              <Gamepad2 className="size-5" />
+            </span>
+            Z-Games
+          </Link>
+
+          <nav className="hidden items-center gap-1 md:flex">
+            {NAV_LINKS.map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                search={l.to === "/games" ? GAMES_SEARCH : undefined}
+                activeOptions={{ exact: l.exact }}
+                className="relative px-2 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground [&.active]:text-foreground after:absolute after:inset-x-2 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-200 [&.active]:after:scale-x-100"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5">
+          <CartButton count={totalQuantity} />
+          <ModeToggle />
+
+          {/* Auth — desktop */}
+          <div className="hidden md:block">
+            {me === undefined ? (
+              <Skeleton className="size-7 rounded-full" />
+            ) : isLoggedIn && me ? (
+              <UserMenu me={me} onLogout={handleLogout} />
+            ) : (
+              <Link to="/auth" search={{ redirect: undefined }}>
+                <Button size="sm">ورود</Button>
+              </Link>
+            )}
+          </div>
+
+          {/* Mobile menu */}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger
+              render={
+                <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label="باز کردن منو" />
+              }
+            >
+              <Menu className="size-5" />
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72">
+              <SheetHeader>
+                <SheetTitle>منو</SheetTitle>
+              </SheetHeader>
+
+              <nav className="flex flex-col gap-1 px-4">
+                {NAV_LINKS.map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    search={l.to === "/games" ? GAMES_SEARCH : undefined}
+                    activeOptions={{ exact: l.exact }}
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-lg border-r-2 border-transparent px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-accent [&.active]:border-primary [&.active]:bg-primary/8 [&.active]:font-semibold [&.active]:text-primary"
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </nav>
+
+              <Separator className="my-2" />
+
+              <div className="px-4">
+                {me === undefined ? (
+                  <Skeleton className="h-9 w-full rounded-lg" />
+                ) : isLoggedIn && me ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                        {initialsOf(me)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{fullNameOf(me)}</p>
+                        {me.phone && (
+                          <p dir="ltr" className="truncate text-xs text-muted-foreground">
+                            {me.phone}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="size-4" />
+                      خروج از حساب
+                    </Button>
+                  </div>
+                ) : (
+                  <Link
+                    to="/auth"
+                    search={{ redirect: undefined }}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <Button className="w-full">ورود / ثبت‌نام</Button>
+                  </Link>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function CartButton({ count }: { count: number }) {
+  return (
+    <Link
+      to="/cart"
+      aria-label="سبد خرید"
+      className="relative inline-flex size-7 items-center justify-center rounded-[min(var(--radius-md),12px)] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground [&.active]:bg-muted [&.active]:text-foreground"
+    >
+      <ShoppingCart className="size-5" />
+      {count > 0 && (
+        <span className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground tabular-nums">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
+  )
+}
+
+function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger
+        render={
+          <button
+            className="group flex items-center gap-2 rounded-full border border-border/60 bg-card/60 py-1 pe-2.5 ps-1 transition-colors hover:bg-accent aria-expanded:bg-accent"
+            aria-label="حساب کاربری"
+          />
+        }
+      >
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+          {initialsOf(me)}
+        </span>
+        <span className="max-w-28 truncate text-sm">{me.firstName ?? "حساب من"}</span>
+        <ChevronDown className="size-3.5 text-muted-foreground transition-transform group-aria-expanded:rotate-180" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+        <div className="flex flex-col px-1.5 py-1.5">
+          <span className="truncate text-sm font-medium text-foreground">{fullNameOf(me)}</span>
+          {me.phone && (
+            <span dir="ltr" className="truncate text-xs text-muted-foreground">
+              {me.phone}
+            </span>
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={onLogout}>
+          <LogOut className="size-4" />
+          خروج از حساب
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

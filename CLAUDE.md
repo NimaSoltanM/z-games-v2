@@ -37,6 +37,16 @@ Do not rely on training knowledge for these libraries. Always verify the exact A
 
 ---
 
+## MANDATORY: Frontend design language
+
+The active frontend is **`front-shadcn`** — React 19 + TanStack Start/Router/Query, **shadcn/ui** components (in `front-shadcn/src/components/ui`), Tailwind CSS v4. (The HeroUI references elsewhere in this file predate the shadcn migration.)
+
+Before building or changing ANY UI, read [`front-shadcn/DESIGN.md`](./front-shadcn/DESIGN.md). It is the source of truth for the page shell, surfaces, color tokens, selected/active styling, RTL rules, empty/loading/error states, and responsive patterns. Every new screen must look like it belongs next to `/games`, `/games/$id`, `/cart`, and `/auth`.
+
+Rules: reuse the shadcn components already in `src/components/ui` (never hand-roll a button/input/sheet/etc.); add new ones via shadcn rather than improvising; icons are `lucide-react` only; use semantic theme tokens, never hardcoded colors (the sole exception is the PlayStation brand palette exported from `@/features/games`).
+
+---
+
 ## MANDATORY: Fiber middleware — check before coding
 
 Fiber v3 has built-in middleware that may already solve what you're about to write manually. Before implementing any cross-cutting concern (auth, logging, CORS, rate limiting, compression, etc.), check this list first.

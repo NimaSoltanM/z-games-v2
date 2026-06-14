@@ -22,8 +22,7 @@ import {
   type Zarfiat,
   type Game,
 } from "@/features/games"
-import { addToCart, cartStore } from "@/features/cart"
-import { useSelector } from "@tanstack/react-store"
+import { useCart } from "@/features/cart"
 
 function GameError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -197,13 +196,11 @@ function PriceTile({
   label: string
   price: number
 }) {
-  const inCart = useSelector(
-    cartStore,
-    (s) =>
-      s.items.find(
-        (i) => i.gameId === game.id && i.platform === platform && i.zarfiat === zarfiat,
-      )?.quantity ?? 0,
-  )
+  const { items, addItem } = useCart()
+  const inCart =
+    items.find(
+      (i) => i.gameId === game.id && i.platform === platform && i.zarfiat === zarfiat,
+    )?.quantity ?? 0
 
   return (
     <div className="rounded-xl border border-border/60 bg-background/60 p-3 backdrop-blur-sm space-y-2">
@@ -213,8 +210,9 @@ function PriceTile({
         size="sm"
         variant={inCart > 0 ? "secondary" : "outline"}
         className="w-full h-8 text-xs gap-1.5"
+        disabled={inCart >= 10}
         onClick={() =>
-          addToCart({
+          addItem({
             gameId: game.id,
             gameName: game.name,
             coverImage: game.cover_image,

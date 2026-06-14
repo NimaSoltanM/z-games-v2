@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
 import { useRef, useState, useEffect, type FormEvent } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Phone, KeyRound, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { requestOtp, verifyOtp, registerUser, getMeFn } from "@/features/auth"
+import { cartStore, clearCart, mergeServerCart, SERVER_CART_KEY } from "@/features/cart"
 
 export const Route = createFileRoute("/auth/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -22,9 +24,34 @@ type Step = "phone" | "otp" | "register"
 
 function LoginPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { redirect: redirectTo } = Route.useSearch()
 
-  function goAfterAuth() {
+  async function finishAuth() {
+    // Merge the anonymous cart into the now-authenticated server cart, then
+    // clear the local cart so items aren't double-counted. A merge failure must
+    // not block login — the user is authenticated regardless.
+    const anon = cartStore.state.items
+    if (anon.length > 0) {
+      try {
+        await mergeServerCart(
+          anon.map((i) => ({
+            game_id: i.gameId,
+            platform: i.platform,
+            zarfiat: i.zarfiat,
+            quantity: i.quantity,
+          })),
+        )
+      } catch {
+        // ignore — keep logging the user in
+      }
+      clearCart()
+    }
+
+    // Refresh auth + cart so the navbar and cart page reflect the logged-in state.
+    await queryClient.invalidateQueries({ queryKey: ["me"] })
+    queryClient.invalidateQueries({ queryKey: SERVER_CART_KEY })
+
     if (redirectTo) {
       navigate({ to: redirectTo as any })
     } else {
@@ -113,7 +140,7 @@ function LoginPage() {
     try {
       const res = await verifyOtp(phone, code)
       if (res.status === "existing") {
-        goAfterAuth()
+        await finishAuth()
       } else {
         setRegistrationToken(res.registration_token)
         goToStep("register")
@@ -137,7 +164,7 @@ function LoginPage() {
     setError("")
     try {
       await registerUser(firstName.trim(), lastName.trim(), registrationToken)
-      goAfterAuth()
+      await finishAuth()
     } catch (err: any) {
       setError(err.message ?? "خطایی رخ داد")
     } finally {

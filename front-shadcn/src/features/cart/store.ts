@@ -3,6 +3,7 @@ import type { CartState, CartItem } from "./types"
 import type { ConsolePlatform, Zarfiat } from "@/features/games"
 
 const STORAGE_KEY = "z-games-cart"
+const MAX_QTY = 10 // mirrors the server-side per-item cap
 
 function key(gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat) {
   return `${gameId}:${platform}:${zarfiat}`
@@ -69,7 +70,7 @@ export function addToCart(item: Omit<CartItem, "quantity">) {
         ...s,
         items: s.items.map((i) =>
           key(i.gameId, i.platform, i.zarfiat) === k
-            ? { ...i, quantity: i.quantity + 1 }
+            ? { ...i, quantity: Math.min(i.quantity + 1, MAX_QTY) }
             : i,
         ),
       }
@@ -97,10 +98,11 @@ export function setQuantity(
     return
   }
   const k = key(gameId, platform, zarfiat)
+  const capped = Math.min(quantity, MAX_QTY)
   cartStore.setState((s) => ({
     ...s,
     items: s.items.map((i) =>
-      key(i.gameId, i.platform, i.zarfiat) === k ? { ...i, quantity } : i,
+      key(i.gameId, i.platform, i.zarfiat) === k ? { ...i, quantity: capped } : i,
     ),
   }))
 }

@@ -7,8 +7,9 @@ import {
 } from "@tanstack/react-query"
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { useSelector } from "@tanstack/react-store"
 import { Minus, Plus, Trash2, ShoppingCart, AlertTriangle } from "lucide-react"
+
+import type { ConsolePlatform, Zarfiat } from "@/features/games"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,7 +24,7 @@ import {
   PLATFORM_ACCENT_CLASS,
   ZARFIAT_LABEL,
 } from "@/features/games"
-import { cartStore, removeFromCart, setQuantity, clearCart, type CartItem } from "@/features/cart"
+import { useCart, type CartItem } from "@/features/cart"
 
 function CartError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -34,9 +35,27 @@ export const Route = createFileRoute("/cart/")({
   errorComponent: CartError,
 })
 
+type SetQty = (gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat, quantity: number) => void
+type Remove = (gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat) => void
+
 function CartPage() {
   const { reset } = useQueryErrorResetBoundary()
-  const items = useSelector(cartStore, (s) => s.items)
+  const { items, removeItem, setItemQty, clear, isLoading } = useCart()
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mb-8 h-8 w-40">
+          <Skeleton className="h-8 w-40" />
+        </div>
+        <div className="space-y-3">
+          <CartItemSkeleton />
+          <CartItemSkeleton />
+          <CartItemSkeleton />
+        </div>
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -61,7 +80,7 @@ function CartPage() {
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-bold">سبد خرید</h1>
           <button
-            onClick={() => clearCart()}
+            onClick={() => clear()}
             className="text-xs text-muted-foreground transition-colors hover:text-destructive"
           >
             حذف همه
@@ -86,7 +105,7 @@ function CartPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => removeFromCart(item.gameId, item.platform, item.zarfiat)}
+                        onClick={() => removeItem(item.gameId, item.platform, item.zarfiat)}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -95,7 +114,7 @@ function CartPage() {
                 )}
               >
                 <Suspense fallback={<CartItemSkeleton />}>
-                  <CartItemRow item={item} />
+                  <CartItemRow item={item} onSetQty={setItemQty} onRemove={removeItem} />
                 </Suspense>
               </ErrorBoundary>
             ))}
@@ -114,7 +133,15 @@ function CartPage() {
   )
 }
 
-function CartItemRow({ item }: { item: CartItem }) {
+function CartItemRow({
+  item,
+  onSetQty,
+  onRemove,
+}: {
+  item: CartItem
+  onSetQty: SetQty
+  onRemove: Remove
+}) {
   const { data } = useSuspenseQuery(gameQueryOptions(item.gameId))
   const { game, exchange_rate } = data
 
@@ -178,7 +205,7 @@ function CartItemRow({ item }: { item: CartItem }) {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() =>
-                  setQuantity(item.gameId, item.platform, item.zarfiat, item.quantity - 1)
+                  onSetQty(item.gameId, item.platform, item.zarfiat, item.quantity - 1)
                 }
               >
                 <Minus className="size-3" />
@@ -190,8 +217,9 @@ function CartItemRow({ item }: { item: CartItem }) {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
+                disabled={item.quantity >= 10}
                 onClick={() =>
-                  setQuantity(item.gameId, item.platform, item.zarfiat, item.quantity + 1)
+                  onSetQty(item.gameId, item.platform, item.zarfiat, item.quantity + 1)
                 }
               >
                 <Plus className="size-3" />
@@ -202,7 +230,7 @@ function CartItemRow({ item }: { item: CartItem }) {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={() => removeFromCart(item.gameId, item.platform, item.zarfiat)}
+            onClick={() => onRemove(item.gameId, item.platform, item.zarfiat)}
           >
             <Trash2 className="size-4" />
           </Button>

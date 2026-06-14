@@ -25,3 +25,7 @@ export function registerUser(firstName: string, lastName: string, registrationTo
     body: JSON.stringify({ first_name: firstName, last_name: lastName }),
   })
 }
+
+export function logout() {
+  return apiFetch<{ message: string }>("/auth/logout", { method: "POST" })
+}
