@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
-import { useRef, useState, useEffect, type FormEvent } from "react"
+import { useRef, useState, useEffect  } from "react"
+import type {FormEvent} from "react";
 import { useQueryClient } from "@tanstack/react-query"
 import { Phone, KeyRound, User } from "lucide-react"
 

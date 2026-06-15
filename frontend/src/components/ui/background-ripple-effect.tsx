@@ -122,7 +122,7 @@ const DivGrid = ({
               ...style,
             }}
             onClick={
-              interactive ? () => onCellClick?.(rowIdx, colIdx) : undefined
+              interactive ? () => onCellClick(rowIdx, colIdx) : undefined
             }
           />
         )

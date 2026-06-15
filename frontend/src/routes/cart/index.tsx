@@ -24,7 +24,8 @@ import {
   PLATFORM_ACCENT_CLASS,
   ZARFIAT_LABEL,
 } from "@/features/games"
-import { useCart, type CartItem } from "@/features/cart"
+import { useCart  } from "@/features/cart"
+import type {CartItem} from "@/features/cart";
 
 function CartError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -256,7 +257,7 @@ function useCartTotal(items: CartItem[]) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     const data = results[i].data
-    if (!data || !data.game.active) continue
+    if (!data.game.active) continue
     const hasEntry = data.game.prices.some(
       (p) => p.platform === item.platform && p.zarfiat === item.zarfiat,
     )

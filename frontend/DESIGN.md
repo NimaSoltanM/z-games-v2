@@ -1,6 +1,6 @@
 # Z-Games Design Language
 
-> The single source of truth for how the Z-Games frontend (`front-shadcn`) looks and feels.
+> The single source of truth for how the Z-Games frontend (`frontend`) looks and feels.
 > Read this before building or changing any UI. New screens must look like they belong next
 > to `/games`, `/games/$id`, `/cart`, and `/auth`. When in doubt, open those files and copy the
 > pattern — do not invent a new style.

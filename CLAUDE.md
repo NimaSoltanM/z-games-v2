@@ -14,8 +14,8 @@ This is a real business the owner earns a living from — not a side project or 
 
 ## Stack
 
-- **Backend**: Go — Fiber v3 + pgx + sqlc (PostgreSQL), in `backend-go/`
-- **Frontend**: React 19 + TanStack Start + TanStack Router + TanStack Query + shadcn/ui + Tailwind CSS v4, in `front-shadcn/`
+- **Backend**: Go — Fiber v3 + pgx + sqlc (PostgreSQL), in `backend/`
+- **Frontend**: React 19 + TanStack Start + TanStack Router + TanStack Query + shadcn/ui + Tailwind CSS v4, in `frontend/`
 
 ---
 
@@ -36,9 +36,9 @@ Do not rely on training knowledge for these libraries. Always verify the exact A
 
 ## MANDATORY: Frontend design language
 
-The frontend uses **shadcn/ui** components (in `front-shadcn/src/components/ui`) on Tailwind CSS v4.
+The frontend uses **shadcn/ui** components (in `frontend/src/components/ui`) on Tailwind CSS v4.
 
-Before building or changing ANY UI, read [`front-shadcn/DESIGN.md`](./front-shadcn/DESIGN.md). It is the source of truth for the page shell, surfaces, color tokens, selected/active styling, RTL rules, empty/loading/error states, and responsive patterns. Every new screen must look like it belongs next to `/games`, `/games/$id`, `/cart`, and `/auth`.
+Before building or changing ANY UI, read [`frontend/DESIGN.md`](./frontend/DESIGN.md). It is the source of truth for the page shell, surfaces, color tokens, selected/active styling, RTL rules, empty/loading/error states, and responsive patterns. Every new screen must look like it belongs next to `/games`, `/games/$id`, `/cart`, and `/auth`.
 
 Rules: reuse the shadcn components already in `src/components/ui` (never hand-roll a button/input/sheet/etc.); add new ones via shadcn rather than improvising; icons are `lucide-react` only; use semantic theme tokens, never hardcoded colors (the sole exception is the PlayStation brand palette exported from `@/features/games`).
 
@@ -164,7 +164,7 @@ function MyDataComponent() {
 - Skip the ErrorBoundary or Suspense wrapper
 - Skip `errorComponent` on the route
 
-The frontend is organized by feature/module (see `front-shadcn/src/features/*`). Follow the patterns already established in those files.
+The frontend is organized by feature/module (see `frontend/src/features/*`). Follow the patterns already established in those files.
 
 ---
 
@@ -194,4 +194,4 @@ Doc file: `docs/tanstack/store.md`
 
 ## TODO / Future Work
 
-- **View transitions on back navigation**: `router.history.back()` bypasses TanStack Router's `navigate()` so `viewTransition: true` doesn't apply. The nuclear option is `defaultViewTransition: true` on the router (in `front-shadcn/src/router.tsx`) which wraps every navigation globally — but that adds overhead to filter/sort/pagination changes. Pending a cleaner per-call solution.
+- **View transitions on back navigation**: `router.history.back()` bypasses TanStack Router's `navigate()` so `viewTransition: true` doesn't apply. The nuclear option is `defaultViewTransition: true` on the router (in `frontend/src/router.tsx`) which wraps every navigation globally — but that adds overhead to filter/sort/pagination changes. Pending a cleaner per-call solution.

@@ -17,11 +17,12 @@ import {
   PLATFORM_BADGE_CLASS,
   PLATFORM_GLOW_CLASS,
   ZARFIATS,
-  ZARFIAT_LABEL,
-  type ConsolePlatform,
-  type Zarfiat,
-  type Game,
+  ZARFIAT_LABEL
+  
+  
+  
 } from "@/features/games"
+import type {ConsolePlatform, Zarfiat, Game} from "@/features/games";
 import { useCart } from "@/features/cart"
 
 function GameError({ error }: ErrorComponentProps) {
@@ -85,7 +86,7 @@ function GameDetail() {
   const { data } = useSuspenseQuery(gameQueryOptions(id))
   const { game, exchange_rate } = data
   const platforms: ConsolePlatform[] =
-    game.platform === "ps4_ps5" ? ["ps4", "ps5"] : [game.platform as ConsolePlatform]
+    game.platform === "ps4_ps5" ? ["ps4", "ps5"] : [game.platform]
 
   const imgSrc = game.cover_image
     ? `${import.meta.env.VITE_API_URL ?? "http://localhost:3002"}${game.cover_image}`

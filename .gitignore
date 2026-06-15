@@ -6,6 +6,6 @@ dist
 *.log
 
 # Go
-backend-go/tmp/
-backend-go/*.exe
-backend-go/*.test
+backend/tmp/
+backend/*.exe
+backend/*.test
