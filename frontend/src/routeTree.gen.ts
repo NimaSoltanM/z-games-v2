@@ -11,8 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GamesIndexRouteImport } from './routes/games/index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as CartIndexRouteImport } from './routes/cart/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
+import { Route as PaymentResultRouteImport } from './routes/payment/result'
+import { Route as DashboardOrderIdRouteImport } from './routes/dashboard/$orderId'
 import { Route as GamesIdIndexRouteImport } from './routes/games/$id/index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -25,6 +28,11 @@ const GamesIndexRoute = GamesIndexRouteImport.update({
   path: '/games/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CartIndexRoute = CartIndexRouteImport.update({
   id: '/cart/',
   path: '/cart/',
@@ -35,6 +43,16 @@ const AuthIndexRoute = AuthIndexRouteImport.update({
   path: '/auth/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PaymentResultRoute = PaymentResultRouteImport.update({
+  id: '/payment/result',
+  path: '/payment/result',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardOrderIdRoute = DashboardOrderIdRouteImport.update({
+  id: '/dashboard/$orderId',
+  path: '/dashboard/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GamesIdIndexRoute = GamesIdIndexRouteImport.update({
   id: '/games/$id/',
   path: '/games/$id/',
@@ -43,38 +61,75 @@ const GamesIdIndexRoute = GamesIdIndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard/$orderId': typeof DashboardOrderIdRoute
+  '/payment/result': typeof PaymentResultRoute
   '/auth/': typeof AuthIndexRoute
   '/cart/': typeof CartIndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/games/': typeof GamesIndexRoute
   '/games/$id/': typeof GamesIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard/$orderId': typeof DashboardOrderIdRoute
+  '/payment/result': typeof PaymentResultRoute
   '/auth': typeof AuthIndexRoute
   '/cart': typeof CartIndexRoute
+  '/dashboard': typeof DashboardIndexRoute
   '/games': typeof GamesIndexRoute
   '/games/$id': typeof GamesIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard/$orderId': typeof DashboardOrderIdRoute
+  '/payment/result': typeof PaymentResultRoute
   '/auth/': typeof AuthIndexRoute
   '/cart/': typeof CartIndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/games/': typeof GamesIndexRoute
   '/games/$id/': typeof GamesIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/' | '/cart/' | '/games/' | '/games/$id/'
+  fullPaths:
+    | '/'
+    | '/dashboard/$orderId'
+    | '/payment/result'
+    | '/auth/'
+    | '/cart/'
+    | '/dashboard/'
+    | '/games/'
+    | '/games/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/cart' | '/games' | '/games/$id'
-  id: '__root__' | '/' | '/auth/' | '/cart/' | '/games/' | '/games/$id/'
+  to:
+    | '/'
+    | '/dashboard/$orderId'
+    | '/payment/result'
+    | '/auth'
+    | '/cart'
+    | '/dashboard'
+    | '/games'
+    | '/games/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard/$orderId'
+    | '/payment/result'
+    | '/auth/'
+    | '/cart/'
+    | '/dashboard/'
+    | '/games/'
+    | '/games/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardOrderIdRoute: typeof DashboardOrderIdRoute
+  PaymentResultRoute: typeof PaymentResultRoute
   AuthIndexRoute: typeof AuthIndexRoute
   CartIndexRoute: typeof CartIndexRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
   GamesIndexRoute: typeof GamesIndexRoute
   GamesIdIndexRoute: typeof GamesIdIndexRoute
 }
@@ -95,6 +150,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GamesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/dashboard'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cart/': {
       id: '/cart/'
       path: '/cart'
@@ -109,6 +171,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/payment/result': {
+      id: '/payment/result'
+      path: '/payment/result'
+      fullPath: '/payment/result'
+      preLoaderRoute: typeof PaymentResultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/$orderId': {
+      id: '/dashboard/$orderId'
+      path: '/dashboard/$orderId'
+      fullPath: '/dashboard/$orderId'
+      preLoaderRoute: typeof DashboardOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/games/$id/': {
       id: '/games/$id/'
       path: '/games/$id'
@@ -121,8 +197,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardOrderIdRoute: DashboardOrderIdRoute,
+  PaymentResultRoute: PaymentResultRoute,
   AuthIndexRoute: AuthIndexRoute,
   CartIndexRoute: CartIndexRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
   GamesIndexRoute: GamesIndexRoute,
   GamesIdIndexRoute: GamesIdIndexRoute,
 }

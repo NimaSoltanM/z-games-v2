@@ -120,8 +120,9 @@ func (h *handler) register(c fiber.Ctx) error {
 	}
 
 	var body struct {
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
+		FirstName    string `json:"first_name"`
+		LastName     string `json:"last_name"`
+		ReferralCode string `json:"referral_code"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
@@ -133,9 +134,10 @@ func (h *handler) register(c fiber.Ctx) error {
 	}
 
 	user, err := registerUser(c.Context(), h.db, registerInput{
-		phone:     phone,
-		firstName: body.FirstName,
-		lastName:  body.LastName,
+		phone:      phone,
+		firstName:  body.FirstName,
+		lastName:   body.LastName,
+		referredBy: strings.TrimSpace(body.ReferralCode),
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "unique") {

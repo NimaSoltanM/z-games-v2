@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { ShoppingCart, Menu, LogOut, ChevronDown } from "lucide-react"
+import { ShoppingCart, Menu, LogOut, ChevronDown, LayoutDashboard } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -155,6 +155,12 @@ export function Navbar() {
                         )}
                       </div>
                     </div>
+                    <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
+                      <Button variant="outline" className="w-full gap-1.5">
+                        <LayoutDashboard className="size-4" />
+                        سفارش‌های من
+                      </Button>
+                    </Link>
                     <Button
                       variant="destructive"
                       className="w-full"
@@ -225,6 +231,11 @@ function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
             </span>
           )}
         </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link to="/dashboard" />}>
+          <LayoutDashboard className="size-4" />
+          سفارش‌های من
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={onLogout}>
           <LogOut className="size-4" />

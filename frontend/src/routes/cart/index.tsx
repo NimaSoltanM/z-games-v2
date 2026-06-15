@@ -1,15 +1,17 @@
-import { createFileRoute, ErrorComponent, Link } from "@tanstack/react-router"
+import { createFileRoute, ErrorComponent, Link, useNavigate } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import {
   useSuspenseQuery,
   useQueries,
   useQueryErrorResetBoundary,
 } from "@tanstack/react-query"
-import { Suspense } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { Minus, Plus, Trash2, ShoppingCart, AlertTriangle } from "lucide-react"
+import { Minus, Plus, Trash2, ShoppingCart, AlertTriangle, Loader2 } from "lucide-react"
 
 import type { ConsolePlatform, Zarfiat } from "@/features/games"
+import { checkoutOrder } from "@/features/orders/api"
+import { getReferral, setReferral } from "@/features/referral"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -270,8 +272,42 @@ function useCartTotal(items: CartItem[]) {
   return { total, allKnown: true, totalQuantity }
 }
 
+// Shared checkout action: gate on auth, then create the order and hand off to
+// ZarinPal. Not logged in -> bounce to /auth and return to the cart afterward.
+function useCheckout() {
+  const { isLoggedIn } = useCart()
+  const navigate = useNavigate()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState("")
+
+  async function checkout() {
+    setError("")
+    if (!isLoggedIn) {
+      navigate({ to: "/auth", search: { redirect: "/cart" } })
+      return
+    }
+    setPending(true)
+    try {
+      const { payment_url } = await checkoutOrder({ referral_code: getReferral() })
+      window.location.href = payment_url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطا در شروع پرداخت")
+      setPending(false)
+    }
+  }
+
+  return { checkout, pending, error }
+}
+
 function CartSummary({ items }: { items: CartItem[] }) {
   const { total, allKnown, totalQuantity } = useCartTotal(items)
+  const { checkout, pending, error } = useCheckout()
+  const [ref, setRef] = useState("")
+
+  // Prefill from a stored ?ref link after hydration (avoids SSR mismatch).
+  useEffect(() => {
+    setRef(getReferral())
+  }, [])
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-5 space-y-5 lg:sticky lg:top-24">
@@ -289,10 +325,34 @@ function CartSummary({ items }: { items: CartItem[] }) {
           </span>
         </div>
       </div>
-      <Button className="w-full" disabled>
-        تکمیل خرید
+
+      <div className="space-y-1.5">
+        <label htmlFor="referral" className="text-xs text-muted-foreground">
+          کد معرف (اختیاری)
+        </label>
+        <input
+          id="referral"
+          value={ref}
+          onChange={(e) => {
+            setRef(e.target.value)
+            setReferral(e.target.value)
+          }}
+          placeholder="کد معرف را وارد کنید"
+          className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+        />
+      </div>
+
+      <Button className="w-full gap-1.5" disabled={!allKnown || pending} onClick={checkout}>
+        {pending ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            در حال انتقال به درگاه...
+          </>
+        ) : (
+          "تکمیل خرید"
+        )}
       </Button>
-      <p className="text-center text-xs text-muted-foreground">پرداخت به زودی فعال می‌شود</p>
+      {error && <p className="text-center text-xs text-destructive">{error}</p>}
       <Link
         to="/games"
         search={{ page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" }}
@@ -306,17 +366,27 @@ function CartSummary({ items }: { items: CartItem[] }) {
 
 function CartMobileBar({ items }: { items: CartItem[] }) {
   const { total, allKnown, totalQuantity } = useCartTotal(items)
+  const { checkout, pending, error } = useCheckout()
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur-md px-4 py-3 flex items-center gap-4">
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-muted-foreground">{totalQuantity} کالا</p>
+        {error ? (
+          <p className="text-xs text-destructive truncate">{error}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">{totalQuantity} کالا</p>
+        )}
         <p className="text-sm font-bold text-primary truncate">
           {allKnown ? formatToman(total) : "در حال محاسبه..."}
         </p>
       </div>
-      <Button className="shrink-0" disabled size="sm">
-        تکمیل خرید
+      <Button
+        className="shrink-0 gap-1.5"
+        disabled={!allKnown || pending}
+        size="sm"
+        onClick={checkout}
+      >
+        {pending ? <Loader2 className="size-4 animate-spin" /> : "تکمیل خرید"}
       </Button>
     </div>
   )

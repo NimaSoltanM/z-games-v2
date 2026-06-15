@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { requestOtp, verifyOtp, registerUser, getMeFn } from "@/features/auth"
 import { cartStore, clearCart, mergeServerCart, SERVER_CART_KEY } from "@/features/cart"
+import { getReferral } from "@/features/referral"
 
 export const Route = createFileRoute("/auth/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -164,7 +165,7 @@ function LoginPage() {
     setLoading(true)
     setError("")
     try {
-      await registerUser(firstName.trim(), lastName.trim(), registrationToken)
+      await registerUser(firstName.trim(), lastName.trim(), registrationToken, getReferral())
       await finishAuth()
     } catch (err: any) {
       setError(err.message ?? "خطایی رخ داد")

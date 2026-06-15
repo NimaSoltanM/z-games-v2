@@ -170,9 +170,10 @@ func verifyOTP(ctx context.Context, db *pgxpool.Pool, rawPhone, code string) (ve
 }
 
 type registerInput struct {
-	phone     string
-	firstName string
-	lastName  string
+	phone      string
+	firstName  string
+	lastName   string
+	referredBy string // referral code captured before signup; stored once
 }
 
 type userRow struct {
@@ -193,12 +194,17 @@ func registerUser(ctx context.Context, db *pgxpool.Pool, input registerInput) (u
 		role = "super_admin"
 	}
 
+	var referredBy any
+	if input.referredBy != "" {
+		referredBy = input.referredBy
+	}
+
 	var u userRow
 	err := db.QueryRow(ctx,
-		`INSERT INTO users (id, phone, first_name, last_name, role)
-		 VALUES ($1, $2, $3, $4, $5)
+		`INSERT INTO users (id, phone, first_name, last_name, role, referred_by)
+		 VALUES ($1, $2, $3, $4, $5, $6)
 		 RETURNING id, phone, role`,
-		generateID(), phone, input.firstName, input.lastName, role,
+		generateID(), phone, input.firstName, input.lastName, role, referredBy,
 	).Scan(&u.ID, &u.Phone, &u.Role)
 	if err != nil {
 		return userRow{}, fmt.Errorf("insert user: %w", err)

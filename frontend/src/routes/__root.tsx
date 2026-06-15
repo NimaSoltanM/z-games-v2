@@ -11,8 +11,10 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Navbar } from "@/components/navbar"
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools"
 import type { QueryClient } from "@tanstack/react-query"
+import { useEffect } from "react"
 import { meQueryOptions } from "@/features/auth"
 import { serverCartQueryOptions } from "@/features/cart"
+import { captureReferral } from "@/features/referral"
 
 import appCss from "../styles.css?url"
 
@@ -53,6 +55,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 })
 
 function RootLayout() {
+  // Capture a ?ref=CODE referral once on load (last-touch, persisted client-side).
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref")
+    if (ref) captureReferral(ref)
+  }, [])
+
   return (
     <>
       <Navbar />

@@ -15,14 +15,23 @@ export function verifyOtp(phone: string, code: string) {
   })
 }
 
-export function registerUser(firstName: string, lastName: string, registrationToken: string) {
+export function registerUser(
+  firstName: string,
+  lastName: string,
+  registrationToken: string,
+  referralCode = "",
+) {
   return apiFetch<{ message: string }>("/auth/register", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${registrationToken}`,
     },
-    body: JSON.stringify({ first_name: firstName, last_name: lastName }),
+    body: JSON.stringify({
+      first_name: firstName,
+      last_name: lastName,
+      referral_code: referralCode,
+    }),
   })
 }
 

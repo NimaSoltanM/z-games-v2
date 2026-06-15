@@ -22,6 +22,9 @@ func main() {
 	if os.Getenv("DATABASE_URL") == "" {
 		log.Fatal("DATABASE_URL must be set")
 	}
+	if os.Getenv("ZARINPAL_MERCHANT_ID") == "" {
+		log.Fatal("ZARINPAL_MERCHANT_ID must be set (any UUID works for the sandbox)")
+	}
 
 	db, err := database.Connect()
 	if err != nil {

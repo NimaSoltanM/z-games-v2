@@ -29,36 +29,116 @@
 
 همچنین پذیرنده و زرین‌پال نباید از هیچ کدام از اطلاعات مالی خریدار مانند شماره كارت، رمز كارت، میزان موجودی و غیره مطلع شوند. به همین دلیل پذیرنده و زرین‌پال از خریدار هیچ نوع اطلاعات مالی و بانکی دریافت نمی‌كنند و تمامی‌ این اطلاعات شخصا توسط خریدار در درگاه پرداخت اینترنتی وارد می‌شود.
 
-درگاه پرداخت
-این مستند چگونگی پرداخت الكترونیك در محیط وب از جانب فروشگاه‌های اینترنتی و با استفاده از درگاه پرداخت زرین‌پال را شرح می‌دهد. این سرویس برای انجام پرداخت الکترونیک از روش استاندارد web service بر روی پروتكل امن https استفاده کرده و راهی برای پرداخت خریداران از طریق كارت‌های عضو شبکه شتاب را فراهم می‌کند. هدف از ارائه این سند، معرفی سرویس‌های به هم پیوسته‌ای می‌باشد كه مجموعه خدمات درگاه پرداخت اینترنتی زرین‌پال برای پذیرنده را شكل می‌دهند. محدوده این سند، شرح كلی عملیات لازم برای انجام عملیات پرداخت درخواستی از سوی پذیرنده روی درگاه پرداخت اینترنتی زرین‌پال است و در كنار آن، تمامی متدهای مربوط به این عملیات شرح داده شده اند. این سند شامل شرح كلی موارد موردنیاز برای درخواست عملیات پرداخت از سوی پذیرنده روی درگاه پرداخت اینترنتی زرین‌پال است؛ علاوه بر آن، تمامی متدهای مربوط به این عملیات نیز توضیح داده شده اند.
+راهنمای اتصال به درگاه اینترنتی زرین‌پال
+جهت استفاده از خدمات وب‌سرویس زرین‌پال باید از آدرس‌های وب‌سرویس، متد ها و پارامترهای ذکر شده استفاده نمایید.
 
-واژگان
-پذیرنده: شخص ، سازمان و یا شركتی كه محصول یا سرویسی را از در بستر اینترنت ارائه می‌كند.
-خریدار: شخص دارنده كارت‌های بانکی عضو شبکه شتاب كه قصد دارد از پذیرنده، کالا یا خدماتی را به صورت اینترنتی خرید کند.
-تراكنش: یك عملیات مالی است، كه در این سند مصداق آن یك خرید اینترنتی می‌باشد.
-اطلاعات فنی سیستم
-کد درگاه پرداخت merchant_id: كدی یكتا و ۳۶ كاراكتری است كه زرین‌پال به ازای هر درخواست درگاه پرداخت به پذیرنده اختصاص می‌دهد.
+ارسال اطلاعات
+در مرحله اول پذیرندگان باید پارامترهای موجود در جدول زیر را ، با توجه به نوع داده‌ها و نام فیلد، با متدPOSTبه آدرس مشخص شده ارسال نمایند.
 
-آدرس آی‌پی IP پذیرنده: آدرس IP Main Server وب‌سایت پذیرنده كه شخص پذیرنده می‌باید از طریق ورود به قسمت افزونه‌ها، بخش نمونه کدها، فایل‌ها و آموزش‌های لازم برای دریافت آی‌پی صحیح را دریافت کرده و آن را به وب‌سایت زرین‌پال اعلام كند.
+نام نوع الزام توضیحات
+merchant_id String بله كد ۳۶ كاراكتری اختصاصی پذیرنده
+amount Integer بله مبلغ تراكنش
+currency String خیر تعیین واحد پولی ریال (IRR) یا تومان(IRT)
+description String بله توضیحات مربوط به تراکنش
+callback_url String بله صفحه بازگشت مشتري، پس از انجام عمل پرداخت
+referrer_id String خیر کد معرف
+metadata Array دارای مقدار های mobile و email و order_id
+mobile String خیر شماره تماس خریدار
+email String خیر ایمیل خریدار
+order_id String خیر شماره سفارش
+نکته
+تمامی داده‌های برگشتی از زرین‌پال به صورت json می باشد.
 
-شناسه‌ی مرجع Authority: آتوریتی یک شناسه‌ی یکتاست که وب‌سایت زرین‌پال به ازای هر درخواست خرید به پذیرنده ارسال می‌كند، جنس این پارامتر از نوع UUID universally unique identifier بوده كه مطابق RFC با طول ۳۶ كاراكتر و String می‌باشد که با حرف A شروع می‌شود.
+https://payment.zarinpal.com/pg/v4/payment/request.json
+درخواست
 
-وضعیت Code: عددی است كه توسط وب سرویس زرین‌پال به عنوان وضعیت تراكنش به پذیرنده نمایش داده می‌شود.
+PHP
+cURL
+curl -X POST \
+ https://payment.zarinpal.com/pg/v4/payment/request.json \
+ -H 'accept: application/json' \
+ -H 'content-type: application/json' \
+ -d '{
+"merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+"amount": 1000,
+"callback_url": "http://your-site.com/verify",
+"referrer_id": "xxxx",
+"description": "Transaction description.",
+"metadata": {"mobile": "09121234567","email": "info.test@gmail.com"}
+}
 
-شماره تراكنش خرید ref_id: شناسه‌ی یکتایی كه زرین‌پال بعد از اتمام موفق تراكنش به پذیرنده ارائه می‌دهد. این شناسه جهت پیگیری‌های مالی استفاده می‌شود.
+پاسخ
+{
+"data": {
+"code": 100,
+"message": "Success",
+"authority": "A0000000000000000000000000000wwOGYpd",
+"fee_type": "Merchant",
+"fee": 100
+},
+"errors": []
+}
+انتقال خریدار به صفحه پرداخت اینترنتی
+در صورتی که در مرحله ارسال دیتا اولیه، اطلاعات ارسالی صحیح باشد و دو مقدار code و authority را دریافت کرده باشید، باید خریدار را به درگاه پرداخت انتقال دهید.
 
-توضیحات تراکنش description: متنی که به صورت خلاصه توسط پذیرنده برای معرفی کالا یا خدماتی که قصد فروش آن را دارد، نوشته می شود.
+برای این منظور باید مقدار authority که در مرحله اول دریافت کرده‌اید را در انتهای آدرس قرار داده و خریدار را به URL ایجاد شده ریدایرکت کرده تا خریدار بلافاصله به درگاه پرداخت اینترنتی هدایت شده و سپس مرحله سوم را انجام دهد.
 
-شماره تماس خریدار mobile: توسط پذیرنده در وب‌سرویس تعیین می‌شود كه جهت سهولت در پیگیری‌های پس از پرداخت استفاده خواهد شد؛ این پارامتر اختیاری است.
+Location: https://payment.zarinpal.com/pg/StartPay/ . $result['data']["authority"]
+بازگشت به وب‌سایت پذیرنده
+بعد از پایان عملیات در سمت زرین‌پال، خریدار از درگاه پرداخت اینترنتی باز می‌گردد. در این مرحله با توجه به نتیجه تراکنش و وضعیت آن، زرین‌پال خریدار را به آدرس درخواستی پذیرنده که در ارسال اطلاعات با پارامتر callback_url مشخص شده است، هدایت می‌کند.
 
-ایمیل خریدار email: توسط پذیرنده در وب‌سرویس تعیین می‌شود كه جهت سهولت در پیگیری‌های پس از پرداخت استفاده خواهد شد؛ این پارامتر اختیاری است.
+نکته
+توجه داشته باشید كه یك Status به صورت QueryString به سایت پذیرنده ارسال می‌شود كه دارای دو مقدار ثابت”OK“ و”NOK“ است؛ در صورتی كه این مقدار برابر ”NOK“ باشد، به این معنا است كه تراكنش ناموفق بوده یا توسط خریدار لغو شده است؛ درنتیجه متد verify باید در صورتی استفاده شود كه در QueryString مقدار Status برابر با ”OK“ باشد.
 
-آدرس بازگشت callback_url: آدرسی که بعد از پایان عملیات در سمت زرین‌پال، خریدار به آنجا بازگشت داده می‌شود.
+http://www.yoursite.ir/?Authority=A0000000000000000000000000000wwOGYpd&Status=OK
+اعتبار سنجی
+برای استفاده از این متد، باید ابتدا در صفحه بازگشت، با استفاده از متدverify اطلاعات ارسالی را چک کرده و در صورت موفق بودن پرداخت، آن را ثبت و شماره تراکنش را به کاربر نمایش دهید. در غیر اینصورت موظف هستید بـا توجه به كد خطایی كه توسط متد verify دریافت می‌كنید كاربر را از خطای رخ داده مطلع سازید.
 
-نیازمندی های امنیتی
-از آنجایی‌که وب‌سایت زرین‌پال دارای گواهینامه‌ SSL معتبر است، ارتباط خریدار با زرین‌پال و هم‌چنین ارتباط پذیرنده با زرین‌پال می‌تواند در بستر SSL انجام شود. چنانچه پذیرنده نیز دارای گواهینامه SSL معتبر باشد، ارتباط بین خریدار و پذیرنده نیز در بستر SSL و به صورت امن خواهد بود. دارا بودن این گواهینامه برای پذیرنده اجباری نیست، اما داشتن آن به نفع خریدار و پذیرنده خواهد بود.
+در این مرحله اگر مقدار پارامتر code برابر 100 باشد به معنای موفق بودن تراکنش است و می‌توانید با پارامتر ref_id شماره تراکنش را به کاربر نمایش دهد.
 
-همچنین پذیرنده و زرین‌پال نباید از هیچ کدام از اطلاعات مالی خریدار مانند شماره كارت، رمز كارت، میزان موجودی و غیره مطلع شوند. به همین دلیل پذیرنده و زرین‌پال از خریدار هیچ نوع اطلاعات مالی و بانکی دریافت نمی‌كنند و تمامی‌ این اطلاعات شخصا توسط خریدار در درگاه پرداخت اینترنتی وارد می‌شود.
+پارامتر
+
+نام نوع توضیحات
+merchant_id String كد ۳۶ كاراكتری اختصاصی پذیرنده
+amount Integer مبلغ تراكنش به (ریال)
+authority String كد یكتای شناسه مرجع درخواست.
+مقادیری كه توسط متد verify برگشت داده می‌شود به شرح زیر می‌باشد.
+
+نام نوع توضیحات
+code Integer عددی كه نشان دهنده موفق بودن یا موفق نبودن پرداخت است.
+ref_id Integer در صورتی كه پرداخت موفق باشد، شماره تراكنش پرداخت انجام شده را بر می‌گرداند.
+card_pan String شماره کارت به صورت Mask
+card_hash String هش کارت به صورت SHA256
+fee_type String پرداخت کننده کارمزد: که در پنل کاربری میان خریدار یا خود پذیرنده قابل انتخاب است.
+fee Integer کارمزد
+مهم
+درصورت موفقیت آمیز بودن تراکنش، با فراخوانی متدverify ، تنها یکبار کد100 رخ می‌دهد و در دفعات بعدی verify همان تراکنش، کد 101 اتفاق می‌افتد. در نتیجه کد 101 به معنای آن است که تراکنش موفق بوده و یک‌بار قبلا عملیات verifyبر روی آن انجام شده است. لطفا در نظر داشته باشید که در دفعات بعدی verify همان تراکنش نیز کد 101 نشان داده می‌شود.
+
+https://payment.zarinpal.com/pg/v4/payment/verify.json
+PHP
+cURL
+curl -X POST \
+ https://payment.zarinpal.com/pg/v4/payment/verify.json \
+ -H 'accept: application/json' \
+ -H 'content-type: application/json' \
+ -d '{
+"merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+"amount": 1000,
+"authority": "A0000000000000000000000000000wwOGYpd"
+}'
+پاسخ
+{
+"data": {
+"code": 100,
+"message": "Verified",
+"card_hash": "1EBE3EBEBE35C7EC0F8D6EE4F2F859107A87822CA179BC9528767EA7B5489B69",
+"card_pan": "502229**\*\***5995",
+"ref_id": 201,
+"fee_type": "Merchant",
+"fee": 0
+},
+"errors": []
+}
 
 سرویس تست (sandbox)
 برای تست آزمایشی درگاه زرین‌پال بدون پرداخت مبلغ فقط کافی هست بعد از پیاده سازی درگاه، آدرس وب سرویس‌های مورد استفاده را به sandbox تغییر دهید.
@@ -73,48 +153,47 @@ https://sandbox.zarinpal.com/...
 
 لیست خطاها
 خطاهایی که در زرین‌پال ممکن است رخ دهد به همراه توضیحات مربوط به شرح زیر است
-type	code	EN	شرح فارسی
-public	-9	Validation error	خطای اعتبار سنجی
+type code EN شرح فارسی
+public -9 Validation error خطای اعتبار سنجی
 1- مرچنت کد داخل تنظیمات وارد نشده باشد
 -2 آدرس بازگشت (callbackurl) وارد نشده باشد
 -3 توضیحات (description ) وارد نشده باشد و یا از حد مجاز 500 کارکتر بیشتر باشد
 -4 مبلغ پرداختی کمتر یا بیشتر از حد مجاز
 -5 کد معرف (referrer_id) نامعتبر است
-public	-10	Terminal is not valid, please check merchant_id or ip address.	ای پی یا مرچنت كد پذیرنده صحیح نیست.
-public	-11	Terminal is not active, please contact our support team.	مرچنت کد فعال نیست، پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
-public	-12	To many attempts, please try again later.	تلاش بیش از دفعات مجاز در یک بازه زمانی کوتاه به امور مشتریان زرین پال اطلاع دهید
-public	-13	terminal limit reached.	خطای مربوط به محدودیت تراکنش. برای رفع این مورد نسبت به تکمیل مدارک خود با مراجعه به پشتیبانی اقدام نمایید.
-public	-14	The callback URL domain does not match the registered terminal domain.	کال‌بک URL با دامنه ثبت شده درگاه مغایرت دارد.
-public	-15	Terminal user is suspend : (please contact our support team).	درگاه پرداخت به حالت تعلیق در آمده است، پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
-public	-16	Terminal user level is not valid : ( please contact our support team).	سطح تایید پذیرنده پایین تر از سطح نقره ای است.
-public	-17	Terminal user level is not valid : ( please contact our support team).	محدودیت پذیرنده در سطح آبی
-public	-18	The referrer address does not match the registered domain.	امکان استف کد درگاه اختصاصی خود بر روی سایت یا جای دیگری را ندارید
-public	-19	Terminal user transactions are banned.	امکان ایجاد تراکنش برای این ترمینال امکان پذیر نیست
-public	100	Success	عملیات موفق
-PaymentRequest	-30	Terminal do not allow to accept floating wages.	پذیرنده اجازه دسترسی به سرویس تسویه اشتراکی شناور را ندارد.
-PaymentRequest	-31	Terminal do not allow to accept wages, please add default bank account in panel.	حساب بانکی تسویه را به پنل اضافه کنید. مقادیر وارد شده برای تسهیم درست نیست. پذیرنده جهت استفاده از خدمات سرویس تسویه اشتراکی شناور، باید حساب بانکی معتبری به پنل کاربری خود اضافه نماید.
-PaymentRequest	-32	Wages is not valid, Total wages(floating) has been overload max amount.	مبلغ وارد شده از مبلغ کل تراکنش بیشتر است.
-PaymentRequest	-33	Wages floating is not valid.	درصدهای وارد شده صحیح نیست.
-PaymentRequest	-34	Wages is not valid, Total wages(fixed) has been overload max amount.	مبلغ وارد شده از مبلغ کل تراکنش بیشتر است.
-PaymentRequest	-35	Wages is not valid, Total wages(floating) has been reached the limit in max parts.	تعداد افراد دریافت کننده تسهیم بیش از حد مجاز است.
-PaymentRequest	-36	The minimum amount for wages(floating) should be 10,000 Rials	حداقل مبلغ جهت تسهیم باید ۱۰۰۰۰ ریال باشد
-PaymentRequest	-37	One or more iban entered for wages(floating) from the bank side are inactive.	یک یا چند شماره شبای وارد شده برای تسهیم از سمت بانک غیر فعال است.
-PaymentRequest	-38	Wages need to set Iban in shaparak.	خطا٬عدم تعریف صحیح شبا٬لطفا دقایقی دیگر تلاش کنید.
-PaymentRequest	-39	Wages have a error!	خطایی رخ داده است به امور مشتریان زرین پال اطلاع دهید
-PaymentRequest	-40	Invalid extra params, expire_in is not valid.	
-PaymentRequest	-41	Maximum amount is 100,000,000 tomans.	حداکثر مبلغ پرداختی ۱۰۰ میلیون تومان است
-PaymentVerify	-50	Session is not valid, amounts values is not the same.	مبلغ پرداخت شده با مقدار مبلغ ارسالی در متد وریفای متفاوت است.
-PaymentVerify	-51	Session is not valid, session is not active paid try.	پرداخت ناموفق
-PaymentVerify	-52	Oops!!, please contact our support team	خطای غیر منتظره‌ای رخ داده است. پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
-PaymentVerify	-53	Session is not this merchant_id session	پرداخت متعلق به این مرچنت کد نیست.
-PaymentVerify	-54	Invalid authority.	اتوریتی نامعتبر است.
-PaymentVerify	-55	manual payment request not found.	تراکنش مورد نظر یافت نشد
-PaymentReverse	-60	Session can not be reversed with bank.	امکان ریورس کردن تراکنش با بانک وجود ندارد
-PaymentReverse	-61	Session is not in success status.	تراکنش موفق نیست یا قبلا ریورس شده است
-PaymentReverse	-62	Terminal ip limit most be active.	آی پی درگاه ست نشده است
-PaymentReverse	-63	Maximum time for reverse this session is expired.	حداکثر زمان (۳۰ دقیقه) برای ریورس کردن این تراکنش منقضی شده است
-PaymentVerify	101	Verified	تراکنش وریفای شده است.
-
+public -10 Terminal is not valid, please check merchant_id or ip address. ای پی یا مرچنت كد پذیرنده صحیح نیست.
+public -11 Terminal is not active, please contact our support team. مرچنت کد فعال نیست، پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
+public -12 To many attempts, please try again later. تلاش بیش از دفعات مجاز در یک بازه زمانی کوتاه به امور مشتریان زرین پال اطلاع دهید
+public -13 terminal limit reached. خطای مربوط به محدودیت تراکنش. برای رفع این مورد نسبت به تکمیل مدارک خود با مراجعه به پشتیبانی اقدام نمایید.
+public -14 The callback URL domain does not match the registered terminal domain. کال‌بک URL با دامنه ثبت شده درگاه مغایرت دارد.
+public -15 Terminal user is suspend : (please contact our support team). درگاه پرداخت به حالت تعلیق در آمده است، پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
+public -16 Terminal user level is not valid : ( please contact our support team). سطح تایید پذیرنده پایین تر از سطح نقره ای است.
+public -17 Terminal user level is not valid : ( please contact our support team). محدودیت پذیرنده در سطح آبی
+public -18 The referrer address does not match the registered domain. امکان استف کد درگاه اختصاصی خود بر روی سایت یا جای دیگری را ندارید
+public -19 Terminal user transactions are banned. امکان ایجاد تراکنش برای این ترمینال امکان پذیر نیست
+public 100 Success عملیات موفق
+PaymentRequest -30 Terminal do not allow to accept floating wages. پذیرنده اجازه دسترسی به سرویس تسویه اشتراکی شناور را ندارد.
+PaymentRequest -31 Terminal do not allow to accept wages, please add default bank account in panel. حساب بانکی تسویه را به پنل اضافه کنید. مقادیر وارد شده برای تسهیم درست نیست. پذیرنده جهت استفاده از خدمات سرویس تسویه اشتراکی شناور، باید حساب بانکی معتبری به پنل کاربری خود اضافه نماید.
+PaymentRequest -32 Wages is not valid, Total wages(floating) has been overload max amount. مبلغ وارد شده از مبلغ کل تراکنش بیشتر است.
+PaymentRequest -33 Wages floating is not valid. درصدهای وارد شده صحیح نیست.
+PaymentRequest -34 Wages is not valid, Total wages(fixed) has been overload max amount. مبلغ وارد شده از مبلغ کل تراکنش بیشتر است.
+PaymentRequest -35 Wages is not valid, Total wages(floating) has been reached the limit in max parts. تعداد افراد دریافت کننده تسهیم بیش از حد مجاز است.
+PaymentRequest -36 The minimum amount for wages(floating) should be 10,000 Rials حداقل مبلغ جهت تسهیم باید ۱۰۰۰۰ ریال باشد
+PaymentRequest -37 One or more iban entered for wages(floating) from the bank side are inactive. یک یا چند شماره شبای وارد شده برای تسهیم از سمت بانک غیر فعال است.
+PaymentRequest -38 Wages need to set Iban in shaparak. خطا٬عدم تعریف صحیح شبا٬لطفا دقایقی دیگر تلاش کنید.
+PaymentRequest -39 Wages have a error! خطایی رخ داده است به امور مشتریان زرین پال اطلاع دهید
+PaymentRequest -40 Invalid extra params, expire_in is not valid.
+PaymentRequest -41 Maximum amount is 100,000,000 tomans. حداکثر مبلغ پرداختی ۱۰۰ میلیون تومان است
+PaymentVerify -50 Session is not valid, amounts values is not the same. مبلغ پرداخت شده با مقدار مبلغ ارسالی در متد وریفای متفاوت است.
+PaymentVerify -51 Session is not valid, session is not active paid try. پرداخت ناموفق
+PaymentVerify -52 Oops!!, please contact our support team خطای غیر منتظره‌ای رخ داده است. پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
+PaymentVerify -53 Session is not this merchant_id session پرداخت متعلق به این مرچنت کد نیست.
+PaymentVerify -54 Invalid authority. اتوریتی نامعتبر است.
+PaymentVerify -55 manual payment request not found. تراکنش مورد نظر یافت نشد
+PaymentReverse -60 Session can not be reversed with bank. امکان ریورس کردن تراکنش با بانک وجود ندارد
+PaymentReverse -61 Session is not in success status. تراکنش موفق نیست یا قبلا ریورس شده است
+PaymentReverse -62 Terminal ip limit most be active. آی پی درگاه ست نشده است
+PaymentReverse -63 Maximum time for reverse this session is expired. حداکثر زمان (۳۰ دقیقه) برای ریورس کردن این تراکنش منقضی شده است
+PaymentVerify 101 Verified تراکنش وریفای شده است.
 
 اعتبارسنجی تراکنش (خودکار/غیرخودکار)
 در چرخه‌ی پرداخت در زرین‌پال، پس از اینکه خریدار عملیات پرداخت را در درگاه بانکی انجام می‌دهد، زرین‌پال باید از بانک (PSP) استعلام و تأیید بگیرد تا از موفقیت نهایی تراکنش اطمینان حاصل شود. این مرحله را اعتبارسنجی (Verify) نهایی تراکنش می‌نامیم.
@@ -139,20 +218,20 @@ metadata.auto_verify
 نمونه درخواست
 درخواست
 curl -X POST \
-  https://payment.zarinpal.com/pg/v4/payment/request.json \
-  -H 'accept: application/json' \
-  -H 'content-type: application/json' \
-  -d '{
-  "merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "currency": "IRT",
-  "amount": 10000,
-  "callback_url": "https://example.com/payment-callback",
-  "description": "خرید اشتراک",
-  "metadata": {
-    "auto_verify": true,
-    "mobile": "09121234567",
-    "email": "info@example.com"
-  }
+ https://payment.zarinpal.com/pg/v4/payment/request.json \
+ -H 'accept: application/json' \
+ -H 'content-type: application/json' \
+ -d '{
+"merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+"currency": "IRT",
+"amount": 10000,
+"callback_url": "https://example.com/payment-callback",
+"description": "خرید اشتراک",
+"metadata": {
+"auto_verify": true,
+"mobile": "09121234567",
+"email": "info@example.com"
+}
 }'
 رفتار سیستم براساس مقدار
 metadata.auto_verify
@@ -213,22 +292,22 @@ auto_verify
 
 اطلاعات ورودی این متد :
 
-نام	نوع	اجباری	شرح
-merchant_id	String	بله	كد 36 كاراكتري اختصاصي پذيرنده
-authority	String	بله	آتوریتی تراکنش مورد نظر
+نام نوع اجباری شرح
+merchant_id String بله كد 36 كاراكتري اختصاصي پذيرنده
+authority String بله آتوریتی تراکنش مورد نظر
 پاسخ برگشتی توسط این درخواست به شرح زیر است :
 
-نام	نوع	شرح
-code	Integer	عددی كه نشان دهنده موفق بودن یا موفق نبودن پرداخت است.
-message	String	پیام Reversed به معنای موفقیت آمیز بودن درخواست
-errors	Array	در صورت وجود خطا کد خطا و پیام آن را برمیگرداند
+نام نوع شرح
+code Integer عددی كه نشان دهنده موفق بودن یا موفق نبودن پرداخت است.
+message String پیام Reversed به معنای موفقیت آمیز بودن درخواست
+errors Array در صورت وجود خطا کد خطا و پیام آن را برمیگرداند
 نمونه پاسخ موفق
 {
-  "data": {
-    "code": 100,
-    "message": "Reversed"
-  },
-  "errors": []
+"data": {
+"code": 100,
+"message": "Reversed"
+},
+"errors": []
 }
 نکته
 برای مشاهده خطا ها به لیست خطا ها مراجعه نمایید
@@ -238,12 +317,12 @@ https://payment.zarinpal.com/pg/v4/payment/reverse.json
 
 نمونه درخواست
 curl -X POST \
-  https://payment.zarinpal.com/pg/v4/payment/reverse.json \
-  -H 'accept: application/json' \
-  -H 'content-type: application/json' \
-  -d '{
-  "merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "authority": "A000000000000000000000000000xpgr85j5",
+ https://payment.zarinpal.com/pg/v4/payment/reverse.json \
+ -H 'accept: application/json' \
+ -H 'content-type: application/json' \
+ -d '{
+"merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+"authority": "A000000000000000000000000000xpgr85j5",
 }'
 نمونه خطا ها
 60-
@@ -251,12 +330,12 @@ curl -X POST \
 62-
 63-
 {
-  "data": {},
-  "errors": {
-    "message": "Session can not be reversed with bank.",
-    "code": -60,
-    "validations": []
-  }
+"data": {},
+"errors": {
+"message": "Session can not be reversed with bank.",
+"code": -60,
+"validations": []
+}
 }
 
 همکاری در فروش
@@ -264,27 +343,27 @@ curl -X POST \
 
 برای آشنایی بیشتر با جزئیات برنامه همکاری در فروش، به صفحه رسمی همکاری در فروش زرین‌پال (opens new window)مراجعه کنید.
 
-نام	نوع	الزام	توضیحات
-merchant_id	String	بله	كد ۳۶ كاراكتری اختصاصی پذیرنده
-currency	String	خیر	تعیین واحد پولی
-amount	Integer	بله	مبلغ تراكنش
-description	String	بله	توضیحات مربوط به تراکنش
-callback_url	String	بله	صفحه بازگشت پذیرنده، پس از انجام عمل پرداخت
-referrer_id	String	خیر	کد معرف
-metadata	Array		
-mobile	String	خیر	شماره تماس خریدار
-email	String	خیر	ایمیل خریدار
+نام نوع الزام توضیحات
+merchant_id String بله كد ۳۶ كاراكتری اختصاصی پذیرنده
+currency String خیر تعیین واحد پولی
+amount Integer بله مبلغ تراكنش
+description String بله توضیحات مربوط به تراکنش
+callback_url String بله صفحه بازگشت پذیرنده، پس از انجام عمل پرداخت
+referrer_id String خیر کد معرف
+metadata Array
+mobile String خیر شماره تماس خریدار
+email String خیر ایمیل خریدار
 خطاها
 هنگام استفاده از پارامتر referrer_id ممکن است خطاهایی رخ دهد که معمولاً به دلیل معتبر نبودن کد معرف، اشتباه در ارسال داده، یا وضعیت فعلی ترمینال ایجاد می‌شوند.
 
 در برخی موارد این خطاها به‌صورت مستقیم بازگردانده نمی‌شوند و تنها باعث می‌شوند مقدار referrer_id نادیده گرفته شده و در تراکنش ذخیره نشود. در جدول زیر، جزئیات هر حالت و رفتار سیستم مشخص شده است.
 
-کد	توضیح خطا	نحوه‌ی برخورد سیستم
-429	قالب کد معرف معتبر نیست	درخواست رد می‌شود و خطا به‌صورت مستقیم برگردانده می‌شود.
-—	خطای رمزگشایی شناسه (Invalid decoding)	در این حالت مقدار referrer_id پردازش نمی‌شود و در تراکنش ذخیره نخواهد شد.
-—	کاربر معرف یافت نشد	در این حالت مقدار referrer_id پردازش نمی‌شود و در تراکنش ذخیره نخواهد شد.
-—	ترمینال متعلق به معرف است	در این حالت مقدار referrer_id پردازش نمی‌شود و در تراکنش ذخیره نخواهد شد.
-—	ترمینال از قبل دارای معرف است	در این حالت مقدار referrer_id پردازش نمی‌شود و در تراکنش ذخیره نخواهد شد.
+کد توضیح خطا نحوه‌ی برخورد سیستم
+429 قالب کد معرف معتبر نیست درخواست رد می‌شود و خطا به‌صورت مستقیم برگردانده می‌شود.
+— خطای رمزگشایی شناسه (Invalid decoding) در این حالت مقدار referrer_id پردازش نمی‌شود و در تراکنش ذخیره نخواهد شد.
+— کاربر معرف یافت نشد در این حالت مقدار referrer_id پردازش نمی‌شود و در تراکنش ذخیره نخواهد شد.
+— ترمینال متعلق به معرف است در این حالت مقدار referrer_id پردازش نمی‌شود و در تراکنش ذخیره نخواهد شد.
+— ترمینال از قبل دارای معرف است در این حالت مقدار referrer_id پردازش نمی‌شود و در تراکنش ذخیره نخواهد شد.
 نکته
 تمامی داده‌های برگشتی از زرین‌پال به صورت json می‌باشد.
 
@@ -293,69 +372,31 @@ https://payment.zarinpal.com/pg/v4/payment/request.json
 درخواست
 پاسخ
 curl -X POST \
-  https://payment.zarinpal.com/pg/v4/payment/request.json \
-  -H 'accept: application/json' \
-  -H 'content-type: application/json' \
-  -d '{
-  "merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "currency": "IRT",
-  "amount": 10000,
-  "callback_url": "http://example.com/verify",
-  "description": "افزایش اعتبار کاربر شماره ۱۱۳۴۶۲۹",
-  "referrer_id": "xxxx",
-  "metadata": {"mobile": "09121234567","email": "info.test@gmail.com"}
+ https://payment.zarinpal.com/pg/v4/payment/request.json \
+ -H 'accept: application/json' \
+ -H 'content-type: application/json' \
+ -d '{
+"merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+"currency": "IRT",
+"amount": 10000,
+"callback_url": "http://example.com/verify",
+"description": "افزایش اعتبار کاربر شماره ۱۱۳۴۶۲۹",
+"referrer_id": "xxxx",
+"metadata": {"mobile": "09121234567","email": "info.test@gmail.com"}
 }'
-
 
 تمام مراحل دیگر مانند بخش راهنمای اتصال می باشد .
 
-unVerified
-متد unverified در مواردی استفاد می‌شود که نیازمند اطلاعات پرداخت‌هایی هستید که توسط وب‌سرویس به درستی انجام شده است، اما متد verifyروی آنها اعمال نشده است. به عبارت دیگر این متد لیست پرداخت‌های موفق اعتبارسنجی نشده را نشان می‌دهد.
-
-https://payment.zarinpal.com/pg/v4/payment/unVerified.json
-اطلاعات ورودی این متد :
-
-نام	نوع	اجباری	شرح
-merchant_id	String	بله	كد 36 كاراكتري اختصاصي پذيرنده
-اطلاعات خروجي اين متد :
-
-نام	نوع	شرح
-code	Integer	عددي كه نشان دهنده موفق بودن يا عدم موفق عمليات ميباشد .
-authorities	String	حاوي اطلاعات اضافه تراكنش اعم از نوع درگاه و زمان پرداخت به صورت JSON Encode شده ميباشد.
-نمونه اطلاعات بازگشتی :
-
 {
-  "data": {
-    "code": "100",
-    "message": "Success",
-    "authorities": [
-      {
-        "authority": "A0000000000000000000000000000wwOGYpd",
-        "amount": 50500,
-        "callback_url": "https://test.com/vpay",
-        "referer": "https://example.com/test-form/",
-        "date": "2020-07-01 17:33:25"
-      },
-      {
-        "authority": "A00000000000000000000000000207296508",
-        "amount": 50500,
-        "callback_url": "https://test.com/vpay",
-        "referer": "https://example.com/test-form/",
-        "date": "2020-07-01 18:58:32"
-      },
-      {
-        "authority": "A00000000000000000000000000206875420",
-        "amount": 11100,
-        "callback_url": "zarin_link",
-        "referer": "/",
-        "date": "2020-06-27 10:22:02"
-      }
-    ]
-  }
+"data": {
+"code": 100,
+"message": "Success",
+"authority": "A0000000000000000000000000000wwOGXpd",
+"fee_type": "Merchant",
+"fee": 100
+},
+"errors": []
 }
-نکته
-نکته
-نكته : حداکثر تعداد تراکنشی که در این روش بازگردانی می‌شوند، محدود به ۱۰۰ تراکنش آخری است که اعتبارسنجی نشده اند.
 
 استعلام وضعیت پرداخت
 این متد فقط وضعیت تراکنش مورد نظر شما را اعلام میکند
@@ -365,21 +406,21 @@ authorities	String	حاوي اطلاعات اضافه تراكنش اعم از �
 
 اطلاعات ورودی این متد :
 
-نام	نوع	اجباری	شرح
-merchant_id	String	بله	كد 36 كاراكتري اختصاصي پذيرنده
-authority	String	بله	آتوریتی تراکنش مورد نظر
+نام نوع اجباری شرح
+merchant_id String بله كد 36 كاراكتري اختصاصي پذيرنده
+authority String بله آتوریتی تراکنش مورد نظر
 پاسخ برگشتی توسط این درخواست به شرح زیر است :
 
-نام	نوع	شرح
-status	String	وضعیت تراکنش که ممکن است یکی از این حالات باشد :
+نام نوع شرح
+status String وضعیت تراکنش که ممکن است یکی از این حالات باشد :
 VERIFIED : وریفای شده
 PAID : پرداخت شده (وریفای نشده)
 IN_BANK : درحال پرداخت
 FAILED : ناموفق (تکمیل نشده)
 REVERSED : تراکنش ریورس شده
-code	Integer	عددی كه نشان دهنده موفق بودن یا موفق نبودن پرداخت است.
-message	String	پیام موفقیت آمیز بودن درخواست
-errors	Array	در صورت وجود خطا کد خطا و پیام آن را برمیگرداند
+code Integer عددی كه نشان دهنده موفق بودن یا موفق نبودن پرداخت است.
+message String پیام موفقیت آمیز بودن درخواست
+errors Array در صورت وجود خطا کد خطا و پیام آن را برمیگرداند
 نکته
 از این متد به هیچ عنوان برای تایید و وریفای کردن تراکنش استفاده نکنید این متد تنها وضعیت یک تراکنش را برای شما برمیگرداند
 
@@ -389,320 +430,64 @@ https://payment.zarinpal.com/pg/v4/payment/inquiry.json
 نمونه درخواست
 PHP
 cURL
-
-<?php
-
-$curl = curl_init();
-
-curl_setopt_array($curl, array(
-  CURLOPT_URL => 'https://payment.zarinpal.com/pg/v4/payment/inquiry.json',
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_ENCODING => '',
-  CURLOPT_MAXREDIRS => 10,
-  CURLOPT_TIMEOUT => 0,
-  CURLOPT_FOLLOWLOCATION => true,
-  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-  CURLOPT_CUSTOMREQUEST => 'POST',
-  CURLOPT_POSTFIELDS =>'{
-  "merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "authority": "A000000000000000000000000000xpgr85j5",
-}',
-  CURLOPT_HTTPHEADER => array(
-    'Content-Type: application/json',
-    'Accept: application/json'
-  ),
-));
-
-$response = curl_exec($curl);
-
-curl_close($curl);
-echo $response;
-
+curl -X POST \
+ https://payment.zarinpal.com/pg/v4/payment/inquiry.json \
+ -H 'accept: application/json' \
+ -H 'content-type: application/json' \
+ -d '{
+"merchant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+"authority": "A000000000000000000000000000xpgr85j5",
+}'
 نمونه پاسخ موفق
 {
-  "data": {
-    "status": "PAID", // پرداخت شده (وریفای نشده)
-    "code": 100,
-    "message": "Success"
-  },
-  "errors": []
+"data": {
+"status": "PAID", // پرداخت شده (وریفای نشده)
+"code": 100,
+"message": "Success"
+},
+"errors": []
 }
 نمونه پاسخ ناموفق
 {
-  "message": "Invalid authority",
-  "errors": {
-      "authority": [
-          "Invalid authority.", // آتوریتی اشتباه
-          "-54"
-      ]
-  }
+"message": "Invalid authority",
+"errors": {
+"authority": [
+"Invalid authority.", // آتوریتی اشتباه
+"-54"
+]
+}
 }
 
-راهنمای استفاده از API
-به جز مراحل احراز هویت، بقیه‌ی امکانات API از طریق کارگزاری در‌دسترس هستند که با زبان پرس‌و‌جوی GraphQL کار می‌کند. برای پرس‌و‌جو (مثلاً گرفتن لیست تیکت‌ها) یا ایجاد تغییر روی داده‌ها (مثلاً ایجاد یک تیکت)، شما نیاز دارید یک عبارت به عنوان Query به سرور زرین‌پال با URL زیر ارسال کنید:
+معرفی
+از نسخه‌ فعلی زرین‌پال، یک رابط برنامه‌نویسی (API) برای ارائه‌ی خدمات به مشتریان تحت پروتکل oAuth 2.0 و زبان پرس‌و‌جوی GraphQL (opens new window)معرفی و در دسترس قرار داده شده است.
 
-https://next.zarinpal.com/api/v4/graphql
-این درخواست با استفاده از متد POST و با نوع محتوای application/json ارسال می‌شود. کد زیر، نمونه‌ی ارسال یک کوئری با ابزار cURL نشان می‌دهد:
+با استفاده از اینAPI، می‌توانید تغییراتی در حساب‌های کاربری احراز هویت‌شده مانند ایجاد تیکت، تأیید مدارک و مشخصات، ایجاد درگاه پرداخت و غیره ایجاد کنید.
+
+اولین شرط استفاده از امکاناتAPI، دریافت یک Access Token است که پس از طی‌کردن مراحل احراز هویت به دست می‌آید.
+
+بعد از دریافت Access Token خریدار، می‌توانید با اضافه‌کردن توکن به هدر Authorization در درخواست‌های خود، پرس‌و‌جوها را اجرا کرده و نتیجه را دریافت کنید.
+
+پرس‌و‌جو با GraphQL
+به جز مراحل احراز هویت، بقیه‌ی امکانات API از طریق کارگزاری در‌دسترس هستند که با زبان پرس‌و‌جوی GraphQL کار می‌کند.
+
+برخی از تفاوت‌های GraphQL و REST عبارت است از:
+
+GraphQL تنها یک آدرس Endpoint دارد و برای دسترسی به امکانات مختلف، نیازی به عوض‌کردن Endpoint نیست.
+تمامی درخواست‌ها با پروتکل HTTP، با نوع POST و نوع محتوای application/json ارسال می‌شوند.
+در قسمت درخواست‌ها می‌توانید همه اطلاعات را دریافت نکرده و تنها فیلدها و اطلاعات مورد نیاز خود را دریافت کنید.
+در قالب یک درخواست، می‌توانید چندین پرس‌و‌جو ارسال کنید که در کاهش زمان Round-trip مؤثر است.
+سرورهای GraphQL یک فایل Schema به شما ارائه می‌دهد که تمام پرس‌و‌جوهای در دسترس و ساختار پاسخ‌های آن‌ها لیست شده‌اند.
+ارسال درخواست
+شما می‌توانید بسته به محیط توسعه‌ی خودتان، از روش‌های معمول ارسال درخواست HTTP POST یا از کتاب‌خانه‌های آماده استفاده کنید.
+
+کد زیر، یک نمونه‌ی ارسال درخواست GraphQL با استفاده‌ از ابزار مرسوم cURL است:
 
 $ curl 'https://next.zarinpal.com/api/v4/graphql/' \
-  -H 'Accept: application/json' \
-  -H 'Authorization: Bearer {ACCESS_TOKEN}' \
-  --data-binary '{"query":"query { Application { application, platform } }","variables":null}'
-در نمونه‌ی بالا، با توکن {ACCESS_TOKEN} کوئری query { Application { application, platform } } اجرا می‌شود.
-
-در ادامه، خلاصه‌ای از چگونگی نوشتن پرس‌و‌جو با GraphQL آورده شده. در بخش شِمای مستندات، می‌توانید لیستی از پرس‌و‌جوها و تغییرهایی که می‌توانید ایجاد کنید را پیدا کنید.
-
-نوشتن پرس‌و‌جوی GraphQL
-پرس‌وجوی شما، می‌تواند از نوع query یا mutation باشد.
-
-query - اطلاعاتی را می‌خواند و تغییری ایجاد نمی‌کند
-
-mutation - اطلاعاتی را تغییر می‌دهد و نتایج تغییرات را برمی‌گرداند
-
-در ابتدا، نوع پرس‌و‌جوی خودتان را مشخص می‌کنید:
-
-query {
-
-}
-یا برای تغییر:
-
-mutation {
-
-}
-سپس باید نام عمل پرس‌و‌جو یا تغییر را تعیین کنید، برای مثال می‌خواهیم لیست کوئری‌های کاربر را بگیریم:
-
-query {
-  Tickets {
-
-  }
-}
-این کوئری هنوز صحیح نیست، چرا که سرور نیاز دارد که بداند شما به چه فیلدهایی لازم دارید. مثلاً ما فیلدهای id و status را لازم داریم:
-
-query {
-  Tickets {
-    id
-    status
-  }
-}
-نکته: برای نوشتن پرس‌و‌جوها در یک خط، بین فیلدها به جای n\ باید , قرار دهید، مثلاً:
-
-query { Tickets { id, status } }
-با ارسال این پرس‌و‌جو به سرور، پاسخی مشابه پاسخ زیر دریافت می‌کنید:
-
-{
-  "data": {
-    "Tickets": [
-      {
-        "id": "139805250316",
-        "status": "CLOSED"
-      },
-      {
-        "id": "139805250335",
-        "status": "CLOSED"
-      }
-    ]
-  }
-}
-پاس‌دادن پارامتر
-برخی از پرس‌و‌جوها و هم‌چنین همه‌ی تغییرها (Mutation) نیاز به پارامترهای ورودی دارند. مثلاً در مثال بالا، شما می‌توانید تعیین کنید که حداکثر ۱۵ تیکت به شما برگردانده شود:
-
-query {
-  Tickets(limit: 15) {
-    id
-    status
-  }
-}
-لیست پارامترها، فیلدهای بازگشتی و نوع آن‌ها را در شِما می‌توانید ببینید.
-
-و یا می‌توانید تعیین کنید که از ۱۰ تیکت اول صرف‌نظر شود:
-
-query {
-  Tickets(limit: 15, offset: 10) {
-    id
-    status
-  }
-}
-اما بیایید ایجاد یک تغییر را بررسی کنیم:
-
-mutation {
-  CardAdd(pan: "1111222233334444", expired_at: "2020-02-05 00:00:00") {
-    id
-  }
-}
-اولین چیزی که باید به آن دقت کرد، تفاوت نوع ریشه‌ی پرس‌و‌جو (Root Type) است. در مثال‌های قبلی، چون نیازی به نوشتن داده‌ی جدیدی نداشتیم، از query استفاده می‌کردیم، اما در این مثال، می‌خواهیم یک کارت جدید اضافه کنیم، پس به mutation نیاز داریم.
-
-در واقع انواع پرس‌و‌جوهایی که در دسترس شما هستند، یا از نوع query هستند یا mutation؛ برای استفاده از هر کدام باید Root Type عبارت پرس‌و‌جوی خودتان را مطابق آن قرار دهید.
-
-در پرس‌و‌جوی بالا، در صورت موفقیت‌آمیز بودن عملیات، id کارت جدید برگردانده می‌شود. در واقع Return Type عملیات CardAdd از نوع Card است، بنابراین باید تعیین کنید که دقیقاً کدام فیلدهای شیٔ Card ساخته‌شده را لازم دارید. در قسمت بعدی درمورد شیٔ‌ها توضیح داده شده است.
-
-نوع‌ها در GraphQL
-به طور کلی، GraphQL سه نوع داده وجود دارد:
-
-Object
-Scalar
-Enum
-نوع Scalar همان داده‌های معمول هستند که یکی از String، Int، DateTime، ID یا Boolean هستند. نوع Object یا شیٔ مانند بیشتر زبان‌های برنامه‌نویسی، از تعدادی عضو تشکیل شده که عضوهای آن را فیلد (Field) صدا می‌زنیم. هر فیلد از یک Key و یک Value تشکیل شده. Key حتماً یک رشته است که در میان بقیه‌ی فیلدهای دیگر یگانه است و Value هم از نوع Scalar یا Object یا لیست است. در GraphQL، نوع شیٔ با کلیدواژه‌ی type در شِما تعریف می‌شود، مثلاً:
-
-type Post {
-  id: ID!
-  title: String!
-  content: String
-  comments: [Comment!]
-}
-علامت ! در جلوی نوع فیلد به این معنی است که مقدار فیلد هیچ‌گاه Null نخواهد شد.
-
-هم‌چنین GraphQL از نوع دیگری به نام List پشتیبانی می‌کند، یعنی پاسخ پرس‌و‌جو یا تغییر شما، می‌تواند یک لیست از چندین شیٔ یا مقدار اسکالار باشد، مثلاً اگر شِما به این شکل باشد:
-
-query {
-  Tickets: [Ticket!]!
-}
-کد بالا نشان می‌دهد که عملیاتی به نام Tickets، مجموعه‌ای از اشیای Ticket برمی‌گرداند. علامت ! جلوی Ticket، به این معنی است که هیچ‌کدام از اعضای این لیست، Null نیستند. (در حال حاضر تمام لیست‌های GrpahQL باید به این گونه باشند و مقدار Null برای اعضا پشتیبانی نمی‌شود.) علامت ! جلوی براکت، به این معنی است که این لیست «حتماً» حداقل یک عضو دارد. اگر این علامت نباشد، به این معنی است که پاسخ عملیات Tickets می‌تواند یک لیست خالی ([]) باشد.
-
-مقادیر اسکالار هم می‌توانند به صورت لیست ارسال شوند، مثلاً اگر شِما به این شکل باشد:
-
-query {
-  Numbers: [Int!]
-}
-یک لیست که هر عضو آن یک Int است در پاسخ آن ارسال می‌شود.
-
-دقت کنید که داخل هر شیٔ هم می‌تواند یک فیلد با نوع لیست هم باشد.
-
-برای اطلاعات بیشتر درمورد نوشتن شِما و پرس‌و‌جوهای GraphQL می‌توانید به مستندات آن (opens new window)مراجعه کنید.
-
-محیط اجرا
-شما می‌توانید در محیط اجرای GraphiQL (opens new window)پرس‌و‌جوهای‌تان را تست کنید.
-
-راهنمای استفاده از API
-به جز مراحل احراز هویت، بقیه‌ی امکانات API از طریق کارگزاری در‌دسترس هستند که با زبان پرس‌و‌جوی GraphQL کار می‌کند. برای پرس‌و‌جو (مثلاً گرفتن لیست تیکت‌ها) یا ایجاد تغییر روی داده‌ها (مثلاً ایجاد یک تیکت)، شما نیاز دارید یک عبارت به عنوان Query به سرور زرین‌پال با URL زیر ارسال کنید:
-
-https://next.zarinpal.com/api/v4/graphql
-این درخواست با استفاده از متد POST و با نوع محتوای application/json ارسال می‌شود. کد زیر، نمونه‌ی ارسال یک کوئری با ابزار cURL نشان می‌دهد:
-
-$ curl 'https://next.zarinpal.com/api/v4/graphql/' \
-  -H 'Accept: application/json' \
-  -H 'Authorization: Bearer {ACCESS_TOKEN}' \
-  --data-binary '{"query":"query { Application { application, platform } }","variables":null}'
-در نمونه‌ی بالا، با توکن {ACCESS_TOKEN} کوئری query { Application { application, platform } } اجرا می‌شود.
-
-در ادامه، خلاصه‌ای از چگونگی نوشتن پرس‌و‌جو با GraphQL آورده شده. در بخش شِمای مستندات، می‌توانید لیستی از پرس‌و‌جوها و تغییرهایی که می‌توانید ایجاد کنید را پیدا کنید.
-
-نوشتن پرس‌و‌جوی GraphQL
-پرس‌وجوی شما، می‌تواند از نوع query یا mutation باشد.
-
-اطلاعاتی را می‌خواند و تغییری ایجاد نمی‌کند
-اطلاعاتی را تغییر می‌دهد و نتایج تغییرات را برمی‌گرداند
-در ابتدا، نوع پرس‌و‌جوی خودتان را مشخص می‌کنید:
-
-query {
-
-}
-یا برای تغییر:
-
-mutation {
-
-}
-سپس باید نام عمل پرس‌و‌جو یا تغییر را تعیین کنید، برای مثال می‌خواهیم لیست کوئری‌های کاربر را بگیریم:
-
-query {
-  Tickets {
-
-  }
-}
-این کوئری هنوز صحیح نیست، چرا که سرور نیاز دارد که بداند شما به چه فیلدهایی لازم دارید. مثلاً ما فیلدهای id و status را لازم داریم:
-
-query {
-  Tickets {
-    id
-    status
-  }
-}
-نکته: برای نوشتن پرس‌و‌جوها در یک خط، بین فیلدها به جای n\ باید , قرار دهید، مثلاً:
-
-query { Tickets { id, status } }
-با ارسال این پرس‌و‌جو به سرور، پاسخی مشابه پاسخ زیر دریافت می‌کنید:
-
-{
-  "data": {
-    "Tickets": [
-      {
-        "id": "139805250316",
-        "status": "CLOSED"
-      },
-      {
-        "id": "139805250335",
-        "status": "CLOSED"
-      }
-    ]
-  }
-}
-پاس‌دادن پارامتر
-برخی از پرس‌و‌جوها و هم‌چنین همه‌ی تغییرها (Mutation) نیاز به پارامترهای ورودی دارند. مثلاً در مثال بالا، شما می‌توانید تعیین کنید که حداکثر ۱۵ تیکت به شما برگردانده شود:
-
-query {
-  Tickets(limit: 15) {
-    id
-    status
-  }
-}
-لیست پارامترها، فیلدهای بازگشتی و نوع آن‌ها را در شِما می‌توانید ببینید.
-
-و یا می‌توانید تعیین کنید که از ۱۰ تیکت اول صرف‌نظر شود:
-
-query {
-  Tickets(limit: 15, offset: 10) {
-    id
-    status
-  }
-}
-اما بیایید ایجاد یک تغییر را بررسی کنیم:
-
-mutation {
-  CardAdd(pan: "1111222233334444", expired_at: "2020-02-05 00:00:00") {
-    id
-  }
-}
-اولین چیزی که باید به آن دقت کرد، تفاوت نوع ریشه‌ی پرس‌و‌جو (Root Type) است. در مثال‌های قبلی، چون نیازی به نوشتن داده‌ی جدیدی نداشتیم، از query استفاده می‌کردیم، اما در این مثال، می‌خواهیم یک کارت جدید اضافه کنیم، پس به mutation نیاز داریم.
-
-در واقع انواع پرس‌و‌جوهایی که در دسترس شما هستند، یا از نوع query هستند یا mutation؛ برای استفاده از هر کدام باید Root Type عبارت پرس‌و‌جوی خودتان را مطابق آن قرار دهید.
-
-در پرس‌و‌جوی بالا، در صورت موفقیت‌آمیز بودن عملیات، id کارت جدید برگردانده می‌شود. در واقع Return Type عملیات CardAdd از نوع Card است، بنابراین باید تعیین کنید که دقیقاً کدام فیلدهای شیٔ Card ساخته‌شده را لازم دارید. در قسمت بعدی درمورد شیٔ‌ها توضیح داده شده است.
-
-نوع‌ها در GraphQL
-به طور کلی، GraphQL سه نوع داده وجود دارد:
-
-Object
-Scalar
-Enum
-نوع Scalar همان داده‌های معمول هستند که یکی از String، Int، DateTime، ID یا Boolean هستند. نوع Object یا شیٔ مانند بیشتر زبان‌های برنامه‌نویسی، از تعدادی عضو تشکیل شده که عضوهای آن را فیلد (Field) صدا می‌زنیم. هر فیلد از یک Key و یک Value تشکیل شده. Key حتماً یک رشته است که در میان بقیه‌ی فیلدهای دیگر یگانه است و Value هم از نوع Scalar یا Object یا لیست است. در GraphQL، نوع شیٔ با کلیدواژه‌ی type در شِما تعریف می‌شود، مثلاً:
-
-type Post {
-  id: ID!
-  title: String!
-  content: String
-  comments: [Comment!]
-}
-علامت ! در جلوی نوع فیلد به این معنی است که مقدار فیلد هیچ‌گاه Null نخواهد شد.
-
-هم‌چنین GraphQL از نوع دیگری به نام List پشتیبانی می‌کند، یعنی پاسخ پرس‌و‌جو یا تغییر شما، می‌تواند یک لیست از چندین شیٔ یا مقدار اسکالار باشد، مثلاً اگر شِما به این شکل باشد:
-
-query {
-  Tickets: [Ticket!]!
-}
-کد بالا نشان می‌دهد که عملیاتی به نام Tickets، مجموعه‌ای از اشیای Ticket برمی‌گرداند. علامت ! جلوی Ticket، به این معنی است که هیچ‌کدام از اعضای این لیست، Null نیستند. (در حال حاضر تمام لیست‌های GrpahQL باید به این گونه باشند و مقدار Null برای اعضا پشتیبانی نمی‌شود.) علامت ! جلوی براکت، به این معنی است که این لیست «حتماً» حداقل یک عضو دارد. اگر این علامت نباشد، به این معنی است که پاسخ عملیات Tickets می‌تواند یک لیست خالی ([]) باشد.
-
-مقادیر اسکالار هم می‌توانند به صورت لیست ارسال شوند، مثلاً اگر شِما به این شکل باشد:
-
-query {
-  Numbers: [Int!]
-}
-یک لیست که هر عضو آن یک Int است در پاسخ آن ارسال می‌شود.
-
-دقت کنید که داخل هر شیٔ هم می‌تواند یک فیلد با نوع لیست هم باشد.
-
-برای اطلاعات بیشتر درمورد نوشتن شِما و پرس‌و‌جوهای GraphQL می‌توانید به مستندات آن (opens new window)مراجعه کنید.
-
-محیط اجرا
-شما می‌توانید در محیط اجرای GraphiQL (opens new window)پرس‌و‌جوهای‌تان را تست کنید.
+ -H 'Accept: application/json' \
+ -H 'Authorization: Bearer {ACCESS_TOKEN}' \
+ --data-binary '{"query":"query { Application { application, platform } }","variables":null}'
+احراز هویت
+در این مستندات، روش احراز هویت کاربران برای دریافت مقدار{ACCESS_TOKEN}، پرس‌و‌جوها و تغییرهای (Mutations) در دسترس توضیح داده می‌شود.
 
 احراز هویت
 احراز هویت در پنل زرین‌پال، تحت پرتکل oAuth 2.0 (opens new window)و استاندارد REST انجام می‌شود. قبل از شروع روند احراز هویت، باید مشخصات کلاینت خودتان از جمله client_id و client_secret را از پشتیبانی زرین‌پال دریافت کنید.
@@ -710,23 +495,23 @@ query {
 ثبت نام (register)
 برای شروع روند ثبت نام ، ابتدا باید یک درخواست POST با فرمت application/json به آدرس زیر ارسال کنید:
 
- https://next.zarinpal.com/api/oauth/register
+https://next.zarinpal.com/api/oauth/register
 لیست پارامترهای قابل‌پذیرش توسط این مقصد عبارت‌اند از:
 
-نام	نوع قابل‌قبول	الزامی است؟	توضیحات
-first_name	string	بله	نام
-last_name	string	بله	نام خانوادگی
-cell_number	Integer	بله	شماره تلفن همراه
+نام نوع قابل‌قبول الزامی است؟ توضیحات
+first_name string بله نام
+last_name string بله نام خانوادگی
+cell_number Integer بله شماره تلفن همراه
 مقالی برای عضویت :
 
 $ curl 'https://next.zarinpal.com/api/oauth/register' \
-  -H 'Content-Type: application/json' \
-  --data-binary '{"first_name": "علی","last_name": "علیپور","cell_number":"09123456789"}'
+ -H 'Content-Type: application/json' \
+ --data-binary '{"first_name": "علی","last_name": "علیپور","cell_number":"09123456789"}'
 پاسخ
 در پاسخ به این درخواست،اگر کاربر قبلا ثبت نشده باشد پاسخی به این شکل ارسال می‌شود که شماره کاربری زرین پال است:
 
 {
-    "user_id": 945298
+"user_id": 945298
 }
 در صورتی که کاربر قبلا ثبت نام شده باشد خطای موجود بودن آن دریافت می شود
 
@@ -737,36 +522,36 @@ $ curl 'https://next.zarinpal.com/api/oauth/register' \
 https://next.zarinpal.com/api/oauth/initialize
 لیست پارامترهای قابل‌پذیرش توسط این مقصد عبارت‌اند از:
 
-نام	نوع قابل‌قبول	الزامی است؟	مقدار پیش‌فرض	توضیحات
-username	string	بله		آدرس ایمیل یا شماره‌ی همراه کاربر
-channel	string('ussd', 'sms')	خیر	'ussd'	کانال دریافت رمز یک‌بار مصرف کاربر
+نام نوع قابل‌قبول الزامی است؟ مقدار پیش‌فرض توضیحات
+username string بله آدرس ایمیل یا شماره‌ی همراه کاربر
+channel string('ussd', 'sms') خیر 'ussd' کانال دریافت رمز یک‌بار مصرف کاربر
 برای مثال، ما می‌خواهیم کاربری با شماره‌ی موبایل 09123456789 را با استفاده از کد USSD احراز هویت کنیم:
 
 $ curl 'https://next.zarinpal.com/api/oauth/initialize' \
-  -H 'Content-Type: application/json' \
-  --data-binary '{"username":"09123456789","channel":"ussd"}'
+ -H 'Content-Type: application/json' \
+ --data-binary '{"username":"09123456789","channel":"ussd"}'
 curl -X POST \
-  https://next.zarinpal.com/api/oauth/initialize \
-  -H 'content-type: application/json' \
-  -d '{"username":"09123456789","channel":"sms"}'
+ https://next.zarinpal.com/api/oauth/initialize \
+ -H 'content-type: application/json' \
+ -d '{"username":"09123456789","channel":"sms"}'
 پاسخ
 در پاسخ به این درخواست، پاسخی به این شکل ارسال می‌شود:
 
 {
-  "avatar": "https:\/\/gravatar.com\/avatar\/{EMAIL_HASH}",
-  "channel": "ussd",
-  "ussd_code": "*733*4*97*2#",
-  "waiting_time": 120,
-  "otp_time_diff": 900
+"avatar": "https:\/\/gravatar.com\/avatar\/{EMAIL_HASH}",
+"channel": "ussd",
+"ussd_code": "*733*4*97*2#",
+"waiting_time": 120,
+"otp_time_diff": 900
 }
 لیست پاسخ‌های ارسال‌شده به این صورت هستند:
 
-نام	نوع	الزامی است؟	توضیحات
-avatar	string	بله	URL آواتار کاربر (معمولاً به Gravatar اشاره می‌کند)
-channel	string('ussd', 'sms')	بله	کانالی که از طریق آن رمز یک‌بار مصرف در اختیار کاربر قرار می‌گیرد
-ussd_code	string	خیر	شماره‌ی USSD که کاربر باید با شماره‌گیری آن، رمزش را دریافت کند؛ مقدار این کلید، در صورتی که channel برابر sms باشد، یک رشته‌ی خالی خواهد بود
-waiting_time	int	بله	زمان به ثانیه قبل از این که کاربر بتواند دوباره درخواستی برای ارسال رمز یک‌بار مصرف بدهد
-otp_time_diff	int	بله	@todo
+نام نوع الزامی است؟ توضیحات
+avatar string بله URL آواتار کاربر (معمولاً به Gravatar اشاره می‌کند)
+channel string('ussd', 'sms') بله کانالی که از طریق آن رمز یک‌بار مصرف در اختیار کاربر قرار می‌گیرد
+ussd_code string خیر شماره‌ی USSD که کاربر باید با شماره‌گیری آن، رمزش را دریافت کند؛ مقدار این کلید، در صورتی که channel برابر sms باشد، یک رشته‌ی خالی خواهد بود
+waiting_time int بله زمان به ثانیه قبل از این که کاربر بتواند دوباره درخواستی برای ارسال رمز یک‌بار مصرف بدهد
+otp_time_diff int بله @todo
 تأیید رمز (Verification)
 پس از این‌ که کاربر رمز یک‌بار مصرفش را وارد کرد، صحت و اعتبار رمز می‌بایستی تأیید شود. بعد از تأیید موفقیت‌آمیز رمز، یک Access Token و یک Refresh Token برای استفاده از امکانات API در پاسخ ارسال می‌شود.
 
@@ -776,41 +561,41 @@ otp_time_diff	int	بله	@todo
 https://next.zarinpal.com/api/oauth/token
 لیست پارامترهای قابل‌پذیرش توسط این مقصد برای دریافت توکن (بدون Refresh Token) عبارت‌اند از:
 
-نام	نوع قابل‌قبول	الزامی است؟	مقدار پیش‌فرض	توضیحات
-grant_type	string	بله	'password'	نوع ورودی کاربر، در این مرحله باید برابر با 'password' باشد
-client_id	int	بله		آی‌دی کلاینت شما که از زرین‌پال دریافت کرده‌اید
-client_secret	string	بله		کلید کلاینت شما که از زرین‌پال دریافت کرده‌اید
-username	string	بله		آدرس ایمیل یا شماره‌ی موبایل کاربر
-password	string	بله		رمز یک‌بار مصرف که کاربر وارد کرده است
-scope	string	بله	'*'	@todo
+نام نوع قابل‌قبول الزامی است؟ مقدار پیش‌فرض توضیحات
+grant_type string بله 'password' نوع ورودی کاربر، در این مرحله باید برابر با 'password' باشد
+client_id int بله آی‌دی کلاینت شما که از زرین‌پال دریافت کرده‌اید
+client_secret string بله کلید کلاینت شما که از زرین‌پال دریافت کرده‌اید
+username string بله آدرس ایمیل یا شماره‌ی موبایل کاربر
+password string بله رمز یک‌بار مصرف که کاربر وارد کرده است
+scope string بله '\*' @todo
 برای مثال، در ادامه‌ی مثال قبل، کاربری با شماره‌ی موبایل 09123456789، رمزِ 12345678 را وارد کرده است:
 
 $ curl 'https://next.zarinpal.com/api/oauth/token' \
-  -H 'Content-Type: application/json' \
-  --data-binary '{
-    "grant_type": "password",
-    "client_id": 100,
-    "client_secret": "$ecreT",
-    "username": "09123456789",
-    "password": "12345678",
-    "scope": "*"
-  }'
+ -H 'Content-Type: application/json' \
+ --data-binary '{
+"grant_type": "password",
+"client_id": 100,
+"client_secret": "$ecreT",
+"username": "09123456789",
+"password": "12345678",
+"scope": "\*"
+}'
 پاسخ
 پاسخ این در درخواست (در صورت صحیح‌بودن داده‌ی ارسالی، بخش خطاها را ببینید) به صورت زیر خواهد بود:
 
 {
-  "token_type": "Bearer",
-  "expires_in": 1296000,
-  "access_token": "{ACCESS_TOKEN}",
-  "refresh_token": "{REFRESH_TOKEN}"
+"token_type": "Bearer",
+"expires_in": 1296000,
+"access_token": "{ACCESS_TOKEN}",
+"refresh_token": "{REFRESH_TOKEN}"
 }
 لیست جزئیات پاسخ‌های ارسال‌شده به این صورت هستند:
 
-نام	نوع	الزامی است؟	توضیحات
-token_type	string	بله	نوع توکن ارسالی رو مشخص می‌کند؛ نوع توکن‌های زرین‌پال Bearer هستند
-expires_in	int	بله	طول عمر توکن را به ثانیه مشخص می‌کند
-access_token	string	بله	Access Token برای کارکردن با امکانات سرور GraphQL؛ این توکن با استاندارد JWT (opens new window)ایجاد می‌شود
-refresh_token	string	بله	‍Refresh Token برای دریافت توکن جدید بعد از منقضی‌شدن توکن قبلی؛ بخش Refresh Token را ببینید
+نام نوع الزامی است؟ توضیحات
+token_type string بله نوع توکن ارسالی رو مشخص می‌کند؛ نوع توکن‌های زرین‌پال Bearer هستند
+expires_in int بله طول عمر توکن را به ثانیه مشخص می‌کند
+access_token string بله Access Token برای کارکردن با امکانات سرور GraphQL؛ این توکن با استاندارد JWT (opens new window)ایجاد می‌شود
+refresh_token string بله ‍Refresh Token برای دریافت توکن جدید بعد از منقضی‌شدن توکن قبلی؛ بخش Refresh Token را ببینید
 Refresh Token
 بعد از این که Access Token دریافتی پس از مدتی که در فیلد expires_in مشخص شده منقضی شد، لازم است که با استفاده از refresh_token داده‌شده در مرحله‌ی قبل، یک Access Token جدید دریافت کنید.
 
@@ -820,153 +605,17 @@ Refresh Token
 https://next.zarinpal.com/api/oauth/token
 لیست پارامترهای قابل‌پذیرش به منظور دریافت توکن جدید با Refresh Token برای این مقصد به این صورت است:
 
-نام	نوع قابل‌قبول	الزامی است؟	مقدار پیش‌فرض	توضیحات
-grant_type	string	بله	'refresh_token'	نوع ورودی کاربر، در این مرحله باید برابر با 'refresh_token' باشد
-client_id	int	بله		آی‌دی کلاینت شما که از زرین‌پال دریافت کرده‌اید
-client_secret	string	بله		کلید کلاینت شما که از زرین‌پال دریافت کرده‌اید
-refresh_token	string	بله		مقدار Refresh Token که از مرحله‌ی قبل دریافت کردید
-scope	string	بله	''	@todo
+نام نوع قابل‌قبول الزامی است؟ مقدار پیش‌فرض توضیحات
+grant_type string بله 'refresh_token' نوع ورودی کاربر، در این مرحله باید برابر با 'refresh_token' باشد
+client_id int بله آی‌دی کلاینت شما که از زرین‌پال دریافت کرده‌اید
+client_secret string بله کلید کلاینت شما که از زرین‌پال دریافت کرده‌اید
+refresh_token string بله مقدار Refresh Token که از مرحله‌ی قبل دریافت کردید
+scope string بله '' @todo
 پاسخ
 جزئیات و انواع فیلدهای دریافتی در پاسخ، دقیقاً مانند مرحله‌ی قبل هستند.
 
 خطاها
 در صورتی که در هر یک از مراحل بالا، خطایی رخ دهد یا داده‌ی ارسال‌شده در درخواست، نامعتبر باشند؛ فیلد errors در پاسخ دریافتی حاوی یک آرایه خواهد بود که خطاهای درخواست در آن مشخص می‌شوند و فیلد data نیز مقدار null خواهد داشت.
-
-در این صفحه
-
-راهنمای استفاده از API
-به جز مراحل احراز هویت، بقیه‌ی امکانات API از طریق کارگزاری در‌دسترس هستند که با زبان پرس‌و‌جوی GraphQL کار می‌کند. برای پرس‌و‌جو (مثلاً گرفتن لیست تیکت‌ها) یا ایجاد تغییر روی داده‌ها (مثلاً ایجاد یک تیکت)، شما نیاز دارید یک عبارت به عنوان Query به سرور زرین‌پال با URL زیر ارسال کنید:
-
-https://next.zarinpal.com/api/v4/graphql
-این درخواست با استفاده از متد POST و با نوع محتوای application/json ارسال می‌شود. کد زیر، نمونه‌ی ارسال یک کوئری با ابزار cURL نشان می‌دهد:
-
-$ curl 'https://next.zarinpal.com/api/v4/graphql/' \
-  -H 'Accept: application/json' \
-  -H 'Authorization: Bearer {ACCESS_TOKEN}' \
-  --data-binary '{"query":"query { Application { application, platform } }","variables":null}'
-در نمونه‌ی بالا، با توکن {ACCESS_TOKEN} کوئری query { Application { application, platform } } اجرا می‌شود.
-
-در ادامه، خلاصه‌ای از چگونگی نوشتن پرس‌و‌جو با GraphQL آورده شده. در بخش شِمای مستندات، می‌توانید لیستی از پرس‌و‌جوها و تغییرهایی که می‌توانید ایجاد کنید را پیدا کنید.
-
-نوشتن پرس‌و‌جوی GraphQL
-پرس‌وجوی شما، می‌تواند از نوع query یا mutation باشد.
-
-query - اطلاعاتی را می‌خواند و تغییری ایجاد نمی‌کند
-
-mutation - اطلاعاتی را تغییر می‌دهد و نتایج تغییرات را برمی‌گرداند
-
-در ابتدا، نوع پرس‌و‌جوی خودتان را مشخص می‌کنید:
-
-query {
-
-}
-یا برای تغییر:
-
-mutation {
-
-}
-سپس باید نام عمل پرس‌و‌جو یا تغییر را تعیین کنید، برای مثال می‌خواهیم لیست کوئری‌های کاربر را بگیریم:
-
-query {
-  Tickets {
-
-  }
-}
-این کوئری هنوز صحیح نیست، چرا که سرور نیاز دارد که بداند شما به چه فیلدهایی لازم دارید. مثلاً ما فیلدهای id و status را لازم داریم:
-
-query {
-  Tickets {
-    id
-    status
-  }
-}
-نکته: برای نوشتن پرس‌و‌جوها در یک خط، بین فیلدها به جای n\ باید , قرار دهید، مثلاً:
-
-query { Tickets { id, status } }
-با ارسال این پرس‌و‌جو به سرور، پاسخی مشابه پاسخ زیر دریافت می‌کنید:
-
-{
-  "data": {
-    "Tickets": [
-      {
-        "id": "139805250316",
-        "status": "CLOSED"
-      },
-      {
-        "id": "139805250335",
-        "status": "CLOSED"
-      }
-    ]
-  }
-}
-پاس‌دادن پارامتر
-برخی از پرس‌و‌جوها و هم‌چنین همه‌ی تغییرها (Mutation) نیاز به پارامترهای ورودی دارند. مثلاً در مثال بالا، شما می‌توانید تعیین کنید که حداکثر ۱۵ تیکت به شما برگردانده شود:
-
-query {
-  Tickets(limit: 15) {
-    id
-    status
-  }
-}
-لیست پارامترها، فیلدهای بازگشتی و نوع آن‌ها را در شِما می‌توانید ببینید.
-
-و یا می‌توانید تعیین کنید که از ۱۰ تیکت اول صرف‌نظر شود:
-
-query {
-  Tickets(limit: 15, offset: 10) {
-    id
-    status
-  }
-}
-اما بیایید ایجاد یک تغییر را بررسی کنیم:
-
-mutation {
-  CardAdd(pan: "1111222233334444", expired_at: "2020-02-05 00:00:00") {
-    id
-  }
-}
-اولین چیزی که باید به آن دقت کرد، تفاوت نوع ریشه‌ی پرس‌و‌جو (Root Type) است. در مثال‌های قبلی، چون نیازی به نوشتن داده‌ی جدیدی نداشتیم، از query استفاده می‌کردیم، اما در این مثال، می‌خواهیم یک کارت جدید اضافه کنیم، پس به mutation نیاز داریم.
-
-در واقع انواع پرس‌و‌جوهایی که در دسترس شما هستند، یا از نوع query هستند یا mutation؛ برای استفاده از هر کدام باید Root Type عبارت پرس‌و‌جوی خودتان را مطابق آن قرار دهید.
-
-در پرس‌و‌جوی بالا، در صورت موفقیت‌آمیز بودن عملیات، id کارت جدید برگردانده می‌شود. در واقع Return Type عملیات CardAdd از نوع Card است، بنابراین باید تعیین کنید که دقیقاً کدام فیلدهای شیٔ Card ساخته‌شده را لازم دارید. در قسمت بعدی درمورد شیٔ‌ها توضیح داده شده است.
-
-نوع‌ها در GraphQL
-به طور کلی، GraphQL سه نوع داده وجود دارد:
-
-Object
-Scalar
-Enum
-نوع Scalar همان داده‌های معمول هستند که یکی از String، Int، DateTime، ID یا Boolean هستند. نوع Object یا شیٔ مانند بیشتر زبان‌های برنامه‌نویسی، از تعدادی عضو تشکیل شده که عضوهای آن را فیلد (Field) صدا می‌زنیم. هر فیلد از یک Key و یک Value تشکیل شده. Key حتماً یک رشته است که در میان بقیه‌ی فیلدهای دیگر یگانه است و Value هم از نوع Scalar یا Object یا لیست است. در GraphQL، نوع شیٔ با کلیدواژه‌ی type در شِما تعریف می‌شود، مثلاً:
-
-type Post {
-  id: ID!
-  title: String!
-  content: String
-  comments: [Comment!]
-}
-علامت ! در جلوی نوع فیلد به این معنی است که مقدار فیلد هیچ‌گاه Null نخواهد شد.
-
-هم‌چنین GraphQL از نوع دیگری به نام List پشتیبانی می‌کند، یعنی پاسخ پرس‌و‌جو یا تغییر شما، می‌تواند یک لیست از چندین شیٔ یا مقدار اسکالار باشد، مثلاً اگر شِما به این شکل باشد:
-
-query {
-  Tickets: [Ticket!]!
-}
-کد بالا نشان می‌دهد که عملیاتی به نام Tickets، مجموعه‌ای از اشیای Ticket برمی‌گرداند. علامت ! جلوی Ticket، به این معنی است که هیچ‌کدام از اعضای این لیست، Null نیستند. (در حال حاضر تمام لیست‌های GrpahQL باید به این گونه باشند و مقدار Null برای اعضا پشتیبانی نمی‌شود.) علامت ! جلوی براکت، به این معنی است که این لیست «حتماً» حداقل یک عضو دارد. اگر این علامت نباشد، به این معنی است که پاسخ عملیات Tickets می‌تواند یک لیست خالی ([]) باشد.
-
-مقادیر اسکالار هم می‌توانند به صورت لیست ارسال شوند، مثلاً اگر شِما به این شکل باشد:
-
-query {
-  Numbers: [Int!]
-}
-یک لیست که هر عضو آن یک Int است در پاسخ آن ارسال می‌شود.
-
-دقت کنید که داخل هر شیٔ هم می‌تواند یک فیلد با نوع لیست هم باشد.
-
-برای اطلاعات بیشتر درمورد نوشتن شِما و پرس‌و‌جوهای GraphQL می‌توانید به مستندات آن (opens new window)مراجعه کنید.
-
-محیط اجرا
-شما می‌توانید در محیط اجرای GraphiQL (opens new window)پرس‌و‌جوهای‌تان را تست کنید.
 
 تراکنش ها
 در این بخش به قسمت تراکنش ها و فیلتر کردن آن ها و اطلاعاتی که میتوان دریافت کرد میپردازیم
@@ -988,7 +637,6 @@ description توضیحات
 
 created_at تاریخ و ساعت
 
-
 query {Session (terminal_id:1915487){
 id
 status
@@ -1001,17 +649,17 @@ created_at
 پاسخ دریافتی
 
 {
-  "data": {
-    "Session": [
-      {
-        "id": "388198285",
-        "status": "FAILED",
-        "amount": 815000,
-        "description": "خرید تست",
-        "created_at": "2022-11-11T09:36:40+03:30"
-      }
-    ]
-  }
+"data": {
+"Session": [
+{
+"id": "388198285",
+"status": "FAILED",
+"amount": 815000,
+"description": "خرید تست",
+"created_at": "2022-11-11T09:36:40+03:30"
+}
+]
+}
 }
 
 فیلتر تراکنش ها
@@ -1029,50 +677,50 @@ ACTIVE : همه تراکنش های موفق
 
 REFUNDED : تراکنش های استرداد شده
 
- query {Session (terminal_id:1915487,filter:PAID){
-   session_tries {
-     id
-     session_id
-     payment_id
-     payer_ip
-     init_time
-     verify_time
-     status
-     rrn
-     card_pan
-     created_at
-   }
-   description
-   amount
-   fee
- }
- }
+query {Session (terminal_id:1915487,filter:PAID){
+session_tries {
+id
+session_id
+payment_id
+payer_ip
+init_time
+verify_time
+status
+rrn
+card_pan
+created_at
+}
+description
+amount
+fee
+}
+}
 در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود :
 
 {
-  "data": {
-    "Session": [
-      {
-        "session_tries": [
-          {
-            "id": "1",
-            "session_id": "421237591",
-            "payment_id": "46",
-            "payer_ip": "158.255.77.66",
-            "init_time": 58,
-            "verify_time": 101,
-            "status": "PAID",
-            "rrn": "21902403390",
-            "card_pan": "502229******1234",
-            "created_at": "2023-04-15T19:14:28+03:30"
-          }
-        ],
-        "description": "افزایش اعتبار کاربر شماره",
-        "amount": 11275,
-        "fee": 275
-      }
-    ]
-  }
+"data": {
+"Session": [
+{
+"session_tries": [
+{
+"id": "1",
+"session_id": "421237591",
+"payment_id": "46",
+"payer_ip": "158.255.77.66",
+"init_time": 58,
+"verify_time": 101,
+"status": "PAID",
+"rrn": "21902403390",
+"card_pan": "502229******1234",
+"created_at": "2023-04-15T19:14:28+03:30"
+}
+],
+"description": "افزایش اعتبار کاربر شماره",
+"amount": 11275,
+"fee": 275
+}
+]
+}
 }
 جستجو در تراکنش ها
 برای جستجو در تراکنش ها پارامتر های مختلفی در نظر گرفته شده که در این درخواست با آن ها آشنا میشویم
@@ -1109,27 +757,27 @@ created_at
 Query Variables
 
 {
-  "card_pan": "8920",
-  "rrn": "141186863321",
-  "reference_id": "38540123901",
-  "terminal_id": "337759",
-  "id": "385401239",
-  "mobile": "09121234567"
+"card_pan": "8920",
+"rrn": "141186863321",
+"reference_id": "38540123901",
+"terminal_id": "337759",
+"id": "385401239",
+"mobile": "09121234567"
 }
 پاسخ دریافتی
 
 {
-  "data": {
-    "Session": [
-      {
-        "id": "385401239",
-        "status": "PAID",
-        "amount": 11000,
-        "description": "پرداخت کننده: Test",
-        "created_at": "2022-10-28T13:19:05+03:30"
-      }
-    ]
-  }
+"data": {
+"Session": [
+{
+"id": "385401239",
+"status": "PAID",
+"amount": 11000,
+"description": "پرداخت کننده: Test",
+"created_at": "2022-10-28T13:19:05+03:30"
+}
+]
+}
 }
 
 تسویه حساب
@@ -1158,53 +806,52 @@ reference_id : شناسه ارجاع بانکی
 
 reconciled_at : تاریخ واریز شده
 
-
 query getReconciles
- 		($terminal_id: ID,
- 	     $filter: ReconciliationStatusEnum,
-         $id: ID, $reference_id: String){
-          resource: Reconciliation(
-            terminal_id: $terminal_id,
-            filter: $filter, id: $id,
-            reference_id: $reference_id) {
-    id
-    status
-    amount
-    payable_at
-    reference_id
-    reconciled_at
-  }
+($terminal_id: ID,
+$filter: ReconciliationStatusEnum,
+$id: ID, $reference_id: String){
+resource: Reconciliation(
+terminal_id: $terminal_id,
+filter: $filter, id: $id,
+reference_id: $reference_id) {
+id
+status
+amount
+payable_at
+reference_id
+reconciled_at
+}
 }
 
 Query Variables
 
 {
-  "terminal_id": "1915487",
-  "filter": "ALL"
+"terminal_id": "1915487",
+"filter": "ALL"
 }
 پاسخ دریافتی
 
 {
-  "data": {
-    "resource": [
-      {
-        "id": "8039236",
-        "status": "PAID",
-        "amount": 28000000,
-        "payable_at": "2023-09-12T00:20:43+03:30",
-        "reference_id": "1402,06,21N1000000000000337759",
-        "reconciled_at": "2023-09-12T17:00:00+03:30"
-      },
-      {
-        "id": "7915681",
-        "status": "PAID",
-        "amount": 169840000,
-        "payable_at": "2023-08-29T00:25:30+03:30",
-        "reference_id": "1402,06,07N1000000000000337759",
-        "reconciled_at": "2023-08-29T17:00:00+03:30"
-      }
-    ]
-  }
+"data": {
+"resource": [
+{
+"id": "8039236",
+"status": "PAID",
+"amount": 28000000,
+"payable_at": "2023-09-12T00:20:43+03:30",
+"reference_id": "1402,06,21N1000000000000337759",
+"reconciled_at": "2023-09-12T17:00:00+03:30"
+},
+{
+"id": "7915681",
+"status": "PAID",
+"amount": 169840000,
+"payable_at": "2023-08-29T00:25:30+03:30",
+"reference_id": "1402,06,07N1000000000000337759",
+"reconciled_at": "2023-08-29T17:00:00+03:30"
+}
+]
+}
 }
 
 فیلتر تسویه ها
@@ -1226,65 +873,64 @@ created_from_date : از تاریخ مد نظر ( فرمت تاریخ دهی ب�
 
 created_to_date : ( فرمت تاریخ دهی به صورت سال - ماه - روز) تا تاریخ
 
-
 query getReconciles
- 		($terminal_id: ID,
- 	     $filter: ReconciliationStatusEnum,
-      $created_from_date: DateTime, $created_to_date: DateTime,
-         $id: ID, $reference_id: String){
-          resource: Reconciliation(
-            terminal_id: $terminal_id,
-            filter: $filter, id: $id,
-            created_to_date: $created_to_date, created_from_date: $created_from_date
-            reference_id: $reference_id) {
-    id
-    status
-    amount
-    payable_at
-    reference_id
-    reconciled_at
-  }
+($terminal_id: ID,
+$filter: ReconciliationStatusEnum,
+$created_from_date: DateTime, $created_to_date: DateTime,
+$id: ID, $reference_id: String){
+resource: Reconciliation(
+terminal_id: $terminal_id,
+filter: $filter, id: $id,
+created_to_date: $created_to_date, created_from_date: $created_from_date
+reference_id: $reference_id) {
+id
+status
+amount
+payable_at
+reference_id
+reconciled_at
+}
 }
 
 Query Variables
 
 {
-  "filter": "PAID",
-  "terminal_id": "1915487",
-  "created_from_date": "2023-08-18",
-  "created_to_date": "2023-09-18"
+"filter": "PAID",
+"terminal_id": "1915487",
+"created_from_date": "2023-08-18",
+"created_to_date": "2023-09-18"
 }
 پاسخ دریافتی
 
 {
-  "data": {
-    "resource": [
-      {
-        "id": "8039236",
-        "status": "PAID",
-        "amount": 28000000,
-        "payable_at": "2023-09-12T00:20:43+03:30",
-        "reference_id": "1402,06,21N1000000000000337759",
-        "reconciled_at": "2023-09-12T17:00:00+03:30"
-      },
-      {
-        "id": "7915681",
-        "status": "PAID",
-        "amount": 169840000,
-        "payable_at": "2023-08-29T00:25:30+03:30",
-        "reference_id": "1402,06,07N1000000000000337759",
-        "reconciled_at": "2023-08-29T17:00:00+03:30"
-      },
-      {
-        "id": "7894067",
-        "status": "PAID",
-        "amount": 52500000,
-        "payable_at": "2023-08-27T00:19:09+03:30",
-        "reference_id": "1402,06,05N1000000000000337759",
-        "reconciled_at": "2023-08-27T17:00:00+03:30"
-      }
-    ]
-  }
+"data": {
+"resource": [
+{
+"id": "8039236",
+"status": "PAID",
+"amount": 28000000,
+"payable_at": "2023-09-12T00:20:43+03:30",
+"reference_id": "1402,06,21N1000000000000337759",
+"reconciled_at": "2023-09-12T17:00:00+03:30"
+},
+{
+"id": "7915681",
+"status": "PAID",
+"amount": 169840000,
+"payable_at": "2023-08-29T00:25:30+03:30",
+"reference_id": "1402,06,07N1000000000000337759",
+"reconciled_at": "2023-08-29T17:00:00+03:30"
+},
+{
+"id": "7894067",
+"status": "PAID",
+"amount": 52500000,
+"payable_at": "2023-08-27T00:19:09+03:30",
+"reference_id": "1402,06,05N1000000000000337759",
+"reconciled_at": "2023-08-27T17:00:00+03:30"
+}
+]
+}
 }
 
 سرویس عیان
@@ -1307,35 +953,35 @@ false : احراز هویت رد شده
 null : احراز هویت بررسی نشده
 
 query{
-  Session(id: 425368123) {
-    session_tries {
-      session_id
-      status
-      rrn
-      card_pan
-      is_card_mobile_verified
-    }
-  }
+Session(id: 425368123) {
+session_tries {
+session_id
+status
+rrn
+card_pan
+is_card_mobile_verified
+}
+}
 }
 
 در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
 
 {
-  "data": {
-    "Session": [
-      {
-        "session_tries": [
-          {
-            "session_id": "425368123",
-            "status": "PAID",
-            "rrn": "126018530297",
-            "card_pan": "502229******1234",
-            "is_card_mobile_verified": true
-          }
-        ]
-      }
-    ]
-  }
+"data": {
+"Session": [
+{
+"session_tries": [
+{
+"session_id": "425368123",
+"status": "PAID",
+"rrn": "126018530297",
+"card_pan": "502229******1234",
+"is_card_mobile_verified": true
+}
+]
+}
+]
+}
 }
 
 حساب بانکی
@@ -1343,38 +989,38 @@ query{
 با استفاده از درخواست زیر در API زرین‌پال، می‌توانید لیست حساب‌های بانکی اضافه شده در پنل کاربری خود را دریافت کنید.
 
 query getBankAccounts {
-  resource: BankAccounts{
-    id
-    iban
-    status
-    is_legal
-    holder_name
-    type
-    issuing_bank {
-      name
-      slug
-    }
-  }
+resource: BankAccounts{
+id
+iban
+status
+is_legal
+holder_name
+type
+issuing_bank {
+name
+slug
+}
+}
 }
 در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
 
 {
-  "data": {
-    "resource": [
-      {
-        "id": "402811",
-        "iban": "IR123456789123456478945165",
-        "status": "ACTIVE",
-        "is_legal": false,
-        "holder_name": "علی علیپور",
-        "type": "PERSONAL",
-        "issuing_bank": {
-          "name": "بانک مهر ایران",
-          "slug": "Mehr"
-        }
-      }
-    ]
-  }
+"data": {
+"resource": [
+{
+"id": "402811",
+"iban": "IR123456789123456478945165",
+"status": "ACTIVE",
+"is_legal": false,
+"holder_name": "علی علیپور",
+"type": "PERSONAL",
+"issuing_bank": {
+"name": "بانک مهر ایران",
+"slug": "Mehr"
+}
+}
+]
+}
 }
 افزودن حساب بانکی
 برای افزودن حساب بانکی می‌توانید از درخواست زیر استفاده کنید:
@@ -1382,25 +1028,25 @@ query getBankAccounts {
 لطفا در نظر داشته باشید در صورتی که حساب بانکی را به عنوان حساب بانکی شریک تجاری خود اضافه می‌کنید، type باید دارای مقدار share باشد و در صورتی که حساب بانکی متعلق به خود شماست type باید بر روی PERSONAL باشد.
 
 mutation BankAccountAdd(
-            $iban:String!,
+$iban:String!,
             $is_legal: Boolean!,
             $type: BankAccountTypeEnum) 
 { 
          BankAccountAdd(
             iban:$iban,
-            is_legal:$is_legal,
-            type:$type ) 
-  { id
-    iban 
-    name
-    status
-    type
-    is_legal
-    holder_name
-    issuing_bank { name slug } 
-    expired_at deleted_at 
-  }
-} 
+is_legal:$is_legal,
+            type:$type )
+{ id
+iban
+name
+status
+type
+is_legal
+holder_name
+issuing_bank { name slug }
+expired_at deleted_at
+}
+}
 Query Variables
 
 { "iban": "IR123456789123456478945165", "is_legal": false, "type": "SHARE"}
@@ -1408,23 +1054,23 @@ Query Variables
 در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
 
 {
-  "data": {
-    "BankAccountAdd": {
-      "id": "454781",
-      "iban": "IR123456789123456478945165",
-      "name": null,
-      "status": "PENDING",
-      "type": "SHARE",
-      "is_legal": false,
-      "holder_name": null,
-      "issuing_bank": {
-        "name": "بانک پاسارگاد",
-        "slug": "Pasargad"
-      },
-      "expired_at": null,
-      "deleted_at": null
-    }
-  }
+"data": {
+"BankAccountAdd": {
+"id": "454781",
+"iban": "IR123456789123456478945165",
+"name": null,
+"status": "PENDING",
+"type": "SHARE",
+"is_legal": false,
+"holder_name": null,
+"issuing_bank": {
+"name": "بانک پاسارگاد",
+"slug": "Pasargad"
+},
+"expired_at": null,
+"deleted_at": null
+}
+}
 }
 
 درگاه ها
@@ -1467,22 +1113,22 @@ updated_at
 در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
 
 {
-  "data": {
-    "Terminals": [
-      {
-        "id": "1915487",
-        "status": "ACTIVE",
-        "preferred_bank_account_id": "353",
-        "domain": "example.com",
-        "support_phone": "09123456798",
-        "key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        "name": "علی علیپور",
-        "logo": "https://test.example.com/1561651asdd5f1a2sd1",
-        "created_at": "2022-07-17T15:26:43+04:30",
-        "updated_at": "2022-12-12T11:24:12+03:30"
-      }
-    ]
-  }
+"data": {
+"Terminals": [
+{
+"id": "1915487",
+"status": "ACTIVE",
+"preferred_bank_account_id": "353",
+"domain": "example.com",
+"support_phone": "09123456798",
+"key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+"name": "علی علیپور",
+"logo": "https://test.example.com/1561651asdd5f1a2sd1",
+"created_at": "2022-07-17T15:26:43+04:30",
+"updated_at": "2022-12-12T11:24:12+03:30"
+}
+]
+}
 }
 درخواست درگاه
 برای ثبت درخواست درگاه پرداخت از درخواست زیر استفاده کنید:
@@ -1494,16 +1140,16 @@ domain آدرس دامنه
 support_phone شماره تلفن پشتیبانی name نام درگاه
 
 mutation TerminalAdd(
-           $mcc_id: ID!,
+$mcc_id: ID!,
            $domain: String!,
            $support_phone: CellNumber!,
            $name: String!,
            $bank_account_id: ID!)
         {TerminalAdd(
            mcc_id:$mcc_id,
-           domain:$domain,
+domain:$domain,
            support_phone:$support_phone,
-           name:$name,
+name:$name,
            bank_account_id:$bank_account_id)
 { id
 mcc_id
@@ -1521,22 +1167,22 @@ Query Variables
 در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
 
 {
-  "data": {
-    "TerminalAdd": {
-      "id": "1789487",
-      "mcc_id": "186",
-      "preferred_bank_account_id": "454",
-      "domain": "test.ir",
-      "support_phone": "09123456789",
-      "key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "name": "درگاه من",
-      "status": "PENDING",
-      "logo": "https://test.example.com/1a5615asd66233g33j",
-      "created_at": "2020-08-31T02:00:30+04:30",
-      "updated_at": "2020-08-31T02:00:30+04:30",
-      "deleted_at": null
-    }
-  }
+"data": {
+"TerminalAdd": {
+"id": "1789487",
+"mcc_id": "186",
+"preferred_bank_account_id": "454",
+"domain": "test.ir",
+"support_phone": "09123456789",
+"key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+"name": "درگاه من",
+"status": "PENDING",
+"logo": "https://test.example.com/1a5615asd66233g33j",
+"created_at": "2020-08-31T02:00:30+04:30",
+"updated_at": "2020-08-31T02:00:30+04:30",
+"deleted_at": null
+}
+}
 }
 
 استرداد وجه
@@ -1563,27 +1209,27 @@ Query Variables
 id: شماره تراکنش (Session ID)
 terminal_id: شماره ترمینال درگاه
 {
-  "id": "829492417",
-  "terminal_id": "535823"
+"id": "829492417",
+"terminal_id": "535823"
 }
 
 پرس‌وجوی GraphiQL
 می‌توانید از کوئری SessionById زیر برای دریافت وضعیت استفاده کنید. خروجی این کوئری به صورت خلاصه و کاربردی تنظیم شده است:
 
 query SessionById($terminal_id: ID, $id: ID) {
-  Session(terminal_id: $terminal_id, id: $id) {
-    id
-    amount
-    status
-    terminal {
-      id
-    }
-    timeline {
-      refund_status
-      refund_amount
-      refund_time
-    }
-  }
+Session(terminal_id: $terminal_id, id: $id) {
+id
+amount
+status
+terminal {
+id
+}
+timeline {
+refund_status
+refund_amount
+refund_time
+}
+}
 }
 
 پاسخ دریافتی
@@ -1597,23 +1243,23 @@ refund_amount: مبلغ استرداد شده
 refund_time: تاریخ و زمان ثبت استرداد
 refund_status: وضعیت فعلی استرداد (مثلاً SUCCESS, PENDING, FAILED)
 {
-  "data": {
-    "Session": [
-      {
-        "id": "829492417",
-        "amount": 10000,
-        "status": "PAID",
-        "terminal": {
-          "id": "535823"
-        },
-        "timeline": {
-          "refund_amount": 10000,
-          "refund_time": "2026-02-17T13:35:59+03:30",
-          "refund_status": "SUCCESS"
-        }
-      }
-    ]
-  }
+"data": {
+"Session": [
+{
+"id": "829492417",
+"amount": 10000,
+"status": "PAID",
+"terminal": {
+"id": "535823"
+},
+"timeline": {
+"refund_amount": 10000,
+"refund_time": "2026-02-17T13:35:59+03:30",
+"refund_status": "SUCCESS"
+}
+}
+]
+}
 }
 
 ثبت درخواست
@@ -1645,56 +1291,49 @@ OTHER سایر
 
 شما می‌توانید در محیط اجرای GraphiQL (opens new window)پرس‌و‌جوهای فوق را تست کنید.
 
-
-
-
-
 Query Variables برای استرداد عادی
 {
-  "session_id": "385404123",
-  "amount": 11000,
-  "description": "تست سرویس",
-  "method": "PAYA" // استرداد عادی
-  "reason": "CUSTOMER_REQUEST"
+"session_id": "385404123",
+"amount": 11000,
+"description": "تست سرویس",
+"method": "PAYA" // استرداد عادی
+"reason": "CUSTOMER_REQUEST"
 }
 
-
-
 mutation AddRefund(
-  $session_id: ID!
-  $amount: BigInteger!
-  $description: String
-  $method: InstantPayoutActionTypeEnum
-  $reason: RefundReasonEnum
+$session_id: ID!
+$amount: BigInteger!
+$description: String
+$method: InstantPayoutActionTypeEnum
+$reason: RefundReasonEnum
 ) {
-  resource: AddRefund(
-    session_id: $session_id
-    amount: $amount
-    description: $description
-    method : $method
-    reason: $reason
-  ) {
-    terminal_id
-    id
-    amount
-    timeline {
-      refund_amount
-      refund_time
-      refund_status
-    }
-  }
+resource: AddRefund(
+session_id: $session_id
+amount: $amount
+description: $description
+method : $method
+reason: $reason
+) {
+terminal_id
+id
+amount
+timeline {
+refund_amount
+refund_time
+refund_status
+}
+}
 }
 
 Query Variables برای استرداد آنی
 
 {
-  "session_id": "385404123",
-  "amount": 11000,
-  "description": "تست سرویس",
-  "method": "CARD" // استرداد آنی
-  "reason": "CUSTOMER_REQUEST"
+"session_id": "385404123",
+"amount": 11000,
+"description": "تست سرویس",
+"method": "CARD" // استرداد آنی
+"reason": "CUSTOMER_REQUEST"
 }
-
 
 پاسخ دریافتی
 در پاسخ درخواست استرداد وجه ثبت شده، از سمت زرین‌پال پاسخ روبرو شامل: شماره تراکنش، مبلغ، شماره ترمینال، تاریخچه پرداخت و بازگشت را دریافت می‌کنید.
@@ -1713,742 +1352,17 @@ refund_time تاریخ ثبت استرداد
 
 refund_status وضعیت استرداد
 
-
 {
-  "data": {
-    "resource": {
-      "terminal_id": "1915487",
-      "id": "386426364",
-      "amount": 20000,
-      "timeline": {
-        "refund_amount": 20000,
-        "refund_time": "2022-11-02T15:15:37+03:30",
-        "refund_status": "PENDING"
-      }
-    }
-  }
+"data": {
+"resource": {
+"terminal_id": "1915487",
+"id": "386426364",
+"amount": 20000,
+"timeline": {
+"refund_amount": 20000,
+"refund_time": "2022-11-02T15:15:37+03:30",
+"refund_status": "PENDING"
 }
-
-پرداخت شناسه‌دار
-پرداخت شناسه‌دار، راهکاری موثر جهت تسهیل وصول مطالبات مالی می‌باشد که در حقیقت مکمل سایر روش‌های پرداختی‌ست که افراد و سازمان‌ها از آن استفاده می‌کنند. به کمک پرداخت‌ شناسه‌دار، پذیرندگان زرین‌پال می‌توانند مطالبات مالی خود از مشتریان را بدون محدودیت در مبلغ تراکنش و روش پرداخت دریافت کنند.
-
-کالکشن پست من(opens new window)
-
-شناسه درگاه (ترمینال آیدی)
-برای استفاده از این سرویس، در مرحله اول نیاز به دریافت شناسه درگاه دارید. برای مشاهده شناسه پرداخت خود می‌توانید از کوئری زیر استفاده کنید:
-
-query terminals {
-  Terminals {
-    id
-    domain
-  }
 }
-در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
-
-{
-  "data": {
-    "Terminals": [
-      {
-        "id": "1915487",
-        "domain": "example.ir"
-      },
-      {
-        "id": "191548856",
-        "domain": "test.com"
-      },
-      {
-        "id": "19154894",
-        "domain": "test.example"
-      }
-    ]
-  }
 }
-ساخت پرداخت شناسه دار
-پس از به دست آوردن شناسه درگاه پرداخت خود، با استفاده از موارد زیر یک درخواست برای ساخت پرداخت‌شناسه دار ایجاد کنید:
-
-terminal_id شناسه درگاه (ترمینال آیدی) که این سرویس برای آن فعال هست (اجباری)
-
-amount مبلغ قابل پرداخت به ریال(اجباری)
-
-fee_type کارمزد تراکنش که باید دارای یکی از مقادیر زیر باشد (اجباری)
-
-MERCHANT کارمزد تراکنش از پذیرنده کسر می‌شود
-
-PAYER کارمزد تراکنش از خریدار کسر میشود
-
-description توضیحات تراکنش (اجباری)
-
-note یادداشت برای تراکنش
-
-callback_url آدرس بازگشت
-
-payer_name نام پرداخت کننده(اجباری)
-
-payer_mobile شماره همراه پرداخت کننده(اجباری)
-
-payer_email ایمیل پرداخت کننده
-
-notify_type ارسال اطلاع رسانی به پرداخت کننده از طریق ایمیل و یا پیامک(اجباری)
-
-MOBILE اطلاع رسانی از طریق پیامک
-
-EMAIL اطلاع رسانی از طریق ایمیل
-
-MOBILE_EMAIL اطلاع رسانی با هر دو مورد
-
-
-mutation InvoiceAdd($terminal_id: ID!, $amount: BigInteger!, $fee_type: TerminalFeeTypeEnum,
-  $description: String!, $note: String, $callback_url: String, $payer_name: String!,
-  $payer_mobile: String!, $payer_email: String, $notify_type: NotifyTypeEnum) 
-  {
-  InvoiceAdd(terminal_id: $terminal_id, amount: $amount, fee_type: $fee_type,
-    description: $description, note: $note, callback_url: $callback_url, 
-    payer_name: $payer_name, payer_mobile: $payer_mobile, payer_email: $payer_email,
-    notify_type: $notify_type) 
-    {
-    id
-    status
-    sessions {
-      id
-      amount
-      status
-      payer_info {
-        order_id
-      }
-    }
-    amount
-    fee
-  }
 }
-
-Query Variables
-
-{
-  "terminal_id":"1915487",
-  "amount":11000,
-  "fee_type":"PAYER",
-  "description":"test InvoiceAdd",
-  "note":"",
-  "callback_url":"https://example.com/callback",
-  "payer_name":"علی علیپور",
-  "payer_mobile":"09123456789",
-  "payer_email":"info@test.com",
-  "notify_type":"MOBILE"
-}
-
-در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
-
-
-{
-  "data": {
-    "InvoiceAdd": {
-      "id": "10010011649004",
-      "status": "PENDING",
-      "sessions": [
-        {
-          "id": "346781920",
-          "amount": 11000,
-          "status": "INBANK",
-          "payer_info": {
-            "order_id": "1110154"
-          }
-        }
-      ],
-      "amount": 11000,
-      "fee": 1000
-    }
-  }
-}
-
-ارسال به درگاه
-پس از ایجاد شناسه پرداخت با استفاده از یکی از دو روش زیر میتوانید کاربر را به صفحه پرداخت ارجاع کنید
-
-فرستادن کاربر به صفحه واسط زرین پال - نمایش اطلاعات شناسه قابل پرداخت
-
-تسهیم درآمد
-به کمک این سرویس می‌توانید از مجموع مبالغ پنل کاربری خود، مبلغی را برای انتقال به هر یک از شرکای تجاری خود تعیین کنید تا روز بعد از ثبت درخواست (در صورت انتخاب تسویه‌حساب روزانه)، به حساب ایشان واریز شود. در این روش محدودیتی برای تعداد و مبلغ واریزی، تعداد شرکای تجاری و حتی حساب‌های بانکی انتخابی وجود ندارد و در طی یک روز می‌توان درخواست‌های متعددی برای تسهیم فردایی ثبت نمود.
-
-برای استفاده از این سرویس ابتدا از طریق ارسال تیکت درخواست فعال‌سازی آن را ثبت نمایید و پس از فعال‌سازی به کمک روش توضیح داده شده یا از طریق API از آن استفاده کنید.
-
-لطفا در نظر داشته باشید: حداقل مبلغ برای تسهیم فردایی، ۱۰۰ هزار ریال است.
-
-تسیهم فردایی، از ساعت ۰۵:۰۰ الی ۲۳:۰۰ قابل استفاده است.
-
-کارمزد تسهیم به مبلغ خالص درخواستی اضافه خواهد شد.
-
-شناسه حساب بانکی
-برای استفاده از این سرویس، در مرحله اول نیاز به دریافت اطلاعات شماره حساب بانکی پنل کاربری خود دارید. برای مشاهده این اطلاعات می‌توانید از کوئری زیر استفاده کنید:
-
-query{
-  BankAccounts(limit: 200) {
-    id
-    iban
-    holder_name
-  }
-}
-در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
-
-{
-  "data": {
-    "BankAccounts": [
-      {
-        "id": "1234568",
-        "iban": "IR123456789123456478945165",
-        "holder_name": "علی علیپور"
-      },
-      {
-        "id": "564321",
-        "iban": "IR653456789123456478945987",
-        "holder_name": "امین واحدی"
-      },
-      {
-        "id": "9854123",
-        "iban": "IR321456789123456478658741",
-        "holder_name": "رضا پورعلی"
-      },
-      {
-        "id": "156862",
-        "iban": "IR985156789123456465872594",
-        "holder_name": "آرمین ایرانی"
-      }
-    ]
-  }
-}
-شناسه درگاه پرداخت (ترمینال ایدی)
-در مرحله دوم نیاز به دریافت شناسه درگاه پرداخت خود دارید که برای مشاهده آن می‌توانید از کوئری زیر استفاده کنید:
-
-query terminals {
-  Terminals {
-    id
-    domain
-  }
-}
-در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
-
-{
-  "data": {
-    "Terminals": [
-      {
-        "id": "1915487",
-        "domain": "example.ir"
-      },
-      {
-        "id": "191548856",
-        "domain": "test.com"
-      },
-      {
-        "id": "19154894",
-        "domain": "test.example"
-      }
-    ]
-  }
-}
-ساخت تسهیم درآمد
-پس از به دست آوردن شماره حساب بانکی ، می‌توانید با استفاده از پارامترهای زیر یک درخواست برای ساخت تسهیم درآمد ایجاد کنید:
-
-terminal_id شناسه درگاهی (ترمینال ایدی) که این قابلیت برای آن فعال است. (اجباری)
-
-amount مبلغ به ریال(اجباری)
-
-bank_account_id شناسه حساب بانکی که در پنل کاربری زرین‌پال خود ثبت کرده‌اید. (اجباری)
-
-description توضیحات
-
-reconciliation_parts برای این مورد باید MULTI وارد شود.
-
-تسویه پیش از موعد
-با استفاده از سرویس تسویه پیش از موعد می‌توانید موجودی قابل تسویه خود را، در حساب بانک آینده به صورت «آنی» و در سایر حساب‌های بانکی در اولین سیکل پایا شاپرک دریافت کنید.
-
-برای استفاده از این سرویس ابتدا از طریق ارسال تیکت درخواست فعال‌سازی آن را ثبت نمایید و پس از فعال‌سازی به کمک روش توضیح داده شده یا از طریق API از آن استفاده کنید.
-
-لطفا در نظر داشته باشید: حداقل مبلغ برای تسویه پیش از موعد، ۱ میلیون ریال است.
-
-تسویه پیش از موعد به حساب‌های بانک آینده به صورت آنی و سایر حساب‌های بانکی از طریق سرویس پایا/ساتنا انجام می‌شود.
-
-تسویه پیش از موعد از ساعت ۰۵:۰۰ الی ۲۳:۰۰ قابل استفاده است.
-
-کارمزد تسویه به مبلغ خالص درخواستی اضافه خواهد شد.
-
-شناسه حساب بانکی
-برای استفاده از این سرویس، در مرحله اول نیاز به دریافت اطلاعات شماره حساب بانکی پنل کاربری خود دارید. برای مشاهده این اطلاعات می‌توانید از کوئری زیر استفاده کنید:
-
-query{
-  BankAccounts(limit: 200) {
-    id
-    iban
-    holder_name
-  }
-}
-در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
-
-{
-  "data": {
-    "BankAccounts": [
-      {
-        "id": "1234568",
-        "iban": "IR123456789123456478945165",
-        "holder_name": "علی علیپور"
-      },
-      {
-        "id": "564321",
-        "iban": "IR653456789123456478945987",
-        "holder_name": "امین واحدی"
-      },
-      {
-        "id": "9854123",
-        "iban": "IR321456789123456478658741",
-        "holder_name": "رضا پورعلی"
-      },
-      {
-        "id": "156862",
-        "iban": "IR985156789123456465872594",
-        "holder_name": "آرمین ایرانی"
-      }
-    ]
-  }
-}
-شناسه درگاه پرداخت (ترمینال ایدی)
-در مرحله دوم نیاز به دریافت شناسه درگاه پرداخت خود دارید که برای مشاهده آن می‌توانید از کوئری زیر استفاده کنید:
-
-query terminals {
-  Terminals {
-    id
-    domain
-  }
-}
-در پاسخ به این درخواست، پاسخی به این شکل دریافت می‌شود:
-
-{
-  "data": {
-    "Terminals": [
-      {
-        "id": "1915487",
-        "domain": "example.ir"
-      },
-      {
-        "id": "191548856",
-        "domain": "test.com"
-      },
-      {
-        "id": "19154894",
-        "domain": "test.example"
-      }
-    ]
-  }
-}
-ساخت تسویه پیش از موعد
-پس از به دست آوردن شناسه حساب بانکی، می‌توانید با استفاده از پارامترهای زیر یک درخواست برای ساخت تسویه پیش از موعد ایجاد کنید:
-
-terminal_id شناسه درگاه پرداختی که این قابلیت برای آن فعال است. (اجباری)
-
-amount مبلغ به ریال(اجباری)
-
-bank_account_id شماره حساب بانکی که در پنل کاربری زرین‌پال خود ثبت کرده اید. (اجباری)
-
-نصب Node.js SDK
-برای شروع استفاده از Node.js SDK زرین‌پال، مراحل زیر را دنبال کنید.
-
-پیش‌نیازها
-قبل از نصب، مطمئن شوید که موارد زیر در سیستم شما فراهم است:
-
-نسخه Node.js 14 یا بالاتر: این SDK با نسخه‌های Node.js 14 به بالا سازگار است.
-npm، yarn یا pnpm: برای مدیریت وابستگی‌ها و نصب کتابخانه‌ها به یکی از این ابزارها نیاز دارید.
-نصب SDK
-برای نصب Node.js SDK زرین‌پال، می‌توانید از یکی از روش‌های زیر استفاده کنید:
-
-نصب با npm
-برای نصب از طریق npm دستور زیر را اجرا کنید:
-
-npm install zarinpal-node-sdk
-نصب با yarn
-برای نصب با yarn از دستور زیر استفاده کنید:
-
-yarn add zarinpal-node-sdk
-نصب با pnpm
-برای نصب با pnpm از دستور زیر استفاده کنید:
-
-pnpm add zarinpal-node-sdk
-اکنون می‌توانید از Node.js SDK زرین‌پال در پروژه خود استفاده کنید.
-
-پیکربندی Node.js SDK
-پس از نصب Node.js SDK زرین‌پال، نیاز به پیکربندی تنظیمات مربوط به merchantId و حالت sandbox دارید. این مستندات به شما نحوه انجام این تنظیمات و استفاده از ویژگی‌های پیشرفته‌تر را توضیح می‌دهد.
-
-پیکربندی اولیه
-برای شروع استفاده از SDK، باید تنظیمات مربوط به merchantId و sandbox را انجام دهید. این تنظیمات به شما امکان می‌دهند که در حالت آزمایشی (sandbox) یا واقعی از SDK استفاده کنید. در برخی موارد خاص، مانند استردادوجه یا مدیریت تراکنش‌ها، ممکن است به accessToken نیز نیاز داشته باشید.
-
-تنظیمات با Merchant ID و Access Token
-برای عملیات‌هایی مانند ایجاد درخواست پرداخت و تأیید پرداخت، از merchantId استفاده می‌شود. در حالی که برای متدهایی مانند refund یا transaction، باید از accessToken استفاده کنید.
-
-import { ZarinPal } from 'zarinpal-node-sdk';
-
-const zarinpal = new ZarinPal({
-  merchantId: 'your-merchant-id',
-  sandbox: true,
-  accessToken: 'your-access-token',
-});
-نکته
-برای دریافت مرچنت آیدی از بخش تنظیمات درگاه اقدام نمایید.
-برای دریافت اکسس توکن خود از بخش نشست های فعال (opens new window)اقدام نمایید.
-
-درخواست پرداخت (Payment Request)
-متد request به شما امکان می‌دهد تا یک درخواست پرداخت جدید ایجاد کنید و کاربر را به درگاه پرداخت هدایت کنید. این متد برای ارسال اطلاعات مربوط به پرداخت و دریافت authority جهت هدایت کاربر به صفحه پرداخت استفاده می‌شود.
-
-پارامترهای درخواست
-در جدول زیر توضیحات مربوط به هر پارامتر را مشاهده می‌کنید:
-
-نام پارامتر	نوع	الزامی	توضیحات
-amount	Integer	بله	مبلغ پرداختی به ریال. حداقل مقدار پرداخت 10000 ریال است.
-description	String	بله	توضیحات مربوط به تراکنش مانند شماره سفارش یا نام محصول.
-callback_url	String	بله	آدرس بازگشت پس از تکمیل یا عدم موفقیت پرداخت.
-mobile	String	خیر	شماره موبایل کاربر. (اختیاری)
-email	String	خیر	ایمیل کاربر. (اختیاری)
-referrer_id	String	خیر	کد معرف. (اختیاری)
-currency	String	خیر	واحد پولی تراکنش. مقدار پیش‌فرض IRR (ریال) و مقدار دیگر IRT (تومان) است.
-cardPan	String	خیر	شماره کارت بانکی که کاربر با آن پرداخت می‌کند. (اختیاری)
-wages	Array	خیر	آرایه‌ای شامل اطلاعات تسهیم سود. هر عنصر شامل iban (شبا)، amount (مبلغ) و description (توضیح) است.
-دریافت URL پرداخت
-پس از ارسال موفقیت‌آمیز درخواست پرداخت، یک authority از زرین‌پال دریافت می‌شود. سپس با استفاده از این authority می‌توانید URL نهایی پرداخت را با متد getRedirectUrl دریافت کرده و کاربر را به درگاه پرداخت هدایت کنید.
-
-نمونه کد
-در ادامه نمونه کدی که نحوه ارسال درخواست پرداخت و هدایت کاربر به درگاه پرداخت را نشان می‌دهد، آورده شده است:
-
-
-import { ZarinPal } from 'zarinpal-node-sdk';
-
-
-const zarinpal = new ZarinPal({
-  merchantId: 'your-merchant-id',
-  sandbox: true,
-});
-
-async function initiatePayment() {
-  try {
-    const response = await zarinpal.payments.create({
-      amount: 10000,
-      callback_url: 'https://yourwebsite.com/callback',
-      description: 'Payment for order #1234',
-      mobile: '09123456789',
-      email: 'customer@example.com',
-      cardPan: ['6219861034529007', '5022291073776543'],
-      referrer_id: 'affiliate123',
-    });
-    console.log(response);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-initiatePayment();
-
-درخواست پرداخت (Payment Request)
-متد request به شما امکان می‌دهد تا یک درخواست پرداخت جدید ایجاد کنید و کاربر را به درگاه پرداخت هدایت کنید. این متد برای ارسال اطلاعات مربوط به پرداخت و دریافت authority جهت هدایت کاربر به صفحه پرداخت استفاده می‌شود.
-
-پارامترهای درخواست
-در جدول زیر توضیحات مربوط به هر پارامتر را مشاهده می‌کنید:
-
-نام پارامتر	نوع	الزامی	توضیحات
-amount	Integer	بله	مبلغ پرداختی به ریال. حداقل مقدار پرداخت 10000 ریال است.
-description	String	بله	توضیحات مربوط به تراکنش مانند شماره سفارش یا نام محصول.
-callback_url	String	بله	آدرس بازگشت پس از تکمیل یا عدم موفقیت پرداخت.
-mobile	String	خیر	شماره موبایل کاربر. (اختیاری)
-email	String	خیر	ایمیل کاربر. (اختیاری)
-referrer_id	String	خیر	کد معرف. (اختیاری)
-currency	String	خیر	واحد پولی تراکنش. مقدار پیش‌فرض IRR (ریال) و مقدار دیگر IRT (تومان) است.
-cardPan	String	خیر	شماره کارت بانکی که کاربر با آن پرداخت می‌کند. (اختیاری)
-wages	Array	خیر	آرایه‌ای شامل اطلاعات تسهیم سود. هر عنصر شامل iban (شبا)، amount (مبلغ) و description (توضیح) است.
-دریافت URL پرداخت
-پس از ارسال موفقیت‌آمیز درخواست پرداخت، یک authority از زرین‌پال دریافت می‌شود. سپس با استفاده از این authority می‌توانید URL نهایی پرداخت را با متد getRedirectUrl دریافت کرده و کاربر را به درگاه پرداخت هدایت کنید.
-
-نمونه کد
-در ادامه نمونه کدی که نحوه ارسال درخواست پرداخت و هدایت کاربر به درگاه پرداخت را نشان می‌دهد، آورده شده است:
-
-
-import { ZarinPal } from 'zarinpal-node-sdk';
-
-
-const zarinpal = new ZarinPal({
-  merchantId: 'your-merchant-id',
-  sandbox: true,
-});
-
-async function initiatePayment() {
-  try {
-    const response = await zarinpal.payments.create({
-      amount: 10000,
-      callback_url: 'https://yourwebsite.com/callback',
-      description: 'Payment for order #1234',
-      mobile: '09123456789',
-      email: 'customer@example.com',
-      cardPan: ['6219861034529007', '5022291073776543'],
-      referrer_id: 'affiliate123',
-    });
-    console.log(response);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-initiatePayment();
-
-استعلام تراکنش (Transaction Inquiry)
-متد inquiry به شما امکان می‌دهد تا وضعیت یک تراکنش را بررسی و استعلام کنید. این متد زمانی استفاده می‌شود که بخواهید پس از ارسال درخواست پرداخت یا تأیید پرداخت، اطلاعات دقیق‌تری درباره وضعیت تراکنش کسب کنید.
-
-پارامترهای ارسالی به متد Inquiry
-در جدول زیر پارامترهای ارسالی به متد inquiry و توضیحات مربوط به آن‌ها آورده شده است:
-
-نام پارامتر	نوع	الزامی	توضیحات
-merchant_id	String	بله	کد Merchant شما که توسط زرین‌پال اختصاص داده شده است.
-authority	String	بله	کد یکتای درخواست پرداخت که پس از درخواست پرداخت دریافت می‌شود.
-مقادیر بازگشتی از متد Inquiry
-در جدول زیر پارامترهای بازگشتی از متد inquiry توضیح داده شده است:
-
-نام پارامتر	نوع	توضیحات
-code	Integer	کد وضعیت تراکنش: کد 100 برای تراکنش موفق.
-message	String	پیام وضعیت تراکنش، مانند موفقیت‌آمیز یا عدم موفقیت تراکنش.
-status	String	وضعیت نهایی تراکنش که نشان می‌دهد تراکنش موفق بوده یا لغو شده است.
-نمونه کد Node.js
-در ادامه نمونه کدی ارائه شده است که با استفاده از کد authority، وضعیت تراکنش از زرین‌پال استعلام می‌شود:
-
-import { ZarinPal } from 'zarinpal-node-sdk';
-
-const zarinpal = new ZarinPal({
-    merchantId: 'your-merchant-id',
-    sandbox: true,
-});
-
-async function inquireTransaction() {
-  try {
-    const inquiryResult = await zarinpal.inquiries.inquire({
-      authority: 'A000000000000000000000000000000000',
-    });
-
-    console.log('Inquiry Result:', inquiryResult);
-  } catch (error) {
-    console.error('Error during inquiry:', error);
-  }
-}
-
-inquireTransaction();
-
-
-استعلام تراکنش‌های تأیید نشده
-متد استعلام تراکنش‌های تأیید نشده به شما این امکان را می‌دهد که لیست تراکنش‌های تأیید نشده را از درگاه پرداخت دریافت کنید. این متد می‌تواند برای بررسی تراکنش‌هایی که هنوز وضعیت آن‌ها مشخص نشده است، استفاده شود.
-
-پارامترهای ورودی
-در این متد، پارامترهای زیر به API ارسال می‌شود:
-
-نام	نوع	اجباری	شرح
-merchant_id	String	بله	کد ۳۶ کاراکتری اختصاصی پذیرنده
-اطلاعات خروجی
-در صورت موفقیت، اطلاعات زیر از API دریافت می‌شود:
-
-نام	نوع	شرح
-code	Integer	عددی که نشان‌دهنده موفق بودن یا عدم موفق عملیات می‌باشد.
-authorities	Array	حاوی اطلاعات اضافه تراکنش اعم از نوع درگاه و زمان پرداخت به صورت JSON Encode شده می‌باشد.
-نمونه کد Node.js
-در ادامه نمونه‌ای از پیاده‌سازی متد استعلام تراکنش‌های تأیید نشده در Node.js آمده است:
-
-import { ZarinPal } from 'zarinpal-node-sdk';
-
-const zarinpal = new ZarinPal({
-  merchantId: 'your-merchant-id',
-  sandbox: true,
-});
-
-async function getUnverifiedPayments() {
-  try {
-    const unverifiedPayments = await zarinpal.unverified.list();
-    console.log('Unverified Payments:', unverifiedPayments);
-  } catch (error) {
-    console.error('Error fetching unverified payments:', error);
-  }
-}
-
-getUnverifiedPayments();
-
-ریورس تراکنش
-متد ریورس تراکنش به شما امکان می‌دهد تا تراکنش‌های موفقی که از زمان پرداخت آن‌ها حداکثر ۳۰ دقیقه گذشته است را بدون کارمزد به حساب خریدار استرداد کنید.
-
-این متد برای تراکنش‌هایی استفاده می‌شود که موفق بوده‌اند اما لازم است مبلغ آن‌ها به خریدار بازگردانده شود. توجه داشته باشید که امکان ریورس تنها در ۳۰ دقیقه ابتدایی پس از انجام تراکنش وجود دارد.
-
-نکات مهم:
-برای استفاده از این سرویس، باید حتماً آی‌پی سرور شما برای درگاه تنظیم شده باشد. در غیر این صورت با خطای 62- مواجه خواهید شد.
-پارامترهای ورودی
-در این متد، پارامترهای زیر به API ارسال می‌شود:
-
-نام	نوع	اجباری	شرح
-merchant_id	String	بله	کد ۳۶ کاراکتری اختصاصی پذیرنده
-authority	String	بله	آتوریتی تراکنش مورد نظر برای ریورس کردن
-نمونه کد Node.js
-در ادامه نمونه‌ای از پیاده‌سازی متد ریورس تراکنش در Node.js آمده است:
-
-import { ZarinPal } from 'zarinpal-node-sdk';
-
-const zarinpal = new ZarinPal({
-  merchantId: 'your-merchant-id',
-  sandbox: true,
-});
-
-async function reverseTransaction() {
-  try {
-    const response = await zarinpal.reversals.reverse({
-      authority: 'A000000000000000000000000000000000',
-    });
-    console.log('Transaction Reversed:', response);
-  } catch (error) {
-    console.error('Error reversing transaction:', error);
-  }
-}
-
-reverseTransaction();
-
-استرداد وجه
-متد استرداد وجه به شما این امکان را می‌دهد که در صورت تغییر یا لغو سفارش مشتریان، واریزی‌های اشتباه یا هرگونه الزامی جهت بازگرداندن وجه به خریدار، تمام مبلغ واریز شده یا حتی بخشی از آن را به صورت آنی یا در سیکل‌های پایا، به حساب آن‌ها واریز نمایید.
-
-پارامترهای ورودی
-در این متد، پارامترهای زیر به API ارسال می‌شود:
-
-نام	نوع	اجباری	شرح
-session_id	String	بله	شماره تراکنش
-amount	Integer	بله	مبلغ ریال (حداقل مبلغ قابل استرداد ۲۰۰۰۰ ریال)
-description	String	بله	توضیح علت استرداد وجه
-method	String	بله	متد استرداد وجه (CARD یا PAYA)
-reason	String	بله	دلیل استرداد (CUSTOMER_REQUEST و غیره)
-اطلاعات خروجی
-در صورت موفقیت، اطلاعات زیر از API دریافت می‌شود:
-
-نام	نوع	شرح
-id	String	شماره تراکنش
-terminal_id	String	شماره ترمینال درگاه
-amount	Integer	مبلغ پرداخت شده به ریال
-timeline	Object	تاریخچه تراکنش
-refund_amount	Integer	مبلغ استرداد
-refund_time	String	تاریخ ثبت استرداد
-refund_status	String	وضعیت استرداد
-نمونه کد Node.js
-در ادامه نمونه‌ای از پیاده‌سازی متد استرداد وجه در Node.js آمده است:
-
-import { ZarinPal } from 'zarinpal-node-sdk';
-
-const zarinpal = new ZarinPal({
-  accessToken: 'your-access-token',
-  sandbox: true,
-});
-
-async function processRefund() {
-  try {
-    const refundResponse = await zarinpal.refunds.create({
-      sessionId: 'session-id-to-refund',
-      amount: 5000,
-      description: 'Refund for order #1234',
-      method: 'CARD',
-      reason: 'CUSTOMER_REQUEST',
-    });
-    console.log('Refund Created:', refundResponse);
-
-    const refundDetails = await zarinpal.refunds.retrieve(refundResponse.id);
-    console.log('Refund Details:', refundDetails);
-
-    const refundsList = await zarinpal.refunds.list({
-      terminalId: 'your-terminal-id',
-      limit: 10,
-      offset: 0,
-    });
-    console.log('Refunds List:', refundsList);
-  } catch (error) {
-    console.error('Error processing refund:', error);
-  }
-}
-
-processRefund();
-
-لیست تراکنش‌ها
-متد لیست تراکنش‌ها به شما این امکان را می‌دهد که تمامی تراکنش‌های مربوط به یک ترمینال خاص را دریافت کنید. این متد می‌تواند برای مشاهده وضعیت تراکنش‌ها و فیلتر کردن آن‌ها استفاده شود.
-
-پارامترهای ورودی
-نام	نوع	اجباری	شرح
-terminal_id	String	بله	شناسه ترمینال درگاه مورد نظر
-filter	String	خیر	فیلتر بر اساس وضعیت تراکنش‌ها (اختیاری): PAID، VERIFIED، TRASH، ACTIVE، REFUNDED
-offset	Integer	خیر	شروع ردیف‌های بازگشتی (اختیاری)
-limit	Integer	خیر	تعداد ردیف‌های بازگشتی (اختیاری)
-اطلاعات خروجی
-در صورت موفقیت، اطلاعات زیر از API دریافت می‌شود:
-
-نام	نوع	شرح
-id	String	شناسه تراکنش
-status	String	وضعیت تراکنش (مثلاً PAID، FAILED)
-amount	Integer	مبلغ تراکنش به ریال
-description	String	توضیحات مربوط به تراکنش
-created_at	String	تاریخ و ساعت ایجاد تراکنش
-نمونه کد Node.js
-در ادامه نمونه‌ای از پیاده‌سازی متد لیست تراکنش‌ها در Node.js آمده است:
-
-import { ZarinPal } from 'zarinpal-node-sdk';
-
-const zarinpal = new ZarinPal({
-  accessToken: 'your-access-token'
-});
-
-async function getTransactions() {
-  try {
-    const transactions = await zarinpal.transactions.list({
-      terminalId: 'your-terminal-id',
-      filter: 'PAID',
-      limit: 10,
-      offset: 0,
-    });
-    console.log('Transactions List:', transactions);
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
-  }
-}
-
-getTransactions();
-
-محاسبه کارمزد تراکنش (FeeCalculation)
-متد feeCalculation به شما امکان می‌دهد تا قبل از ایجاد درخواست پرداخت، میزان کارمزد یک تراکنش را محاسبه و دریافت کنید. این متد زمانی مفید است که بخواهید کارمزد تراکنش را پیش از شروع فرآیند پرداخت به کاربر نمایش دهید یا در محاسبات خود لحاظ کنید.
-
-پارامترهای ارسالی به متد FeeCalculation
-نام پارامتر	نوع	الزامی	توضیحات
-merchant_id	String	بله	کد Merchant شما که توسط زرین‌پال اختصاص داده شده است.
-amount	Number	بله	مبلغ تراکنش به ریال که باید بیشتر از 1000 ریال باشد.
-currency	String	خیر	نوع ارز تراکنش (پیش‌فرض: IRR). مقادیر مجاز: IRR, IRT
-مقادیر بازگشتی از متد FeeCalculation
-نام پارامتر	نوع	توضیحات
-code	Number	کد وضعیت درخواست: کد 100 برای درخواست موفق.
-message	String	پیام وضعیت درخواست، مانند موفقیت‌آمیز بودن محاسبه کارمزد.
-amount	Number	مبلغ اصلی تراکنش به ریال.
-fee	Number	میزان کارمزد محاسبه شده به ریال.
-fee_type	String	نوع پرداخت کننده کارمزد: Merchant (پذیرنده) یا Payer (پرداخت کننده).
-suggested_amount	String	مبلغ پیشنهادی برای تسویه حساب
-نمونه کد (Node.js)
-const { ZarinPal } = require('zarinpal-node-sdk');
-
-const zarinpal = new ZarinPal({
-  merchant_id: 'Your merchant code',
-});
-
-async function calculateFee() {
-  try {
-    const response = await zarinpal.payments.feeCalculation({
-      merchant_id: 'Your merchant code',
-      amount: 100000, // ۱۰۰,۰۰۰ ریال
-      currency: 'IRR', // اختیاری
-    });
-    console.log('نتیجه محاسبه کارمزد:');
-    console.log('کد:', response.data.code);
-    console.log('پیام:', response.data.message);
-    console.log('مبلغ:', response.data.amount, 'ریال');
-    console.log('کارمزد:', response.data.fee, 'ریال');
-    console.log('نوع کارمزد:', response.data.fee_type);
-  } catch (error) {
-    console.error('خطا در محاسبه کارمزد:', error.message);
-  }
-}
-
-calculateFee();
-نکات مهم
-مبلغ تراکنش باید حداقل ۱۰۰۰ ریال باشد.
-کارمزد محاسبه شده بر اساس تنظیمات ترمینال شما و نوع تراکنش متفاوت خواهد بود.
-نوع پرداخت کننده کارمزد (fee_type) می‌تواند Merchant (پذیرنده می‌پردازد) یا Payer (مشتری می‌پردازد) باشد.
-این متد صرفاً برای محاسبه کارمزد است و هیچ تراکنشی ایجاد نمی‌کند.
