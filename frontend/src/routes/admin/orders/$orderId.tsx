@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-query"
 import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { ArrowRight, CheckCircle2, Clock } from "lucide-react"
+import { ArrowRight, CheckCircle2, Clock, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -87,7 +87,72 @@ function AdminOrderDetail() {
     )
   }
 
-  return <FulfillForm order={order} />
+  // Only paid/fulfilled orders can take credentials. A pending order surfaced in
+  // the admin queue is a payment that needs manual review, not fulfillment.
+  if (order.status === "paid" || order.status === "fulfilled") {
+    return <FulfillForm order={order} />
+  }
+  return <ReviewPanel order={order} />
+}
+
+function OrderSummary({ order }: { order: AdminOrder }) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6">
+      <div>
+        <h1 className="text-lg font-bold">{order.user_name.trim() || "کاربر"}</h1>
+        <p dir="ltr" className="mt-1 text-left text-sm text-muted-foreground">
+          {order.user_phone}
+        </p>
+      </div>
+      <Separator className="my-5" />
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">مبلغ سفارش</span>
+        <span className="font-bold text-primary">{formatToman(order.amount)}</span>
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+        <span>{formatOrderDate(order.created_at)}</span>
+        <span dir="ltr" className="font-mono">{order.id}</span>
+      </div>
+    </div>
+  )
+}
+
+// ReviewPanel shows a pending (payment-unconfirmed) order read-only, with the
+// gateway authority so the admin can look it up in the ZarinPal panel.
+function ReviewPanel({ order }: { order: AdminOrder }) {
+  return (
+    <div className="space-y-5">
+      <OrderSummary order={order} />
+
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
+        <div className="flex items-center gap-2.5 text-red-600 dark:text-red-400">
+          <AlertTriangle className="size-5" />
+          <p className="text-sm font-semibold">پرداخت تأیید نشده است</p>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          نتیجهٔ پرداخت این سفارش از درگاه مشخص نشده است. وضعیت تراکنش را با کد زیر در پنل
+          زرین‌پال بررسی کنید. تا زمان تأیید، امکان ثبت اطلاعات اکانت وجود ندارد.
+        </p>
+        {order.authority && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            کد پیگیری درگاه:{" "}
+            <span dir="ltr" className="font-mono text-foreground">{order.authority}</span>
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6 space-y-2.5">
+        {order.items.map((it, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 text-sm">
+            <span className="truncate font-medium">{it.game_name}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {PLATFORM_LABEL[it.platform]} · {ZARFIAT_LABEL[it.zarfiat]} · × {it.quantity}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function FulfillForm({ order }: { order: AdminOrder }) {

@@ -3,6 +3,7 @@ import type { Order } from "@/features/orders"
 export type AdminOrder = Order & {
   user_phone: string
   user_name: string
+  authority: string | null
 }
 
 // Credentials submitted for a single order item when fulfilling.

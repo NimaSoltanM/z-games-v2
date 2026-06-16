@@ -3,8 +3,9 @@ import type { ErrorComponentProps } from "@tanstack/react-router"
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { Package, Clock, CheckCircle2 } from "lucide-react"
+import { Package, Clock, CheckCircle2, AlertTriangle } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
+import type { OrderStatus } from "@/features/orders"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,9 +17,13 @@ import type { AdminOrder } from "@/features/admin"
 import { formatOrderDate } from "@/features/orders"
 import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
 
-const STATUS_META: Record<"paid" | "fulfilled", { label: string; icon: LucideIcon; className: string }> = {
+type AdminStatusMeta = { label: string; icon: LucideIcon; className: string }
+
+const STATUS_META: Record<OrderStatus, AdminStatusMeta> = {
   paid: { label: "در انتظار تکمیل", icon: Clock, className: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  pending: { label: "بررسی پرداخت", icon: AlertTriangle, className: "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400" },
   fulfilled: { label: "تحویل شد", icon: CheckCircle2, className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  failed: { label: "ناموفق", icon: AlertTriangle, className: "border-muted-foreground/30 bg-muted/40 text-muted-foreground" },
 }
 
 function AdminOrdersError({ error }: ErrorComponentProps) {
@@ -90,7 +95,7 @@ function AdminOrdersList() {
 }
 
 function AdminOrderCard({ order }: { order: AdminOrder }) {
-  const meta = STATUS_META[order.status === "fulfilled" ? "fulfilled" : "paid"]
+  const meta = STATUS_META[order.status]
   const StatusIcon = meta.icon
   const date = formatOrderDate(order.created_at)
   const fullName = order.user_name.trim()

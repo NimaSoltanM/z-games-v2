@@ -297,20 +297,26 @@ var (
 
 type AdminOrderView struct {
 	OrderView
-	UserPhone string `json:"user_phone"`
-	UserName  string `json:"user_name"`
+	UserPhone string  `json:"user_phone"`
+	UserName  string  `json:"user_name"`
+	Authority *string `json:"authority"` // for manually reconciling a stuck payment in ZarinPal
 }
 
-// listAdminOrders returns paid + fulfilled orders (awaiting-fulfillment first),
-// with the buyer's phone/name and full item credentials, for the admin queue.
+// listAdminOrders returns the admin queue: orders awaiting fulfillment (paid)
+// first, then payments needing review (pending and older than the gateway window,
+// i.e. possibly paid but unconfirmed), then delivered (fulfilled). Brand-new
+// pending checkouts still in progress are excluded.
 func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher) ([]AdminOrderView, error) {
 	rows, err := db.Query(ctx, `
-		SELECT o.id, o.amount, o.status, o.created_at,
+		SELECT o.id, o.amount, o.status, o.created_at, o.authority,
 		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
 		FROM orders o
 		JOIN users u ON u.id = o.user_id
 		WHERE o.status IN ('paid', 'fulfilled')
-		ORDER BY (o.status = 'paid') DESC, o.created_at DESC
+		   OR (o.status = 'pending' AND o.created_at < NOW() - INTERVAL '10 minutes')
+		ORDER BY
+		    CASE o.status WHEN 'paid' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
+		    o.created_at DESC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("listAdminOrders: %w", err)
@@ -321,7 +327,7 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher) ([
 	byID := make(map[string]int)
 	for rows.Next() {
 		var o AdminOrderView
-		if err := rows.Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.UserPhone, &o.UserName); err != nil {
+		if err := rows.Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName); err != nil {
 			return nil, fmt.Errorf("listAdminOrders scan: %w", err)
 		}
 		o.Items = []OrderItemView{}
@@ -352,12 +358,12 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher) ([
 func getAdminOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderID string) (*AdminOrderView, error) {
 	var o AdminOrderView
 	err := db.QueryRow(ctx, `
-		SELECT o.id, o.amount, o.status, o.created_at,
+		SELECT o.id, o.amount, o.status, o.created_at, o.authority,
 		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
 		FROM orders o
 		JOIN users u ON u.id = o.user_id
 		WHERE o.id = $1
-	`, orderID).Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.UserPhone, &o.UserName)
+	`, orderID).Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
