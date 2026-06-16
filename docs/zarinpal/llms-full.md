@@ -1366,3 +1366,47 @@ refund_status وضعیت استرداد
 }
 }
 }
+
+لیست خطاها
+خطاهایی که در زرین‌پال ممکن است رخ دهد به همراه توضیحات مربوط به شرح زیر است
+type	code	EN	شرح فارسی
+public	-9	Validation error	خطای اعتبار سنجی
+1- مرچنت کد داخل تنظیمات وارد نشده باشد
+-2 آدرس بازگشت (callbackurl) وارد نشده باشد
+-3 توضیحات (description ) وارد نشده باشد و یا از حد مجاز 500 کارکتر بیشتر باشد
+-4 مبلغ پرداختی کمتر یا بیشتر از حد مجاز
+-5 کد معرف (referrer_id) نامعتبر است
+public	-10	Terminal is not valid, please check merchant_id or ip address.	ای پی یا مرچنت كد پذیرنده صحیح نیست.
+public	-11	Terminal is not active, please contact our support team.	مرچنت کد فعال نیست، پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
+public	-12	To many attempts, please try again later.	تلاش بیش از دفعات مجاز در یک بازه زمانی کوتاه به امور مشتریان زرین پال اطلاع دهید
+public	-13	terminal limit reached.	خطای مربوط به محدودیت تراکنش. برای رفع این مورد نسبت به تکمیل مدارک خود با مراجعه به پشتیبانی اقدام نمایید.
+public	-14	The callback URL domain does not match the registered terminal domain.	کال‌بک URL با دامنه ثبت شده درگاه مغایرت دارد.
+public	-15	Terminal user is suspend : (please contact our support team).	درگاه پرداخت به حالت تعلیق در آمده است، پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
+public	-16	Terminal user level is not valid : ( please contact our support team).	سطح تایید پذیرنده پایین تر از سطح نقره ای است.
+public	-17	Terminal user level is not valid : ( please contact our support team).	محدودیت پذیرنده در سطح آبی
+public	-18	The referrer address does not match the registered domain.	امکان استف کد درگاه اختصاصی خود بر روی سایت یا جای دیگری را ندارید
+public	-19	Terminal user transactions are banned.	امکان ایجاد تراکنش برای این ترمینال امکان پذیر نیست
+public	100	Success	عملیات موفق
+PaymentRequest	-30	Terminal do not allow to accept floating wages.	پذیرنده اجازه دسترسی به سرویس تسویه اشتراکی شناور را ندارد.
+PaymentRequest	-31	Terminal do not allow to accept wages, please add default bank account in panel.	حساب بانکی تسویه را به پنل اضافه کنید. مقادیر وارد شده برای تسهیم درست نیست. پذیرنده جهت استفاده از خدمات سرویس تسویه اشتراکی شناور، باید حساب بانکی معتبری به پنل کاربری خود اضافه نماید.
+PaymentRequest	-32	Wages is not valid, Total wages(floating) has been overload max amount.	مبلغ وارد شده از مبلغ کل تراکنش بیشتر است.
+PaymentRequest	-33	Wages floating is not valid.	درصدهای وارد شده صحیح نیست.
+PaymentRequest	-34	Wages is not valid, Total wages(fixed) has been overload max amount.	مبلغ وارد شده از مبلغ کل تراکنش بیشتر است.
+PaymentRequest	-35	Wages is not valid, Total wages(floating) has been reached the limit in max parts.	تعداد افراد دریافت کننده تسهیم بیش از حد مجاز است.
+PaymentRequest	-36	The minimum amount for wages(floating) should be 10,000 Rials	حداقل مبلغ جهت تسهیم باید ۱۰۰۰۰ ریال باشد
+PaymentRequest	-37	One or more iban entered for wages(floating) from the bank side are inactive.	یک یا چند شماره شبای وارد شده برای تسهیم از سمت بانک غیر فعال است.
+PaymentRequest	-38	Wages need to set Iban in shaparak.	خطا٬عدم تعریف صحیح شبا٬لطفا دقایقی دیگر تلاش کنید.
+PaymentRequest	-39	Wages have a error!	خطایی رخ داده است به امور مشتریان زرین پال اطلاع دهید
+PaymentRequest	-40	Invalid extra params, expire_in is not valid.	
+PaymentRequest	-41	Maximum amount is 100,000,000 tomans.	حداکثر مبلغ پرداختی ۱۰۰ میلیون تومان است
+PaymentVerify	-50	Session is not valid, amounts values is not the same.	مبلغ پرداخت شده با مقدار مبلغ ارسالی در متد وریفای متفاوت است.
+PaymentVerify	-51	Session is not valid, session is not active paid try.	پرداخت ناموفق
+PaymentVerify	-52	Oops!!, please contact our support team	خطای غیر منتظره‌ای رخ داده است. پذیرنده مشکل خود را به امور مشتریان زرین‌پال ارجاع دهد.
+PaymentVerify	-53	Session is not this merchant_id session	پرداخت متعلق به این مرچنت کد نیست.
+PaymentVerify	-54	Invalid authority.	اتوریتی نامعتبر است.
+PaymentVerify	-55	manual payment request not found.	تراکنش مورد نظر یافت نشد
+PaymentReverse	-60	Session can not be reversed with bank.	امکان ریورس کردن تراکنش با بانک وجود ندارد
+PaymentReverse	-61	Session is not in success status.	تراکنش موفق نیست یا قبلا ریورس شده است
+PaymentReverse	-62	Terminal ip limit most be active.	آی پی درگاه ست نشده است
+PaymentReverse	-63	Maximum time for reverse this session is expired.	حداکثر زمان (۳۰ دقیقه) برای ریورس کردن این تراکنش منقضی شده است
+PaymentVerify	101	Verified	تراکنش وریفای شده است.
