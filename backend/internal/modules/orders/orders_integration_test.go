@@ -1,0 +1,212 @@
+package orders
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/soltanmohammdi/z-games/internal/testdb"
+)
+
+func mustExec(t *testing.T, ctx context.Context, db *pgxpool.Pool, sql string, args ...any) {
+	t.Helper()
+	if _, err := db.Exec(ctx, sql, args...); err != nil {
+		t.Fatalf("exec failed: %v\nSQL: %s", err, sql)
+	}
+}
+
+func seedUser(t *testing.T, ctx context.Context, db *pgxpool.Pool, id, phone string) {
+	mustExec(t, ctx, db, "INSERT INTO users (id, phone, role) VALUES ($1, $2, 'user')", id, phone)
+}
+
+func seedGame(t *testing.T, ctx context.Context, db *pgxpool.Pool, id, mode string, active bool) {
+	mustExec(t, ctx, db,
+		"INSERT INTO games (id, name, platform, price_mode, active) VALUES ($1, 'Test Game', 'ps5', $2::price_mode, $3)",
+		id, mode, active)
+}
+
+func seedDynamicPrice(t *testing.T, ctx context.Context, db *pgxpool.Pool, gameID string, usd float64) {
+	mustExec(t, ctx, db,
+		"INSERT INTO game_prices (game_id, platform, zarfiat, price_usd) VALUES ($1, 'ps5', 'z2', $2)",
+		gameID, usd)
+}
+
+func seedRate(t *testing.T, ctx context.Context, db *pgxpool.Pool, rate int) {
+	mustExec(t, ctx, db, "INSERT INTO exchange_rate (id, usd_to_toman) VALUES (1, $1)", rate)
+}
+
+func seedCart(t *testing.T, ctx context.Context, db *pgxpool.Pool, userID, gameID string, qty int) {
+	mustExec(t, ctx, db,
+		"INSERT INTO cart_items (user_id, game_id, platform, zarfiat, quantity) VALUES ($1, $2, 'ps5', 'z2', $3)",
+		userID, gameID, qty)
+}
+
+func oneItem() []orderItem {
+	return []orderItem{{GameID: "g1", GameName: "Test Game", Platform: "ps5", Zarfiat: "z2", Quantity: 1}}
+}
+
+func TestMarkOrderPaid_Idempotent(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+
+	orderID, err := createPendingOrder(ctx, db, "u1", 1000, "", oneItem())
+	if err != nil {
+		t.Fatalf("createPendingOrder: %v", err)
+	}
+
+	first, err := markOrderPaid(ctx, db, orderID, 555)
+	if err != nil || !first {
+		t.Fatalf("first markOrderPaid: transitioned=%v err=%v (want true)", first, err)
+	}
+	second, err := markOrderPaid(ctx, db, orderID, 999)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second {
+		t.Fatal("second markOrderPaid must report NO transition (idempotent)")
+	}
+
+	var status string
+	var refID int64
+	if err := db.QueryRow(ctx, "SELECT status, ref_id FROM orders WHERE id=$1", orderID).Scan(&status, &refID); err != nil {
+		t.Fatal(err)
+	}
+	if status != "paid" {
+		t.Fatalf("status = %q, want paid", status)
+	}
+	if refID != 555 {
+		t.Fatalf("ref_id = %d, want 555 (the second call must not overwrite it)", refID)
+	}
+}
+
+func TestFailOrder_AndPaidGuards(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+
+	// A pending order can be failed, and a failed order can't be revived to paid.
+	pendingID, _ := createPendingOrder(ctx, db, "u1", 1000, "", oneItem())
+	if err := failOrder(ctx, db, pendingID); err != nil {
+		t.Fatal(err)
+	}
+	revived, err := markOrderPaid(ctx, db, pendingID, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if revived {
+		t.Fatal("markOrderPaid must not revive a failed order")
+	}
+	assertStatus(t, ctx, db, pendingID, "failed")
+
+	// A paid order must not be flipped to failed.
+	paidID, _ := createPendingOrder(ctx, db, "u1", 1000, "", oneItem())
+	if _, err := markOrderPaid(ctx, db, paidID, 7); err != nil {
+		t.Fatal(err)
+	}
+	if err := failOrder(ctx, db, paidID); err != nil {
+		t.Fatal(err)
+	}
+	assertStatus(t, ctx, db, paidID, "paid")
+}
+
+func TestFulfillOrder_EncryptsAtRestAndCompletes(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	cred := newTestCipher(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+
+	orderID, _ := createPendingOrder(ctx, db, "u1", 1000, "", oneItem())
+	if _, err := markOrderPaid(ctx, db, orderID, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	ao, err := getAdminOrder(ctx, db, cred, orderID)
+	if err != nil || ao == nil || len(ao.Items) != 1 {
+		t.Fatalf("getAdminOrder: %+v err=%v", ao, err)
+	}
+	itemID := ao.Items[0].ID
+
+	// Partial credentials → order stays paid (not yet deliverable).
+	if err := fulfillOrder(ctx, db, cred, orderID, []credInput{{ItemID: itemID, Email: "a@psn.com"}}); err != nil {
+		t.Fatal(err)
+	}
+	assertStatus(t, ctx, db, orderID, "paid")
+
+	// Complete credentials → order becomes fulfilled.
+	if err := fulfillOrder(ctx, db, cred, orderID, []credInput{{ItemID: itemID, Email: "a@psn.com", Password: "pw", PsnPass: "psn"}}); err != nil {
+		t.Fatal(err)
+	}
+	assertStatus(t, ctx, db, orderID, "fulfilled")
+
+	// Stored value must be ciphertext, not the plaintext password.
+	var rawPw string
+	if err := db.QueryRow(ctx, "SELECT password FROM order_items WHERE id=$1", itemID).Scan(&rawPw); err != nil {
+		t.Fatal(err)
+	}
+	if rawPw == "pw" || rawPw == "" {
+		t.Fatalf("password stored as %q — not encrypted at rest", rawPw)
+	}
+
+	// Read path must decrypt it back.
+	ao2, err := getAdminOrder(ctx, db, cred, orderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ao2.Items[0].Password == nil || *ao2.Items[0].Password != "pw" {
+		t.Fatalf("decrypted password = %v, want pw", ao2.Items[0].Password)
+	}
+}
+
+func TestComputeCart(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+	seedGame(t, ctx, db, "g1", "dynamic", true)
+	seedDynamicPrice(t, ctx, db, "g1", 8)
+	seedRate(t, ctx, db, 95000)
+	seedCart(t, ctx, db, "u1", "g1", 2)
+
+	items, total, err := computeCart(ctx, db, "u1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+	if want := 8 * 95000 * 2; total != want {
+		t.Fatalf("total = %d, want %d", total, want)
+	}
+}
+
+func TestComputeCart_EmptyAndInvalid(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+
+	// Empty cart.
+	if _, _, err := computeCart(ctx, db, "u1"); !errors.Is(err, ErrCartEmpty) {
+		t.Fatalf("empty cart: got %v, want ErrCartEmpty", err)
+	}
+
+	// Inactive game in cart → must never be priced/charged.
+	seedGame(t, ctx, db, "g1", "dynamic", false)
+	seedDynamicPrice(t, ctx, db, "g1", 8)
+	seedRate(t, ctx, db, 95000)
+	seedCart(t, ctx, db, "u1", "g1", 1)
+	if _, _, err := computeCart(ctx, db, "u1"); !errors.Is(err, ErrInvalidCart) {
+		t.Fatalf("inactive game: got %v, want ErrInvalidCart", err)
+	}
+}
+
+func assertStatus(t *testing.T, ctx context.Context, db *pgxpool.Pool, orderID, want string) {
+	t.Helper()
+	var status string
+	if err := db.QueryRow(ctx, "SELECT status FROM orders WHERE id=$1", orderID).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != want {
+		t.Fatalf("order status = %q, want %q", status, want)
+	}
+}
