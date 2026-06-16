@@ -4,10 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 )
+
+// ErrPaymentNotVerified means ZarinPal explicitly reported the payment as NOT
+// completed (a definitive negative — safe to fail the order). Any other error
+// from verifyPayment (transport, timeout, non-2xx, decode) means the outcome is
+// UNKNOWN: the customer may have actually paid, so the order must be left
+// pending for reconciliation rather than marked failed.
+var ErrPaymentNotVerified = errors.New("zarinpal: payment not verified")
 
 // zarinpalClient talks to ZarinPal's v4 payment API. Sandbox just swaps the host.
 type zarinpalClient struct {
@@ -85,10 +93,11 @@ func (z *zarinpalClient) verifyPayment(ctx context.Context, amount int, authorit
 
 	var resp zpVerifyResp
 	if err := z.post(ctx, "/verify.json", body, &resp); err != nil {
-		return 0, err
+		return 0, err // transport/non-2xx/decode → outcome UNKNOWN
 	}
 	if resp.Data.Code != 100 && resp.Data.Code != 101 {
-		return 0, fmt.Errorf("zarinpal verify: code=%d msg=%q", resp.Data.Code, resp.Data.Message)
+		// ZarinPal answered cleanly and says this payment did not go through.
+		return 0, fmt.Errorf("%w: code=%d msg=%q", ErrPaymentNotVerified, resp.Data.Code, resp.Data.Message)
 	}
 	return resp.Data.RefID, nil
 }
@@ -110,6 +119,13 @@ func (z *zarinpalClient) post(ctx context.Context, path string, body, out any) e
 		return fmt.Errorf("zarinpal do: %w", err)
 	}
 	defer res.Body.Close()
+
+	// A non-2xx response is a gateway-side problem, not a clean answer. We must
+	// not interpret it as a payment result (the body may be an error envelope or
+	// empty), so surface it as a generic error → UNKNOWN at the verify layer.
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return fmt.Errorf("zarinpal http status %d", res.StatusCode)
+	}
 
 	if err := json.NewDecoder(res.Body).Decode(out); err != nil {
 		return fmt.Errorf("zarinpal decode: %w", err)

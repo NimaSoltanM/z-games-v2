@@ -25,6 +25,12 @@ func main() {
 	if os.Getenv("ZARINPAL_MERCHANT_ID") == "" {
 		log.Fatal("ZARINPAL_MERCHANT_ID must be set (any UUID works for the sandbox)")
 	}
+	// Account credentials are encrypted at rest with this key. Losing or changing
+	// it makes every already-delivered credential unreadable, so it must be set,
+	// backed up, and stored outside the database (and its backups).
+	if os.Getenv("CREDENTIALS_KEY") == "" {
+		log.Fatal("CREDENTIALS_KEY must be set (base64-encoded 32 bytes for AES-256)")
+	}
 
 	db, err := database.Connect()
 	if err != nil {

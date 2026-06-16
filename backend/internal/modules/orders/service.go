@@ -197,11 +197,15 @@ func clearUserCart(ctx context.Context, db *pgxpool.Pool, userID string) error {
 // --- reads (user dashboard) -------------------------------------------------
 
 type OrderItemView struct {
-	GameID   string `json:"game_id"`
-	GameName string `json:"game_name"`
-	Platform string `json:"platform"`
-	Zarfiat  string `json:"zarfiat"`
-	Quantity int    `json:"quantity"`
+	ID       string  `json:"id"`
+	GameID   string  `json:"game_id"`
+	GameName string  `json:"game_name"`
+	Platform string  `json:"platform"`
+	Zarfiat  string  `json:"zarfiat"`
+	Quantity int     `json:"quantity"`
+	Email    *string `json:"email"`
+	Password *string `json:"password"`
+	PsnPass  *string `json:"psn_pass"`
 }
 
 type OrderView struct {
@@ -215,11 +219,11 @@ type OrderView struct {
 // listUserOrders returns the user's paid orders (their actual purchases),
 // newest first, each with its line items. Pending/failed checkout attempts are
 // excluded — they aren't "orders" from the customer's point of view.
-func listUserOrders(ctx context.Context, db *pgxpool.Pool, userID string) ([]OrderView, error) {
+func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, userID string) ([]OrderView, error) {
 	rows, err := db.Query(ctx, `
 		SELECT id, amount, status, created_at
 		FROM orders
-		WHERE user_id = $1 AND status = 'paid'
+		WHERE user_id = $1 AND status IN ('paid', 'fulfilled')
 		ORDER BY created_at DESC
 	`, userID)
 	if err != nil {
@@ -249,7 +253,7 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, userID string) ([]Ord
 	for _, o := range orders {
 		ids = append(ids, o.ID)
 	}
-	if err := attachOrderItems(ctx, db, ids, func(orderID string, it OrderItemView) {
+	if err := attachOrderItems(ctx, db, cred, ids, func(orderID string, it OrderItemView) {
 		if i, ok := byID[orderID]; ok {
 			orders[i].Items = append(orders[i].Items, it)
 		}
@@ -261,7 +265,7 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, userID string) ([]Ord
 
 // getUserOrder returns a single order owned by the user (any status), or nil if
 // it doesn't exist or belongs to someone else.
-func getUserOrder(ctx context.Context, db *pgxpool.Pool, userID, orderID string) (*OrderView, error) {
+func getUserOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, userID, orderID string) (*OrderView, error) {
 	var o OrderView
 	err := db.QueryRow(ctx, `
 		SELECT id, amount, status, created_at
@@ -275,7 +279,7 @@ func getUserOrder(ctx context.Context, db *pgxpool.Pool, userID, orderID string)
 		return nil, fmt.Errorf("getUserOrder: %w", err)
 	}
 	o.Items = []OrderItemView{}
-	if err := attachOrderItems(ctx, db, []string{o.ID}, func(_ string, it OrderItemView) {
+	if err := attachOrderItems(ctx, db, cred, []string{o.ID}, func(_ string, it OrderItemView) {
 		o.Items = append(o.Items, it)
 	}); err != nil {
 		return nil, err
@@ -283,9 +287,172 @@ func getUserOrder(ctx context.Context, db *pgxpool.Pool, userID, orderID string)
 	return &o, nil
 }
 
-func attachOrderItems(ctx context.Context, db *pgxpool.Pool, orderIDs []string, add func(orderID string, it OrderItemView)) error {
+// --- admin fulfillment -------------------------------------------------------
+
+var (
+	ErrOrderNotFound  = errors.New("ORDER_NOT_FOUND")
+	ErrNotFulfillable = errors.New("ORDER_NOT_FULFILLABLE")
+	ErrItemNotInOrder = errors.New("ITEM_NOT_IN_ORDER")
+)
+
+type AdminOrderView struct {
+	OrderView
+	UserPhone string `json:"user_phone"`
+	UserName  string `json:"user_name"`
+}
+
+// listAdminOrders returns paid + fulfilled orders (awaiting-fulfillment first),
+// with the buyer's phone/name and full item credentials, for the admin queue.
+func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher) ([]AdminOrderView, error) {
 	rows, err := db.Query(ctx, `
-		SELECT order_id, game_id, game_name, platform, zarfiat, quantity
+		SELECT o.id, o.amount, o.status, o.created_at,
+		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
+		FROM orders o
+		JOIN users u ON u.id = o.user_id
+		WHERE o.status IN ('paid', 'fulfilled')
+		ORDER BY (o.status = 'paid') DESC, o.created_at DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("listAdminOrders: %w", err)
+	}
+	defer rows.Close()
+
+	orders := make([]AdminOrderView, 0)
+	byID := make(map[string]int)
+	for rows.Next() {
+		var o AdminOrderView
+		if err := rows.Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.UserPhone, &o.UserName); err != nil {
+			return nil, fmt.Errorf("listAdminOrders scan: %w", err)
+		}
+		o.Items = []OrderItemView{}
+		byID[o.ID] = len(orders)
+		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("listAdminOrders rows: %w", err)
+	}
+	if len(orders) == 0 {
+		return orders, nil
+	}
+
+	ids := make([]string, 0, len(orders))
+	for _, o := range orders {
+		ids = append(ids, o.ID)
+	}
+	if err := attachOrderItems(ctx, db, cred, ids, func(orderID string, it OrderItemView) {
+		if i, ok := byID[orderID]; ok {
+			orders[i].Items = append(orders[i].Items, it)
+		}
+	}); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
+func getAdminOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderID string) (*AdminOrderView, error) {
+	var o AdminOrderView
+	err := db.QueryRow(ctx, `
+		SELECT o.id, o.amount, o.status, o.created_at,
+		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
+		FROM orders o
+		JOIN users u ON u.id = o.user_id
+		WHERE o.id = $1
+	`, orderID).Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.UserPhone, &o.UserName)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("getAdminOrder: %w", err)
+	}
+	o.Items = []OrderItemView{}
+	if err := attachOrderItems(ctx, db, cred, []string{o.ID}, func(_ string, it OrderItemView) {
+		o.Items = append(o.Items, it)
+	}); err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+type credInput struct {
+	ItemID   string
+	Email    string
+	Password string
+	PsnPass  string
+}
+
+// fulfillOrder writes credentials onto the given items (scoped to the order) and
+// flips the order to 'fulfilled' once every item has all three credentials
+// (or back to 'paid' if any is cleared). Empty fields are stored as NULL.
+func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderID string, items []credInput) error {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("fulfillOrder begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var status string
+	err = tx.QueryRow(ctx, "SELECT status FROM orders WHERE id = $1", orderID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrOrderNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("fulfillOrder status: %w", err)
+	}
+	if status != "paid" && status != "fulfilled" {
+		return ErrNotFulfillable
+	}
+
+	for _, it := range items {
+		// Credentials are encrypted at rest; empty fields are stored as NULL.
+		email, err := cred.encryptNullable(it.Email)
+		if err != nil {
+			return fmt.Errorf("fulfillOrder encrypt email: %w", err)
+		}
+		password, err := cred.encryptNullable(it.Password)
+		if err != nil {
+			return fmt.Errorf("fulfillOrder encrypt password: %w", err)
+		}
+		psnPass, err := cred.encryptNullable(it.PsnPass)
+		if err != nil {
+			return fmt.Errorf("fulfillOrder encrypt psn_pass: %w", err)
+		}
+
+		tag, err := tx.Exec(ctx, `
+			UPDATE order_items SET email = $1, password = $2, psn_pass = $3
+			WHERE id = $4 AND order_id = $5
+		`, email, password, psnPass, it.ItemID, orderID)
+		if err != nil {
+			return fmt.Errorf("fulfillOrder update item: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrItemNotInOrder
+		}
+	}
+
+	var incomplete int
+	if err := tx.QueryRow(ctx, `
+		SELECT COUNT(*) FROM order_items
+		WHERE order_id = $1 AND (email IS NULL OR password IS NULL OR psn_pass IS NULL)
+	`, orderID).Scan(&incomplete); err != nil {
+		return fmt.Errorf("fulfillOrder completeness: %w", err)
+	}
+
+	newStatus := "paid"
+	if incomplete == 0 {
+		newStatus = "fulfilled"
+	}
+	if _, err := tx.Exec(ctx,
+		"UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 AND status IN ('paid', 'fulfilled')",
+		newStatus, orderID); err != nil {
+		return fmt.Errorf("fulfillOrder status update: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderIDs []string, add func(orderID string, it OrderItemView)) error {
+	rows, err := db.Query(ctx, `
+		SELECT order_id, id, game_id, game_name, platform, zarfiat, quantity, email, password, psn_pass
 		FROM order_items
 		WHERE order_id = ANY($1)
 		ORDER BY game_name
@@ -297,9 +464,22 @@ func attachOrderItems(ctx context.Context, db *pgxpool.Pool, orderIDs []string, 
 	for rows.Next() {
 		var orderID string
 		var it OrderItemView
-		if err := rows.Scan(&orderID, &it.GameID, &it.GameName, &it.Platform, &it.Zarfiat, &it.Quantity); err != nil {
+		if err := rows.Scan(&orderID, &it.ID, &it.GameID, &it.GameName, &it.Platform, &it.Zarfiat, &it.Quantity,
+			&it.Email, &it.Password, &it.PsnPass); err != nil {
 			return fmt.Errorf("attachOrderItems scan: %w", err)
 		}
+
+		// Credentials are stored encrypted — decrypt before handing them back.
+		if it.Email, err = cred.decryptPtr(it.Email); err != nil {
+			return fmt.Errorf("attachOrderItems decrypt email: %w", err)
+		}
+		if it.Password, err = cred.decryptPtr(it.Password); err != nil {
+			return fmt.Errorf("attachOrderItems decrypt password: %w", err)
+		}
+		if it.PsnPass, err = cred.decryptPtr(it.PsnPass); err != nil {
+			return fmt.Errorf("attachOrderItems decrypt psn_pass: %w", err)
+		}
+
 		add(orderID, it)
 	}
 	return rows.Err()
