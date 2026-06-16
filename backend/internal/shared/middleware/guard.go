@@ -18,26 +18,38 @@ func loadUserRole(ctx context.Context, db *pgxpool.Pool, userID string) (string,
 	return role, err
 }
 
+// authenticate validates the auth cookie and loads the user's CURRENT role from
+// the DB (so role changes or account deletion take effect immediately, not only
+// when the 30-day token expires). On failure it returns a ready *fiber.Error
+// (or the raw DB error for a 500); on success it returns the userID and role.
+func authenticate(c fiber.Ctx, db *pgxpool.Pool) (userID, role string, err error) {
+	token := c.Cookies("auth_token")
+	if token == "" {
+		return "", "", fiber.NewError(fiber.StatusUnauthorized, "لطفاً وارد شوید")
+	}
+
+	userID, err = verifyAuthToken(token)
+	if err != nil {
+		return "", "", fiber.NewError(fiber.StatusUnauthorized, "نشست منقضی شده است. لطفاً دوباره وارد شوید")
+	}
+
+	role, err = loadUserRole(c.Context(), db, userID)
+	if err != nil {
+		return "", "", err
+	}
+	if role == "" {
+		return "", "", fiber.NewError(fiber.StatusUnauthorized, "نشست منقضی شده است. لطفاً دوباره وارد شوید")
+	}
+
+	return userID, role, nil
+}
+
 func RequireAuth(db *pgxpool.Pool) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		token := c.Cookies("auth_token")
-		if token == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "لطفاً وارد شوید"})
-		}
-
-		userID, _, err := verifyAuthToken(token)
-		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "نشست منقضی شده است. لطفاً دوباره وارد شوید"})
-		}
-
-		role, err := loadUserRole(c.Context(), db, userID)
+		userID, role, err := authenticate(c, db)
 		if err != nil {
 			return err
 		}
-		if role == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "نشست منقضی شده است. لطفاً دوباره وارد شوید"})
-		}
-
 		c.Locals(LocalUserID, userID)
 		c.Locals(LocalUserRole, role)
 		return c.Next()
@@ -46,27 +58,13 @@ func RequireAuth(db *pgxpool.Pool) fiber.Handler {
 
 func RequireAdmin(db *pgxpool.Pool) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		token := c.Cookies("auth_token")
-		if token == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "لطفاً وارد شوید"})
-		}
-
-		userID, _, err := verifyAuthToken(token)
-		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "نشست منقضی شده است. لطفاً دوباره وارد شوید"})
-		}
-
-		role, err := loadUserRole(c.Context(), db, userID)
+		userID, role, err := authenticate(c, db)
 		if err != nil {
 			return err
 		}
-		if role == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "نشست منقضی شده است. لطفاً دوباره وارد شوید"})
-		}
 		if role == "user" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "دسترسی مجاز نیست"})
+			return fiber.NewError(fiber.StatusForbidden, "دسترسی مجاز نیست")
 		}
-
 		c.Locals(LocalUserID, userID)
 		c.Locals(LocalUserRole, role)
 		return c.Next()
@@ -75,24 +73,13 @@ func RequireAdmin(db *pgxpool.Pool) fiber.Handler {
 
 func RequireSuperAdmin(db *pgxpool.Pool) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		token := c.Cookies("auth_token")
-		if token == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "لطفاً وارد شوید"})
-		}
-
-		userID, _, err := verifyAuthToken(token)
-		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "نشست منقضی شده است. لطفاً دوباره وارد شوید"})
-		}
-
-		role, err := loadUserRole(c.Context(), db, userID)
+		userID, role, err := authenticate(c, db)
 		if err != nil {
 			return err
 		}
 		if role != "super_admin" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "دسترسی مجاز نیست"})
+			return fiber.NewError(fiber.StatusForbidden, "دسترسی مجاز نیست")
 		}
-
 		c.Locals(LocalUserID, userID)
 		c.Locals(LocalUserRole, role)
 		return c.Next()

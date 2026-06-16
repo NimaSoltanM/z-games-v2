@@ -64,7 +64,10 @@ func VerifyRegistrationToken(tokenStr string) (phone string, err error) {
 	return phone, nil
 }
 
-func verifyAuthToken(tokenStr string) (userID, role string, err error) {
+// verifyAuthToken validates an auth JWT and returns its user id. The user's role
+// is intentionally NOT read from the token — it's loaded fresh from the DB on
+// every request (see authenticate) so privilege changes apply immediately.
+func verifyAuthToken(tokenStr string) (userID string, err error) {
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, ErrTokenInvalid
@@ -72,17 +75,17 @@ func verifyAuthToken(tokenStr string) (userID, role string, err error) {
 		return jwtSecret(), nil
 	})
 	if err != nil || !token.Valid {
-		return "", "", ErrTokenInvalid
+		return "", ErrTokenInvalid
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || claims["type"] != "auth" {
-		return "", "", ErrTokenInvalid
+		return "", ErrTokenInvalid
 	}
 
 	userID, ok = claims["userId"].(string)
 	if !ok || userID == "" {
-		return "", "", ErrTokenInvalid
+		return "", ErrTokenInvalid
 	}
-	return userID, "", nil
+	return userID, nil
 }

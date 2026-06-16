@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -16,10 +17,10 @@ import (
 )
 
 const (
-	otpExpiryMinutes        = 5
-	otpRateLimit            = 3
-	otpRateLimitWindowMins  = 10
-	otpMaxAttempts          = 3
+	otpExpiryMinutes       = 5
+	otpRateLimit           = 3
+	otpRateLimitWindowMins = 10
+	otpMaxAttempts         = 3
 )
 
 var (
@@ -31,7 +32,11 @@ var (
 
 func generateID() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		// crypto/rand failing means the platform's RNG is broken — there is no
+		// safe way to mint an ID, so fail loudly rather than risk a weak/empty one.
+		panic(fmt.Sprintf("crypto/rand failed: %v", err))
+	}
 	return hex.EncodeToString(b)
 }
 
@@ -123,18 +128,25 @@ func verifyOTP(ctx context.Context, db *pgxpool.Pool, rawPhone, code string) (ve
 		return verifyResult{}, fmt.Errorf("fetch otp: %w", err)
 	}
 
-	if otpCode != code {
+	// Constant-time compare so a wrong code can't be narrowed down by timing.
+	if subtle.ConstantTimeCompare([]byte(otpCode), []byte(code)) != 1 {
 		newAttempts := attempts + 1
-		if newAttempts >= otpMaxAttempts {
-			tx.Exec(ctx,
-				"UPDATE otp_codes SET attempts = $1, used_at = NOW() WHERE id = $2",
-				newAttempts, otpID,
-			)
-			tx.Commit(ctx)
+		burned := newAttempts >= otpMaxAttempts
+
+		query := "UPDATE otp_codes SET attempts = $1 WHERE id = $2"
+		if burned {
+			// Burn the code after too many wrong tries so it can't be brute-forced.
+			query = "UPDATE otp_codes SET attempts = $1, used_at = NOW() WHERE id = $2"
+		}
+		if _, err := tx.Exec(ctx, query, newAttempts, otpID); err != nil {
+			return verifyResult{}, fmt.Errorf("record otp attempt: %w", err)
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return verifyResult{}, fmt.Errorf("commit otp attempt: %w", err)
+		}
+		if burned {
 			return verifyResult{}, ErrOTPBurned
 		}
-		tx.Exec(ctx, "UPDATE otp_codes SET attempts = $1 WHERE id = $2", newAttempts, otpID)
-		tx.Commit(ctx)
 		return verifyResult{}, ErrOTPInvalid
 	}
 

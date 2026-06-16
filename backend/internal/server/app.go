@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log"
 	"os"
 
 	"github.com/gofiber/fiber/v3"
@@ -60,10 +61,16 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 func errorHandler(c fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 	msg := ""
+
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code
 		msg = e.Message
+	} else {
+		// Unexpected internal error: the client only ever sees a generic Persian
+		// message, so log the real cause here or it would vanish silently.
+		log.Printf("unhandled error on %s %s: %v", c.Method(), c.Path(), err)
 	}
+
 	if code == fiber.StatusNotFound {
 		return c.Status(code).JSON(fiber.Map{"message": "مسیر مورد نظر یافت نشد"})
 	}
