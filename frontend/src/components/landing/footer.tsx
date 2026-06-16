@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router"
 
-const GAMES_SEARCH = { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" } as const
+import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 
 export function Footer() {
   const year = new Date().getFullYear()
@@ -20,7 +20,7 @@ export function Footer() {
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
             <Link
               to="/games"
-              search={GAMES_SEARCH}
+              search={GAMES_DEFAULT_SEARCH}
               className="transition-colors hover:text-foreground"
             >
               بازی‌ها

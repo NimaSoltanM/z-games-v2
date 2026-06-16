@@ -109,6 +109,16 @@ export const ZARFIAT_LABEL: Record<Zarfiat, string> = {
 export const ZARFIATS: Zarfiat[] = ["z1", "z2", "z3"]
 export const CONSOLE_PLATFORMS: ConsolePlatform[] = ["ps4", "ps5"]
 
+// Default search params for the games list — used by every "browse games" link
+// so they all land on the same unfiltered, newest-first view.
+export const GAMES_DEFAULT_SEARCH = {
+  page: 1,
+  platform: "",
+  zarfiat: "",
+  search: "",
+  sort: "-created_at",
+} as const
+
 // Real PlayStation brand colors
 export const PLATFORM_BADGE_CLASS: Record<Platform, string> = {
   ps4: "bg-blue-600/15 text-blue-400 border-blue-600/30",

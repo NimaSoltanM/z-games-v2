@@ -1,25 +1,18 @@
 import { createFileRoute, ErrorComponent, Link, redirect } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { ArrowRight, Clock, XCircle, KeyRound } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+import { ArrowRight, KeyRound, Copy, Check } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getMeFn } from "@/features/auth"
-import { orderQueryOptions } from "@/features/orders"
-import type { OrderStatus } from "@/features/orders"
+import { orderQueryOptions, ORDER_STATUS_META, formatOrderDate } from "@/features/orders"
+import type { OrderItem } from "@/features/orders"
 import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
-
-const STATUS_META: Record<OrderStatus, { label: string; icon: LucideIcon }> = {
-  paid: { label: "در حال آماده‌سازی", icon: Clock },
-  pending: { label: "در انتظار پرداخت", icon: Clock },
-  failed: { label: "ناموفق", icon: XCircle },
-}
 
 function OrderError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -84,13 +77,9 @@ function OrderDetail() {
     )
   }
 
-  const meta = STATUS_META[order.status]
+  const meta = ORDER_STATUS_META[order.status]
   const StatusIcon = meta.icon
-  const date = new Date(order.created_at).toLocaleDateString("fa-IR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  })
+  const date = formatOrderDate(order.created_at)
 
   return (
     <div className="space-y-5">
@@ -149,11 +138,77 @@ function OrderDetail() {
           </div>
           <p className="text-sm font-semibold">اطلاعات اکانت</p>
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          سفارش شما در حال آماده‌سازی است. به‌محض آماده شدن، ایمیل، رمز عبور و PSN-pass اکانت
-          همین‌جا برای شما نمایش داده می‌شود.
+
+        {order.items.some((it) => it.email || it.password || it.psn_pass) ? (
+          <div className="mt-5 space-y-5">
+            {order.items.map((it, i) => (
+              <ItemCredentials key={i} item={it} showName={order.items.length > 1} />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            سفارش شما در حال آماده‌سازی است. به‌محض آماده شدن، ایمیل، رمز عبور و PSN-pass اکانت
+            همین‌جا برای شما نمایش داده می‌شود.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ItemCredentials({ item, showName }: { item: OrderItem; showName: boolean }) {
+  if (!item.email && !item.password && !item.psn_pass) {
+    return (
+      <div className="rounded-xl border border-border/60 bg-background/40 p-4">
+        {showName && <p className="mb-1 text-sm font-medium">{item.game_name}</p>}
+        <p className="text-xs text-muted-foreground">این مورد هنوز در حال آماده‌سازی است.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/40 p-4">
+      {showName && <p className="mb-3 text-sm font-medium">{item.game_name}</p>}
+      <div className="space-y-2.5">
+        {item.email && <CredField label="ایمیل" value={item.email} />}
+        {item.password && <CredField label="رمز عبور" value={item.password} />}
+        {item.psn_pass && <CredField label="PSN-pass" value={item.psn_pass} />}
+      </div>
+    </div>
+  )
+}
+
+function CredField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard unavailable — silently ignore
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-card/60 px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p dir="ltr" className="truncate text-left font-mono text-sm">
+          {value}
         </p>
       </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="shrink-0"
+        onClick={copy}
+        aria-label={`کپی ${label}`}
+      >
+        {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
+      </Button>
     </div>
   )
 }

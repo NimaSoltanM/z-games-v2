@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { ShoppingCart, Menu, LogOut, ChevronDown, LayoutDashboard } from "lucide-react"
+import { ShoppingCart, Menu, LogOut, ChevronDown, LayoutDashboard, ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -24,8 +24,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { logout } from "@/features/auth"
 import type { MeResponse } from "@/features/auth"
 import { useCart, SERVER_CART_KEY } from "@/features/cart"
-
-const GAMES_SEARCH = { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" } as const
+import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 
 const NAV_LINKS = [
   { to: "/", label: "خانه", exact: true },
@@ -60,7 +59,7 @@ export function Navbar() {
     }
     await queryClient.invalidateQueries({ queryKey: ["me"] })
     queryClient.invalidateQueries({ queryKey: SERVER_CART_KEY })
-    navigate({ to: "/games", search: GAMES_SEARCH })
+    navigate({ to: "/games", search: GAMES_DEFAULT_SEARCH })
   }
 
   return (
@@ -78,7 +77,7 @@ export function Navbar() {
               <Link
                 key={l.to}
                 to={l.to}
-                search={l.to === "/games" ? GAMES_SEARCH : undefined}
+                search={l.to === "/games" ? GAMES_DEFAULT_SEARCH : undefined}
                 activeOptions={{ exact: l.exact }}
                 className="relative px-2 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground [&.active]:text-foreground after:absolute after:inset-x-2 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-200 [&.active]:after:scale-x-100"
               >
@@ -125,7 +124,7 @@ export function Navbar() {
                   <Link
                     key={l.to}
                     to={l.to}
-                    search={l.to === "/games" ? GAMES_SEARCH : undefined}
+                    search={l.to === "/games" ? GAMES_DEFAULT_SEARCH : undefined}
                     activeOptions={{ exact: l.exact }}
                     onClick={() => setMobileOpen(false)}
                     className="rounded-lg border-r-2 border-transparent px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-accent [&.active]:border-primary [&.active]:bg-primary/8 [&.active]:font-semibold [&.active]:text-primary"
@@ -161,6 +160,14 @@ export function Navbar() {
                         سفارش‌های من
                       </Button>
                     </Link>
+                    {me.role !== "user" && (
+                      <Link to="/admin/orders" onClick={() => setMobileOpen(false)}>
+                        <Button variant="outline" className="w-full gap-1.5">
+                          <ShieldCheck className="size-4" />
+                          مدیریت سفارش‌ها
+                        </Button>
+                      </Link>
+                    )}
                     <Button
                       variant="destructive"
                       className="w-full"
@@ -236,6 +243,12 @@ function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
           <LayoutDashboard className="size-4" />
           سفارش‌های من
         </DropdownMenuItem>
+        {me.role !== "user" && (
+          <DropdownMenuItem render={<Link to="/admin/orders" />}>
+            <ShieldCheck className="size-4" />
+            مدیریت سفارش‌ها
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={onLogout}>
           <LogOut className="size-4" />

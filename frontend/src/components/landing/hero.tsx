@@ -3,8 +3,7 @@ import { ArrowLeft, ShieldCheck, Zap, Lock, Gamepad2, Sparkles } from "lucide-re
 
 import { Button } from "@/components/ui/button"
 import { Spotlight } from "@/components/ui/spotlight"
-
-const GAMES_SEARCH = { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" } as const
+import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 
 const BENEFITS = [
   { icon: ShieldCheck, label: "گارانتی مادام‌العمر" },
@@ -46,7 +45,7 @@ export function Hero() {
         </p>
 
         <div className="mt-8 flex items-center justify-center">
-          <Link to="/games" search={GAMES_SEARCH}>
+          <Link to="/games" search={GAMES_DEFAULT_SEARCH}>
             <Button size="lg" className="h-11 gap-2 px-6 text-sm">
               مشاهده بازی‌ها
               <ArrowLeft className="size-4" />

@@ -3,46 +3,48 @@ import type { ErrorComponentProps } from "@tanstack/react-router"
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { Package } from "lucide-react"
+import { Package, Clock, CheckCircle2 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getMeFn } from "@/features/auth"
-import { ordersQueryOptions, ORDER_STATUS_META, formatOrderDate } from "@/features/orders"
-import type { Order } from "@/features/orders"
-import {
-  formatToman,
-  PLATFORM_LABEL,
-  PLATFORM_BADGE_CLASS,
-  ZARFIAT_LABEL,
-  GAMES_DEFAULT_SEARCH,
-} from "@/features/games"
+import { adminOrdersQueryOptions } from "@/features/admin"
+import type { AdminOrder } from "@/features/admin"
+import { formatOrderDate } from "@/features/orders"
+import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
 
-function DashboardError({ error }: ErrorComponentProps) {
+const STATUS_META: Record<"paid" | "fulfilled", { label: string; icon: LucideIcon; className: string }> = {
+  paid: { label: "در انتظار تکمیل", icon: Clock, className: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  fulfilled: { label: "تحویل شد", icon: CheckCircle2, className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+}
+
+function AdminOrdersError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
 }
 
-export const Route = createFileRoute("/dashboard/")({
+export const Route = createFileRoute("/admin/orders/")({
   beforeLoad: async () => {
     const me = await getMeFn()
-    if (!me) throw redirect({ to: "/auth", search: { redirect: "/dashboard" } })
+    if (!me) throw redirect({ to: "/auth", search: { redirect: "/admin/orders" } })
+    if (me.role === "user") throw redirect({ to: "/" })
   },
   loader: ({ context }) => {
-    context.queryClient.prefetchQuery(ordersQueryOptions())
+    context.queryClient.prefetchQuery(adminOrdersQueryOptions())
   },
-  component: DashboardPage,
-  errorComponent: DashboardError,
+  component: AdminOrdersPage,
+  errorComponent: AdminOrdersError,
 })
 
-function DashboardPage() {
+function AdminOrdersPage() {
   const { reset } = useQueryErrorResetBoundary()
 
   return (
     <div className="relative min-h-[calc(100vh-57px)] bg-background bg-grid-lines">
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="mb-8 text-2xl font-bold">سفارش‌های من</h1>
+        <h1 className="mb-8 text-2xl font-bold">مدیریت سفارش‌ها</h1>
 
         <ErrorBoundary
           onReset={reset}
@@ -55,8 +57,8 @@ function DashboardPage() {
             </div>
           )}
         >
-          <Suspense fallback={<OrdersSkeleton />}>
-            <OrdersList />
+          <Suspense fallback={<AdminOrdersSkeleton />}>
+            <AdminOrdersList />
           </Suspense>
         </ErrorBoundary>
       </div>
@@ -64,8 +66,8 @@ function DashboardPage() {
   )
 }
 
-function OrdersList() {
-  const { data } = useSuspenseQuery(ordersQueryOptions())
+function AdminOrdersList() {
+  const { data } = useSuspenseQuery(adminOrdersQueryOptions())
 
   if (data.orders.length === 0) {
     return (
@@ -73,13 +75,7 @@ function OrdersList() {
         <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm">
           <Package className="size-8 text-muted-foreground/40" />
         </div>
-        <div className="space-y-1">
-          <p className="text-base font-semibold">هنوز سفارشی ندارید</p>
-          <p className="text-sm text-muted-foreground">اولین بازی‌ات رو انتخاب کن</p>
-        </div>
-        <Link to="/games" search={GAMES_DEFAULT_SEARCH}>
-          <Button>مشاهده بازی‌ها</Button>
-        </Link>
+        <p className="text-base font-semibold">هنوز سفارش پرداخت‌شده‌ای نیست</p>
       </div>
     )
   }
@@ -87,26 +83,32 @@ function OrdersList() {
   return (
     <div className="space-y-4">
       {data.orders.map((order) => (
-        <OrderCard key={order.id} order={order} />
+        <AdminOrderCard key={order.id} order={order} />
       ))}
     </div>
   )
 }
 
-function OrderCard({ order }: { order: Order }) {
-  const meta = ORDER_STATUS_META[order.status]
+function AdminOrderCard({ order }: { order: AdminOrder }) {
+  const meta = STATUS_META[order.status === "fulfilled" ? "fulfilled" : "paid"]
   const StatusIcon = meta.icon
   const date = formatOrderDate(order.created_at)
+  const fullName = order.user_name.trim()
 
   return (
     <Link
-      to="/dashboard/$orderId"
+      to="/admin/orders/$orderId"
       params={{ orderId: order.id }}
       className="block rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-5 transition-colors hover:border-primary/40"
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{date}</p>
-        <Badge variant="secondary" className="gap-1.5">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{fullName || "کاربر"}</p>
+          <p dir="ltr" className="text-left text-xs text-muted-foreground">
+            {order.user_phone}
+          </p>
+        </div>
+        <Badge variant="secondary" className={`shrink-0 gap-1.5 border ${meta.className}`}>
           <StatusIcon className="size-3.5" />
           {meta.label}
         </Badge>
@@ -139,27 +141,27 @@ function OrderCard({ order }: { order: Order }) {
       <Separator className="my-4" />
 
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">مبلغ پرداختی</span>
+        <p className="text-xs text-muted-foreground">{date}</p>
         <span className="text-sm font-bold text-primary">{formatToman(order.amount)}</span>
       </div>
     </Link>
   )
 }
 
-function OrdersSkeleton() {
+function AdminOrdersSkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="rounded-2xl border border-border/60 bg-card/75 p-5">
           <div className="flex items-center justify-between">
-            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-4 w-32" />
             <Skeleton className="h-5 w-28 rounded-full" />
           </div>
           <Separator className="my-4" />
           <Skeleton className="h-4 w-2/3" />
           <Separator className="my-4" />
           <div className="flex justify-between">
-            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-20" />
             <Skeleton className="h-4 w-24" />
           </div>
         </div>

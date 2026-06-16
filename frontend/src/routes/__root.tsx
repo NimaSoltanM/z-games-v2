@@ -15,6 +15,7 @@ import { useEffect } from "react"
 import { meQueryOptions } from "@/features/auth"
 import { serverCartQueryOptions } from "@/features/cart"
 import { captureReferral } from "@/features/referral"
+import { Toaster } from "@/components/ui/sonner"
 
 import appCss from "../styles.css?url"
 
@@ -78,11 +79,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <DirectionProvider direction="rtl">
           <ThemeProvider defaultTheme="dark" storageKey="z-games-theme">
+            <Toaster />
             {children}
             <TanStackDevtools
               config={{ position: "bottom-right" }}
               plugins={[
-                { name: "Tanstack Router", render: <TanStackRouterDevtoolsPanel /> },
+                {
+                  name: "Tanstack Router",
+                  render: <TanStackRouterDevtoolsPanel />,
+                },
                 TanStackQueryDevtools,
               ]}
             />

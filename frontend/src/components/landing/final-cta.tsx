@@ -2,8 +2,7 @@ import { Link } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-
-const GAMES_SEARCH = { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" } as const
+import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 
 export function FinalCta() {
   return (
@@ -25,7 +24,7 @@ export function FinalCta() {
               مادام‌العمر.
             </p>
             <div className="mt-8 flex items-center justify-center">
-              <Link to="/games" search={GAMES_SEARCH}>
+              <Link to="/games" search={GAMES_DEFAULT_SEARCH}>
                 <Button size="lg" className="h-11 gap-2 px-6 text-sm">
                   مشاهده بازی‌ها
                   <ArrowLeft className="size-4" />
