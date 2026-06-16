@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,7 +30,10 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 	}
 
 	auth := middleware.RequireAuth(db)
-	app.Post("/orders/checkout", auth, h.checkout)
+	// Throttle order creation per IP — each checkout opens a pending order and
+	// calls ZarinPal, so it's the most expensive endpoint to let anyone spam.
+	checkoutLimit := middleware.RateLimiter(10, time.Minute)
+	app.Post("/orders/checkout", checkoutLimit, auth, h.checkout)
 	app.Get("/orders", auth, h.listOrders)
 	app.Get("/orders/:id", auth, h.getOrder)
 	app.Get("/payment/callback", h.callback)
