@@ -1,10 +1,11 @@
 import { queryOptions } from "@tanstack/react-query"
 import { getOrdersFn, getOrderFn } from "./server-fns"
+import type { OrdersQuery } from "./types"
 
-export const ordersQueryOptions = () =>
+export const ordersQueryOptions = (query: OrdersQuery = {}) =>
   queryOptions({
-    queryKey: ["orders"],
-    queryFn: () => getOrdersFn(),
+    queryKey: ["orders", "list", query],
+    queryFn: () => getOrdersFn({ data: query }),
   })
 
 export const orderQueryOptions = (id: string) =>

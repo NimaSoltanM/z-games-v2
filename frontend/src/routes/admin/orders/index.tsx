@@ -1,43 +1,63 @@
-import { createFileRoute, ErrorComponent, Link, redirect } from "@tanstack/react-router"
+import { createFileRoute, ErrorComponent, Link, redirect, useNavigate } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { Package, Clock, CheckCircle2, AlertTriangle } from "lucide-react"
+import { Package, Clock, CheckCircle2, AlertTriangle, Search, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import type { OrderStatus } from "@/features/orders"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Pagination } from "@/components/pagination"
 import { getMeFn } from "@/features/auth"
 import { adminOrdersQueryOptions } from "@/features/admin"
 import type { AdminOrder } from "@/features/admin"
+import type { OrderItem, OrderStatus } from "@/features/orders"
 import { formatOrderDate } from "@/features/orders"
 import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
+import { cn } from "@/lib/utils"
 
-type AdminStatusMeta = { label: string; icon: LucideIcon; className: string }
+type AdminStatus = "" | "paid" | "pending" | "fulfilled"
+type StatusMeta = { label: string; icon: LucideIcon; className: string }
 
-const STATUS_META: Record<OrderStatus, AdminStatusMeta> = {
+const STATUS_META: Record<OrderStatus, StatusMeta> = {
   paid: { label: "در انتظار تکمیل", icon: Clock, className: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400" },
   pending: { label: "بررسی پرداخت", icon: AlertTriangle, className: "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400" },
   fulfilled: { label: "تحویل شد", icon: CheckCircle2, className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   failed: { label: "ناموفق", icon: AlertTriangle, className: "border-muted-foreground/30 bg-muted/40 text-muted-foreground" },
 }
 
+const FILTERS: { value: AdminStatus; label: string }[] = [
+  { value: "", label: "همه" },
+  { value: "paid", label: "در انتظار تکمیل" },
+  { value: "pending", label: "بررسی پرداخت" },
+  { value: "fulfilled", label: "تحویل شده" },
+]
+
 function AdminOrdersError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
 }
 
 export const Route = createFileRoute("/admin/orders/")({
+  validateSearch: (search: Record<string, unknown>): { page: number; status: AdminStatus; search: string } => ({
+    page: Math.max(1, Number(search.page) || 1),
+    status:
+      search.status === "paid" || search.status === "pending" || search.status === "fulfilled"
+        ? search.status
+        : "",
+    search: typeof search.search === "string" ? search.search : "",
+  }),
   beforeLoad: async () => {
     const me = await getMeFn()
     if (!me) throw redirect({ to: "/auth", search: { redirect: "/admin/orders" } })
     if (me.role === "user") throw redirect({ to: "/" })
   },
-  loader: ({ context }) => {
-    context.queryClient.prefetchQuery(adminOrdersQueryOptions())
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) => {
+    context.queryClient.prefetchQuery(adminOrdersQueryOptions(deps))
   },
   component: AdminOrdersPage,
   errorComponent: AdminOrdersError,
@@ -45,11 +65,33 @@ export const Route = createFileRoute("/admin/orders/")({
 
 function AdminOrdersPage() {
   const { reset } = useQueryErrorResetBoundary()
+  const search = Route.useSearch()
+  const navigate = useNavigate({ from: "/admin/orders/" })
 
   return (
     <div className="relative min-h-[calc(100vh-57px)] bg-background bg-grid-lines">
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="mb-8 text-2xl font-bold">مدیریت سفارش‌ها</h1>
+        <h1 className="mb-6 text-2xl font-bold">مدیریت سفارش‌ها</h1>
+
+        <div className="mb-6 space-y-3">
+          <SearchBox
+            key={search.search}
+            initial={search.search}
+            onSearch={(q) => navigate({ search: { ...search, search: q, page: 1 } })}
+          />
+          <div className="flex flex-wrap gap-2">
+            {FILTERS.map((f) => (
+              <Button
+                key={f.value}
+                size="sm"
+                variant={search.status === f.value ? "default" : "outline"}
+                onClick={() => navigate({ search: { ...search, status: f.value, page: 1 } })}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+        </div>
 
         <ErrorBoundary
           onReset={reset}
@@ -71,8 +113,45 @@ function AdminOrdersPage() {
   )
 }
 
+function SearchBox({ initial, onSearch }: { initial: string; onSearch: (q: string) => void }) {
+  const [value, setValue] = useState(initial)
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSearch(value.trim())
+      }}
+      className="relative"
+    >
+      <Search className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="جستجو با نام یا شماره موبایل"
+        className="h-10 pr-9"
+      />
+      {value && (
+        <button
+          type="button"
+          aria-label="پاک کردن"
+          onClick={() => {
+            setValue("")
+            onSearch("")
+          }}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      )}
+    </form>
+  )
+}
+
 function AdminOrdersList() {
-  const { data } = useSuspenseQuery(adminOrdersQueryOptions())
+  const search = Route.useSearch()
+  const navigate = useNavigate({ from: "/admin/orders/" })
+  const { data } = useSuspenseQuery(adminOrdersQueryOptions(search))
 
   if (data.orders.length === 0) {
     return (
@@ -80,25 +159,44 @@ function AdminOrdersList() {
         <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm">
           <Package className="size-8 text-muted-foreground/40" />
         </div>
-        <p className="text-base font-semibold">هنوز سفارش پرداخت‌شده‌ای نیست</p>
+        <p className="text-base font-semibold">
+          {search.search || search.status ? "سفارشی با این مشخصات یافت نشد" : "هنوز سفارشی نیست"}
+        </p>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">{data.pagination.total.toLocaleString("fa-IR")} سفارش</p>
       {data.orders.map((order) => (
         <AdminOrderCard key={order.id} order={order} />
       ))}
+      <Pagination
+        page={data.pagination.page}
+        totalPages={data.pagination.total_pages}
+        onPage={(p) => navigate({ search: { ...search, page: p } })}
+      />
     </div>
   )
+}
+
+type GroupedItem = OrderItem & { count: number }
+
+function groupItems(items: OrderItem[]): GroupedItem[] {
+  const map = new Map<string, GroupedItem>()
+  for (const it of items) {
+    const key = `${it.game_id}|${it.platform}|${it.zarfiat}`
+    const existing = map.get(key)
+    if (existing) existing.count += 1
+    else map.set(key, { ...it, count: 1 })
+  }
+  return [...map.values()]
 }
 
 function AdminOrderCard({ order }: { order: AdminOrder }) {
   const meta = STATUS_META[order.status]
   const StatusIcon = meta.icon
-  const date = formatOrderDate(order.created_at)
-  const fullName = order.user_name.trim()
 
   return (
     <Link
@@ -108,12 +206,12 @@ function AdminOrderCard({ order }: { order: AdminOrder }) {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{fullName || "کاربر"}</p>
+          <p className="truncate text-sm font-semibold">{order.user_name.trim() || "کاربر"}</p>
           <p dir="ltr" className="text-left text-xs text-muted-foreground">
             {order.user_phone}
           </p>
         </div>
-        <Badge variant="secondary" className={`shrink-0 gap-1.5 border ${meta.className}`}>
+        <Badge variant="secondary" className={cn("shrink-0 gap-1.5 border", meta.className)}>
           <StatusIcon className="size-3.5" />
           {meta.label}
         </Badge>
@@ -122,7 +220,7 @@ function AdminOrderCard({ order }: { order: AdminOrder }) {
       <Separator className="my-4" />
 
       <div className="space-y-2.5">
-        {order.items.map((it, i) => (
+        {groupItems(order.items).map((it, i) => (
           <div key={i} className="flex items-center justify-between gap-3 text-sm">
             <div className="flex min-w-0 items-center gap-2">
               <span className="truncate font-medium">{it.game_name}</span>
@@ -136,9 +234,7 @@ function AdminOrderCard({ order }: { order: AdminOrder }) {
                 {ZARFIAT_LABEL[it.zarfiat]}
               </span>
             </div>
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-              × {it.quantity}
-            </span>
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">× {it.count}</span>
           </div>
         ))}
       </div>
@@ -146,7 +242,7 @@ function AdminOrderCard({ order }: { order: AdminOrder }) {
       <Separator className="my-4" />
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">{date}</p>
+        <p className="text-xs text-muted-foreground">{formatOrderDate(order.created_at)}</p>
         <span className="text-sm font-bold text-primary">{formatToman(order.amount)}</span>
       </div>
     </Link>

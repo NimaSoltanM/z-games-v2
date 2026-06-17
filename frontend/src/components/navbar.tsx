@@ -154,14 +154,22 @@ export function Navbar() {
                         )}
                       </div>
                     </div>
-                    <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
+                    <Link
+                      to="/dashboard"
+                      search={{ page: 1, status: "" }}
+                      onClick={() => setMobileOpen(false)}
+                    >
                       <Button variant="outline" className="w-full gap-1.5">
                         <LayoutDashboard className="size-4" />
                         سفارش‌های من
                       </Button>
                     </Link>
                     {me.role !== "user" && (
-                      <Link to="/admin/orders" onClick={() => setMobileOpen(false)}>
+                      <Link
+                        to="/admin/orders"
+                        search={{ page: 1, status: "", search: "" }}
+                        onClick={() => setMobileOpen(false)}
+                      >
                         <Button variant="outline" className="w-full gap-1.5">
                           <ShieldCheck className="size-4" />
                           مدیریت سفارش‌ها
@@ -239,12 +247,12 @@ function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
           )}
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link to="/dashboard" />}>
+        <DropdownMenuItem render={<Link to="/dashboard" search={{ page: 1, status: "" }} />}>
           <LayoutDashboard className="size-4" />
           سفارش‌های من
         </DropdownMenuItem>
         {me.role !== "user" && (
-          <DropdownMenuItem render={<Link to="/admin/orders" />}>
+          <DropdownMenuItem render={<Link to="/admin/orders" search={{ page: 1, status: "", search: "" }} />}>
             <ShieldCheck className="size-4" />
             مدیریت سفارش‌ها
           </DropdownMenuItem>

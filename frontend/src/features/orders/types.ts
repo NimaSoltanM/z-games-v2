@@ -21,3 +21,20 @@ export type Order = {
   created_at: string
   items: OrderItem[]
 }
+
+export type Pagination = {
+  page: number
+  limit: number
+  total: number
+  total_pages: number
+}
+
+export type OrdersPage = {
+  orders: Order[]
+  pagination: Pagination
+}
+
+export type OrdersQuery = {
+  page?: number
+  status?: OrderStatus | ""
+}

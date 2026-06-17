@@ -1,4 +1,4 @@
-import { createFileRoute, ErrorComponent, Link, redirect } from "@tanstack/react-router"
+import { createFileRoute, ErrorComponent, Link, redirect, useNavigate } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
 import { Suspense } from "react"
@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Pagination } from "@/components/pagination"
 import { getMeFn } from "@/features/auth"
 import { ordersQueryOptions, ORDER_STATUS_META, formatOrderDate } from "@/features/orders"
-import type { Order } from "@/features/orders"
+import type { Order, OrderItem } from "@/features/orders"
 import {
   formatToman,
   PLATFORM_LABEL,
@@ -19,18 +20,32 @@ import {
   ZARFIAT_LABEL,
   GAMES_DEFAULT_SEARCH,
 } from "@/features/games"
+import { cn } from "@/lib/utils"
+
+type StatusFilter = "" | "paid" | "fulfilled"
+
+const FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "", label: "همه" },
+  { value: "paid", label: "در حال آماده‌سازی" },
+  { value: "fulfilled", label: "تحویل شده" },
+]
 
 function DashboardError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
 }
 
 export const Route = createFileRoute("/dashboard/")({
+  validateSearch: (search: Record<string, unknown>): { page: number; status: StatusFilter } => ({
+    page: Math.max(1, Number(search.page) || 1),
+    status: search.status === "paid" || search.status === "fulfilled" ? search.status : "",
+  }),
   beforeLoad: async () => {
     const me = await getMeFn()
     if (!me) throw redirect({ to: "/auth", search: { redirect: "/dashboard" } })
   },
-  loader: ({ context }) => {
-    context.queryClient.prefetchQuery(ordersQueryOptions())
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) => {
+    context.queryClient.prefetchQuery(ordersQueryOptions(deps))
   },
   component: DashboardPage,
   errorComponent: DashboardError,
@@ -38,11 +53,26 @@ export const Route = createFileRoute("/dashboard/")({
 
 function DashboardPage() {
   const { reset } = useQueryErrorResetBoundary()
+  const search = Route.useSearch()
+  const navigate = useNavigate({ from: "/dashboard/" })
 
   return (
     <div className="relative min-h-[calc(100vh-57px)] bg-background bg-grid-lines">
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="mb-8 text-2xl font-bold">سفارش‌های من</h1>
+        <h1 className="mb-6 text-2xl font-bold">سفارش‌های من</h1>
+
+        <div className="mb-6 flex flex-wrap gap-2">
+          {FILTERS.map((f) => (
+            <Button
+              key={f.value}
+              size="sm"
+              variant={search.status === f.value ? "default" : "outline"}
+              onClick={() => navigate({ search: { status: f.value, page: 1 } })}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
 
         <ErrorBoundary
           onReset={reset}
@@ -65,7 +95,9 @@ function DashboardPage() {
 }
 
 function OrdersList() {
-  const { data } = useSuspenseQuery(ordersQueryOptions())
+  const search = Route.useSearch()
+  const navigate = useNavigate({ from: "/dashboard/" })
+  const { data } = useSuspenseQuery(ordersQueryOptions(search))
 
   if (data.orders.length === 0) {
     return (
@@ -74,12 +106,18 @@ function OrdersList() {
           <Package className="size-8 text-muted-foreground/40" />
         </div>
         <div className="space-y-1">
-          <p className="text-base font-semibold">هنوز سفارشی ندارید</p>
-          <p className="text-sm text-muted-foreground">اولین بازی‌ات رو انتخاب کن</p>
+          <p className="text-base font-semibold">
+            {search.status ? "سفارشی در این وضعیت نیست" : "هنوز سفارشی ندارید"}
+          </p>
+          {!search.status && (
+            <p className="text-sm text-muted-foreground">اولین بازی‌ات رو انتخاب کن</p>
+          )}
         </div>
-        <Link to="/games" search={GAMES_DEFAULT_SEARCH}>
-          <Button>مشاهده بازی‌ها</Button>
-        </Link>
+        {!search.status && (
+          <Link to="/games" search={GAMES_DEFAULT_SEARCH}>
+            <Button>مشاهده بازی‌ها</Button>
+          </Link>
+        )}
       </div>
     )
   }
@@ -89,14 +127,33 @@ function OrdersList() {
       {data.orders.map((order) => (
         <OrderCard key={order.id} order={order} />
       ))}
+      <Pagination
+        page={data.pagination.page}
+        totalPages={data.pagination.total_pages}
+        onPage={(p) => navigate({ search: { ...search, page: p } })}
+      />
     </div>
   )
+}
+
+// Orders store one row per account, so collapse identical lines back into a
+// single "× count" row for a clean summary.
+type GroupedItem = OrderItem & { count: number }
+
+function groupItems(items: OrderItem[]): GroupedItem[] {
+  const map = new Map<string, GroupedItem>()
+  for (const it of items) {
+    const key = `${it.game_id}|${it.platform}|${it.zarfiat}`
+    const existing = map.get(key)
+    if (existing) existing.count += 1
+    else map.set(key, { ...it, count: 1 })
+  }
+  return [...map.values()]
 }
 
 function OrderCard({ order }: { order: Order }) {
   const meta = ORDER_STATUS_META[order.status]
   const StatusIcon = meta.icon
-  const date = formatOrderDate(order.created_at)
 
   return (
     <Link
@@ -105,8 +162,8 @@ function OrderCard({ order }: { order: Order }) {
       className="block rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-5 transition-colors hover:border-primary/40"
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{date}</p>
-        <Badge variant="secondary" className="gap-1.5">
+        <p className="text-xs text-muted-foreground">{formatOrderDate(order.created_at)}</p>
+        <Badge variant="secondary" className={cn("gap-1.5 border", meta.className)}>
           <StatusIcon className="size-3.5" />
           {meta.label}
         </Badge>
@@ -115,7 +172,7 @@ function OrderCard({ order }: { order: Order }) {
       <Separator className="my-4" />
 
       <div className="space-y-2.5">
-        {order.items.map((it, i) => (
+        {groupItems(order.items).map((it, i) => (
           <div key={i} className="flex items-center justify-between gap-3 text-sm">
             <div className="flex min-w-0 items-center gap-2">
               <span className="truncate font-medium">{it.game_name}</span>
@@ -130,7 +187,7 @@ function OrderCard({ order }: { order: Order }) {
               </span>
             </div>
             <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-              × {it.quantity}
+              × {it.count}
             </span>
           </div>
         ))}

@@ -80,7 +80,7 @@ function PaymentResultPage() {
               <Button className="w-full">ادامه خرید</Button>
             </Link>
           ) : status === "pending" ? (
-            <Link to="/dashboard">
+            <Link to="/dashboard" search={{ page: 1, status: "" }}>
               <Button className="w-full">مشاهده سفارش‌ها</Button>
             </Link>
           ) : (

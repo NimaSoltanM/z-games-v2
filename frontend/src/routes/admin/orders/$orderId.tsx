@@ -18,9 +18,10 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getMeFn } from "@/features/auth"
-import { adminOrderQueryOptions, adminOrdersQueryOptions, fulfillOrder } from "@/features/admin"
+import { adminOrderQueryOptions, fulfillOrder } from "@/features/admin"
 import type { AdminOrder, FulfillItem } from "@/features/admin"
 import { formatOrderDate } from "@/features/orders"
+import type { OrderItem } from "@/features/orders"
 import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
 
 function AdminOrderError({ error }: ErrorComponentProps) {
@@ -48,6 +49,7 @@ function AdminOrderDetailPage() {
       <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
         <Link
           to="/admin/orders"
+          search={{ page: 1, status: "", search: "" }}
           className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowRight className="size-4" />
@@ -142,17 +144,54 @@ function ReviewPanel({ order }: { order: AdminOrder }) {
       </div>
 
       <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6 space-y-2.5">
-        {order.items.map((it, i) => (
+        {groupItems(order.items).map((it, i) => (
           <div key={i} className="flex items-center justify-between gap-3 text-sm">
             <span className="truncate font-medium">{it.game_name}</span>
             <span className="shrink-0 text-xs text-muted-foreground">
-              {PLATFORM_LABEL[it.platform]} · {ZARFIAT_LABEL[it.zarfiat]} · × {it.quantity}
+              {PLATFORM_LABEL[it.platform]} · {ZARFIAT_LABEL[it.zarfiat]} · × {it.count}
             </span>
           </div>
         ))}
       </div>
     </div>
   )
+}
+
+// Orders store one row per account. groupItems collapses identical lines into
+// "× count"; accountLabels numbers duplicate accounts ("بازی — اکانت ۲") so each
+// credential form is distinguishable.
+type GroupedItem = OrderItem & { count: number }
+
+function itemKey(it: OrderItem) {
+  return `${it.game_id}|${it.platform}|${it.zarfiat}`
+}
+
+function groupItems(items: OrderItem[]): GroupedItem[] {
+  const map = new Map<string, GroupedItem>()
+  for (const it of items) {
+    const existing = map.get(itemKey(it))
+    if (existing) existing.count += 1
+    else map.set(itemKey(it), { ...it, count: 1 })
+  }
+  return [...map.values()]
+}
+
+function accountLabels(items: OrderItem[]): Map<string, string> {
+  const totals = new Map<string, number>()
+  for (const it of items) totals.set(itemKey(it), (totals.get(itemKey(it)) ?? 0) + 1)
+
+  const seen = new Map<string, number>()
+  const labels = new Map<string, string>()
+  for (const it of items) {
+    const k = itemKey(it)
+    const n = (seen.get(k) ?? 0) + 1
+    seen.set(k, n)
+    labels.set(
+      it.id,
+      (totals.get(k) ?? 1) > 1 ? `${it.game_name} — اکانت ${n.toLocaleString("fa-IR")}` : it.game_name
+    )
+  }
+  return labels
 }
 
 function FulfillForm({ order }: { order: AdminOrder }) {
@@ -173,11 +212,13 @@ function FulfillForm({ order }: { order: AdminOrder }) {
   const setField = (itemId: string, field: "email" | "password" | "psn_pass", value: string) =>
     setDrafts((d) => ({ ...d, [itemId]: { ...d[itemId], [field]: value } }))
 
+  const labels = accountLabels(order.items)
+
   const mutation = useMutation({
     mutationFn: (items: FulfillItem[]) => fulfillOrder(order.id, items),
     onSuccess: (updated) => {
       queryClient.setQueryData(adminOrderQueryOptions(order.id).queryKey, updated)
-      queryClient.invalidateQueries({ queryKey: adminOrdersQueryOptions().queryKey })
+      queryClient.invalidateQueries({ queryKey: ["admin", "orders"] })
       queryClient.invalidateQueries({ queryKey: ["orders"] })
       toast.success(
         updated.status === "fulfilled" ? "سفارش تکمیل و تحویل شد" : "اطلاعات ذخیره شد"
@@ -250,7 +291,7 @@ function FulfillForm({ order }: { order: AdminOrder }) {
           className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6 space-y-4"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{it.game_name}</span>
+            <span className="font-semibold">{labels.get(it.id)}</span>
             <Badge
               variant="secondary"
               className={`border text-xs ${PLATFORM_BADGE_CLASS[it.platform]}`}
@@ -258,7 +299,6 @@ function FulfillForm({ order }: { order: AdminOrder }) {
               {PLATFORM_LABEL[it.platform]}
             </Badge>
             <span className="text-xs text-muted-foreground">{ZARFIAT_LABEL[it.zarfiat]}</span>
-            <span className="text-xs text-muted-foreground tabular-nums">× {it.quantity}</span>
           </div>
 
           <div className="space-y-3">
