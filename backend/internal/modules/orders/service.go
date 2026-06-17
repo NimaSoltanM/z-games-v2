@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/soltanmohammdi/z-games/internal/shared/audit"
 )
 
 var (
@@ -389,7 +390,7 @@ type credInput struct {
 // fulfillOrder writes credentials onto the given items (scoped to the order) and
 // flips the order to 'fulfilled' once every item has all three credentials
 // (or back to 'paid' if any is cleared). Empty fields are stored as NULL.
-func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderID string, items []credInput) error {
+func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, adminID, orderID string, items []credInput) error {
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("fulfillOrder begin: %w", err)
@@ -451,6 +452,17 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, order
 		"UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 AND status IN ('paid', 'fulfilled')",
 		newStatus, orderID); err != nil {
 		return fmt.Errorf("fulfillOrder status update: %w", err)
+	}
+
+	// Audit the action in the same transaction, so a delivery always has a record.
+	if err := audit.Record(ctx, tx, audit.Entry{
+		AdminID:    adminID,
+		Action:     audit.ActionOrderFulfill,
+		TargetType: "order",
+		TargetID:   orderID,
+		Metadata:   map[string]any{"status": newStatus, "items": len(items)},
+	}); err != nil {
+		return fmt.Errorf("fulfillOrder: %w", err)
 	}
 
 	return tx.Commit(ctx)

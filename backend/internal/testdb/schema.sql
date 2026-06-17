@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict QmKTF4qWiZeEeuhM5QKyf0Crjdx2zPhThGOT9o8n1dGO5jaiLbNYROuMfabE9vT
+\restrict hgSR1H6CUnH6VwhqWpiM2hUjKE5KNq3qpqFcmoqJEVNCT3dBPIgHGUuV5Zs9t3f
 
 -- Dumped from database version 18.4
 -- Dumped by pg_dump version 18.4
@@ -91,6 +91,21 @@ CREATE SEQUENCE drizzle.__drizzle_migrations_id_seq
 --
 
 ALTER SEQUENCE drizzle.__drizzle_migrations_id_seq OWNED BY drizzle.__drizzle_migrations.id;
+
+
+--
+-- Name: admin_actions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.admin_actions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    admin_id character varying NOT NULL,
+    action text NOT NULL,
+    target_type text,
+    target_id text,
+    metadata jsonb,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
 
 
 --
@@ -253,6 +268,14 @@ ALTER TABLE ONLY drizzle.__drizzle_migrations
 
 
 --
+-- Name: admin_actions admin_actions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.admin_actions
+    ADD CONSTRAINT admin_actions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: cart_items cart_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -365,6 +388,27 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: admin_actions_admin_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX admin_actions_admin_id_idx ON public.admin_actions USING btree (admin_id);
+
+
+--
+-- Name: admin_actions_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX admin_actions_created_at_idx ON public.admin_actions USING btree (created_at DESC);
+
+
+--
+-- Name: admin_actions_target_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX admin_actions_target_idx ON public.admin_actions USING btree (target_type, target_id);
+
+
+--
 -- Name: order_items_order_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -383,6 +427,14 @@ CREATE INDEX orders_user_id_idx ON public.orders USING btree (user_id);
 --
 
 CREATE INDEX otp_codes_phone_idx ON public.otp_codes USING btree (phone);
+
+
+--
+-- Name: admin_actions admin_actions_admin_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.admin_actions
+    ADD CONSTRAINT admin_actions_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES public.users(id);
 
 
 --
@@ -437,5 +489,5 @@ ALTER TABLE ONLY public.orders
 -- PostgreSQL database dump complete
 --
 
-\unrestrict QmKTF4qWiZeEeuhM5QKyf0Crjdx2zPhThGOT9o8n1dGO5jaiLbNYROuMfabE9vT
+\unrestrict hgSR1H6CUnH6VwhqWpiM2hUjKE5KNq3qpqFcmoqJEVNCT3dBPIgHGUuV5Zs9t3f
 

@@ -112,6 +112,7 @@ func (h *handler) adminGetOrder(c fiber.Ctx) error {
 }
 
 func (h *handler) adminFulfill(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
 	orderID := c.Params("id")
 
 	var body struct {
@@ -139,7 +140,7 @@ func (h *handler) adminFulfill(c fiber.Ctx) error {
 		}
 	}
 
-	err := fulfillOrder(c.Context(), h.db, h.cred, orderID, creds)
+	err := fulfillOrder(c.Context(), h.db, h.cred, adminID, orderID, creds)
 	switch {
 	case errors.Is(err, ErrOrderNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "سفارش مورد نظر یافت نشد"})

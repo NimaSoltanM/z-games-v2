@@ -129,13 +129,13 @@ func TestFulfillOrder_EncryptsAtRestAndCompletes(t *testing.T) {
 	itemID := ao.Items[0].ID
 
 	// Partial credentials → order stays paid (not yet deliverable).
-	if err := fulfillOrder(ctx, db, cred, orderID, []credInput{{ItemID: itemID, Email: "a@psn.com"}}); err != nil {
+	if err := fulfillOrder(ctx, db, cred, "u1", orderID, []credInput{{ItemID: itemID, Email: "a@psn.com"}}); err != nil {
 		t.Fatal(err)
 	}
 	assertStatus(t, ctx, db, orderID, "paid")
 
 	// Complete credentials → order becomes fulfilled.
-	if err := fulfillOrder(ctx, db, cred, orderID, []credInput{{ItemID: itemID, Email: "a@psn.com", Password: "pw", PsnPass: "psn"}}); err != nil {
+	if err := fulfillOrder(ctx, db, cred, "u1", orderID, []credInput{{ItemID: itemID, Email: "a@psn.com", Password: "pw", PsnPass: "psn"}}); err != nil {
 		t.Fatal(err)
 	}
 	assertStatus(t, ctx, db, orderID, "fulfilled")
@@ -156,6 +156,17 @@ func TestFulfillOrder_EncryptsAtRestAndCompletes(t *testing.T) {
 	}
 	if ao2.Items[0].Password == nil || *ao2.Items[0].Password != "pw" {
 		t.Fatalf("decrypted password = %v, want pw", ao2.Items[0].Password)
+	}
+
+	// Each fulfill call (partial + complete) must leave an attributable audit row.
+	var actions int
+	if err := db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM admin_actions WHERE admin_id='u1' AND action='order.fulfill' AND target_id=$1",
+		orderID).Scan(&actions); err != nil {
+		t.Fatal(err)
+	}
+	if actions != 2 {
+		t.Fatalf("admin_actions rows = %d, want 2 (one per fulfill call)", actions)
 	}
 }
 
