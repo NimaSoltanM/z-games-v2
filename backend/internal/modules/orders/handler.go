@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -65,14 +66,16 @@ func (h *handler) checkout(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"payment_url": h.zp.paymentURL(authority)})
 }
 
-// listOrders returns the current user's paid orders for their dashboard.
+// listOrders returns a page of the current user's orders for their dashboard,
+// optionally filtered by ?status=paid|fulfilled.
 func (h *handler) listOrders(c fiber.Ctx) error {
 	userID := c.Locals(middleware.LocalUserID).(string)
-	orders, err := listUserOrders(c.Context(), h.db, h.cred, userID)
+	page, limit, offset := pageParams(c)
+	orders, total, err := listUserOrders(c.Context(), h.db, h.cred, userID, c.Query("status"), limit, offset)
 	if err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"orders": orders})
+	return c.JSON(fiber.Map{"orders": orders, "pagination": pagination(page, limit, total)})
 }
 
 // getOrder returns a single order owned by the user (404 if not theirs).
@@ -93,11 +96,41 @@ func (h *handler) getOrder(c fiber.Ctx) error {
 // --- admin ------------------------------------------------------------------
 
 func (h *handler) adminListOrders(c fiber.Ctx) error {
-	orders, err := listAdminOrders(c.Context(), h.db, h.cred)
+	page, limit, offset := pageParams(c)
+	orders, total, err := listAdminOrders(c.Context(), h.db, h.cred, adminOrderFilter{
+		status: c.Query("status"),
+		search: strings.TrimSpace(c.Query("search")),
+		limit:  limit,
+		offset: offset,
+	})
 	if err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"orders": orders})
+	return c.JSON(fiber.Map{"orders": orders, "pagination": pagination(page, limit, total)})
+}
+
+// pageParams reads ?page and ?limit, clamped to sane bounds (limit 1..100).
+func pageParams(c fiber.Ctx) (page, limit, offset int) {
+	page, _ = strconv.Atoi(c.Query("page"))
+	if page < 1 {
+		page = 1
+	}
+	limit, _ = strconv.Atoi(c.Query("limit"))
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return page, limit, (page - 1) * limit
+}
+
+func pagination(page, limit, total int) fiber.Map {
+	totalPages := 1
+	if total > 0 && limit > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+	return fiber.Map{"page": page, "limit": limit, "total": total, "total_pages": totalPages}
 }
 
 func (h *handler) adminGetOrder(c fiber.Ctx) error {

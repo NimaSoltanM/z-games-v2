@@ -46,6 +46,30 @@ func oneItem() []orderItem {
 	return []orderItem{{GameID: "g1", GameName: "Test Game", Platform: "ps5", Zarfiat: "z2", Quantity: 1}}
 }
 
+func TestCreatePendingOrder_ExpandsQuantity(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+
+	// A quantity-3 line must become 3 separate order_items, so each account gets
+	// its own credential slot at fulfillment.
+	items := []orderItem{{GameID: "g1", GameName: "Test Game", Platform: "ps5", Zarfiat: "z2", Quantity: 3}}
+	orderID, err := createPendingOrder(ctx, db, "u1", 3000, "", items)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var count int
+	if err := db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM order_items WHERE order_id=$1 AND quantity=1", orderID,
+	).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 3 {
+		t.Fatalf("order_items = %d, want 3 (one per unit)", count)
+	}
+}
+
 func TestMarkOrderPaid_Idempotent(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)

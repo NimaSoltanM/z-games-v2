@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -126,12 +127,17 @@ func createPendingOrder(ctx context.Context, db *pgxpool.Pool, userID string, am
 		return "", fmt.Errorf("createPendingOrder insert: %w", err)
 	}
 
+	// Each unit is a distinct account we deliver, so a quantity-N cart line is
+	// expanded into N order_items (quantity 1 each). That gives every account its
+	// own credential slot at fulfillment instead of cramming N into one.
 	for _, it := range items {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO order_items (order_id, game_id, game_name, platform, zarfiat, quantity)
-			VALUES ($1, $2, $3, $4, $5, $6)
-		`, orderID, it.GameID, it.GameName, it.Platform, it.Zarfiat, it.Quantity); err != nil {
-			return "", fmt.Errorf("createPendingOrder item: %w", err)
+		for range it.Quantity {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO order_items (order_id, game_id, game_name, platform, zarfiat, quantity)
+				VALUES ($1, $2, $3, $4, $5, 1)
+			`, orderID, it.GameID, it.GameName, it.Platform, it.Zarfiat); err != nil {
+				return "", fmt.Errorf("createPendingOrder item: %w", err)
+			}
 		}
 	}
 
@@ -217,18 +223,33 @@ type OrderView struct {
 	Items     []OrderItemView `json:"items"`
 }
 
-// listUserOrders returns the user's paid orders (their actual purchases),
-// newest first, each with its line items. Pending/failed checkout attempts are
-// excluded — they aren't "orders" from the customer's point of view.
-func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, userID string) ([]OrderView, error) {
-	rows, err := db.Query(ctx, `
-		SELECT id, amount, status, created_at
-		FROM orders
-		WHERE user_id = $1 AND status IN ('paid', 'fulfilled')
-		ORDER BY created_at DESC
-	`, userID)
+// listUserOrders returns a page of the user's actual purchases (paid/fulfilled),
+// newest first, each with its line items. An optional status ("paid" or
+// "fulfilled") narrows the list. Returns the page and the total match count.
+func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, userID, status string, limit, offset int) ([]OrderView, int, error) {
+	args := []any{userID}
+	statusCond := "status IN ('paid', 'fulfilled')"
+	if status == "paid" || status == "fulfilled" {
+		args = append(args, status)
+		statusCond = fmt.Sprintf("status = $%d", len(args))
+	}
+	where := "WHERE user_id = $1 AND " + statusCond
+
+	var total int
+	if err := db.QueryRow(ctx, "SELECT COUNT(*) FROM orders "+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("listUserOrders count: %w", err)
+	}
+	if total == 0 {
+		return []OrderView{}, 0, nil
+	}
+
+	q := fmt.Sprintf(`
+		SELECT id, amount, status, created_at FROM orders %s
+		ORDER BY created_at DESC LIMIT $%d OFFSET $%d
+	`, where, len(args)+1, len(args)+2)
+	rows, err := db.Query(ctx, q, append(args, limit, offset)...)
 	if err != nil {
-		return nil, fmt.Errorf("listUserOrders: %w", err)
+		return nil, 0, fmt.Errorf("listUserOrders: %w", err)
 	}
 	defer rows.Close()
 
@@ -237,17 +258,14 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, use
 	for rows.Next() {
 		var o OrderView
 		if err := rows.Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt); err != nil {
-			return nil, fmt.Errorf("listUserOrders scan: %w", err)
+			return nil, 0, fmt.Errorf("listUserOrders scan: %w", err)
 		}
 		o.Items = []OrderItemView{}
 		byID[o.ID] = len(orders)
 		orders = append(orders, o)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("listUserOrders rows: %w", err)
-	}
-	if len(orders) == 0 {
-		return orders, nil
+		return nil, 0, fmt.Errorf("listUserOrders rows: %w", err)
 	}
 
 	ids := make([]string, 0, len(orders))
@@ -259,9 +277,9 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, use
 			orders[i].Items = append(orders[i].Items, it)
 		}
 	}); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return orders, nil
+	return orders, total, nil
 }
 
 // getUserOrder returns a single order owned by the user (any status), or nil if
@@ -303,24 +321,66 @@ type AdminOrderView struct {
 	Authority *string `json:"authority"` // for manually reconciling a stuck payment in ZarinPal
 }
 
-// listAdminOrders returns the admin queue: orders awaiting fulfillment (paid)
-// first, then payments needing review (pending and older than the gateway window,
-// i.e. possibly paid but unconfirmed), then delivered (fulfilled). Brand-new
-// pending checkouts still in progress are excluded.
-func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher) ([]AdminOrderView, error) {
-	rows, err := db.Query(ctx, `
+// adminOrderFilter narrows the admin queue. Status "" is the default queue
+// (paid + payment-review pending + fulfilled); "paid"/"pending"/"fulfilled"
+// select one group. Search matches the buyer's phone or name.
+type adminOrderFilter struct {
+	status string
+	search string
+	limit  int
+	offset int
+}
+
+// listAdminOrders returns a page of the admin queue ordered awaiting-fulfillment
+// (paid) first, then payment-review (pending, older than the gateway window),
+// then delivered (fulfilled). Returns the page and the total match count.
+func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, f adminOrderFilter) ([]AdminOrderView, int, error) {
+	var conds []string
+	var args []any
+
+	switch f.status {
+	case "paid", "fulfilled":
+		args = append(args, f.status)
+		conds = append(conds, fmt.Sprintf("o.status = $%d", len(args)))
+	case "pending":
+		conds = append(conds, "(o.status = 'pending' AND o.created_at < NOW() - INTERVAL '10 minutes')")
+	default:
+		conds = append(conds, "(o.status IN ('paid', 'fulfilled') OR (o.status = 'pending' AND o.created_at < NOW() - INTERVAL '10 minutes'))")
+	}
+
+	if f.search != "" {
+		args = append(args, "%"+f.search+"%")
+		conds = append(conds, fmt.Sprintf(
+			"(u.phone ILIKE $%d OR TRIM(CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))) ILIKE $%d)",
+			len(args), len(args)))
+	}
+
+	where := "WHERE " + strings.Join(conds, " AND ")
+
+	var total int
+	if err := db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM orders o JOIN users u ON u.id = o.user_id "+where, args...,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("listAdminOrders count: %w", err)
+	}
+	if total == 0 {
+		return []AdminOrderView{}, 0, nil
+	}
+
+	q := fmt.Sprintf(`
 		SELECT o.id, o.amount, o.status, o.created_at, o.authority,
 		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
 		FROM orders o
 		JOIN users u ON u.id = o.user_id
-		WHERE o.status IN ('paid', 'fulfilled')
-		   OR (o.status = 'pending' AND o.created_at < NOW() - INTERVAL '10 minutes')
+		%s
 		ORDER BY
 		    CASE o.status WHEN 'paid' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
 		    o.created_at DESC
-	`)
+		LIMIT $%d OFFSET $%d
+	`, where, len(args)+1, len(args)+2)
+	rows, err := db.Query(ctx, q, append(args, f.limit, f.offset)...)
 	if err != nil {
-		return nil, fmt.Errorf("listAdminOrders: %w", err)
+		return nil, 0, fmt.Errorf("listAdminOrders: %w", err)
 	}
 	defer rows.Close()
 
@@ -329,17 +389,14 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher) ([
 	for rows.Next() {
 		var o AdminOrderView
 		if err := rows.Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName); err != nil {
-			return nil, fmt.Errorf("listAdminOrders scan: %w", err)
+			return nil, 0, fmt.Errorf("listAdminOrders scan: %w", err)
 		}
 		o.Items = []OrderItemView{}
 		byID[o.ID] = len(orders)
 		orders = append(orders, o)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("listAdminOrders rows: %w", err)
-	}
-	if len(orders) == 0 {
-		return orders, nil
+		return nil, 0, fmt.Errorf("listAdminOrders rows: %w", err)
 	}
 
 	ids := make([]string, 0, len(orders))
@@ -351,9 +408,9 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher) ([
 			orders[i].Items = append(orders[i].Items, it)
 		}
 	}); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return orders, nil
+	return orders, total, nil
 }
 
 func getAdminOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderID string) (*AdminOrderView, error) {
