@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ImagesIndexRouteImport } from './routes/images/index'
 import { Route as GamesIndexRouteImport } from './routes/games/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as CartIndexRouteImport } from './routes/cart/index'
@@ -24,11 +23,6 @@ import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin/orders/$o
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImagesIndexRoute = ImagesIndexRouteImport.update({
-  id: '/images/',
-  path: '/images/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GamesIndexRoute = GamesIndexRouteImport.update({
@@ -85,7 +79,6 @@ export interface FileRoutesByFullPath {
   '/cart/': typeof CartIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/games/': typeof GamesIndexRoute
-  '/images/': typeof ImagesIndexRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/games/$id/': typeof GamesIdIndexRoute
@@ -98,7 +91,6 @@ export interface FileRoutesByTo {
   '/cart': typeof CartIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/games': typeof GamesIndexRoute
-  '/images': typeof ImagesIndexRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/games/$id': typeof GamesIdIndexRoute
@@ -112,7 +104,6 @@ export interface FileRoutesById {
   '/cart/': typeof CartIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/games/': typeof GamesIndexRoute
-  '/images/': typeof ImagesIndexRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/games/$id/': typeof GamesIdIndexRoute
@@ -127,7 +118,6 @@ export interface FileRouteTypes {
     | '/cart/'
     | '/dashboard/'
     | '/games/'
-    | '/images/'
     | '/admin/orders/$orderId'
     | '/admin/orders/'
     | '/games/$id/'
@@ -140,7 +130,6 @@ export interface FileRouteTypes {
     | '/cart'
     | '/dashboard'
     | '/games'
-    | '/images'
     | '/admin/orders/$orderId'
     | '/admin/orders'
     | '/games/$id'
@@ -153,7 +142,6 @@ export interface FileRouteTypes {
     | '/cart/'
     | '/dashboard/'
     | '/games/'
-    | '/images/'
     | '/admin/orders/$orderId'
     | '/admin/orders/'
     | '/games/$id/'
@@ -167,7 +155,6 @@ export interface RootRouteChildren {
   CartIndexRoute: typeof CartIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   GamesIndexRoute: typeof GamesIndexRoute
-  ImagesIndexRoute: typeof ImagesIndexRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
   GamesIdIndexRoute: typeof GamesIdIndexRoute
@@ -180,13 +167,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/images/': {
-      id: '/images/'
-      path: '/images'
-      fullPath: '/images/'
-      preLoaderRoute: typeof ImagesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/games/': {
@@ -263,7 +243,6 @@ const rootRouteChildren: RootRouteChildren = {
   CartIndexRoute: CartIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   GamesIndexRoute: GamesIndexRoute,
-  ImagesIndexRoute: ImagesIndexRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   GamesIdIndexRoute: GamesIdIndexRoute,
