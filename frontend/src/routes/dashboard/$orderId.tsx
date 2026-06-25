@@ -10,9 +10,15 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getMeFn } from "@/features/auth"
-import { orderQueryOptions, ORDER_STATUS_META, formatOrderDate, formatOrderNumber } from "@/features/orders"
+import {
+  orderQueryOptions,
+  ORDER_STATUS_META,
+  formatOrderDate,
+  formatOrderNumber,
+  PRE_ORDER_CREDENTIALS_NOTE,
+} from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
-import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
+import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL, PreOrderBadge } from "@/features/games"
 import { cn } from "@/lib/utils"
 
 function OrderError({ error }: ErrorComponentProps) {
@@ -116,6 +122,7 @@ function OrderDetail() {
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {ZARFIAT_LABEL[it.zarfiat]}
                 </span>
+                {it.pre_order && <PreOrderBadge className="shrink-0" />}
               </div>
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 × {it.count}
@@ -148,10 +155,19 @@ function OrderDetail() {
             ))}
           </div>
         ) : (
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            سفارش شما در حال آماده‌سازی است. به‌محض آماده شدن، ایمیل، رمز عبور و PSN-pass اکانت
-            همین‌جا برای شما نمایش داده می‌شود.
-          </p>
+          <div className="mt-4 space-y-2.5">
+            {order.items.some((it) => it.pre_order) && (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {PRE_ORDER_CREDENTIALS_NOTE}
+              </p>
+            )}
+            {order.items.some((it) => !it.pre_order) && (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                سفارش شما در حال آماده‌سازی است. به‌محض آماده شدن، ایمیل، رمز عبور و PSN-pass اکانت
+                همین‌جا برای شما نمایش داده می‌شود.
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -196,8 +212,13 @@ function ItemCredentials({ item, label }: { item: OrderItem; label: string }) {
   if (!item.email && !item.password && !item.psn_pass) {
     return (
       <div className="rounded-xl border border-border/60 bg-background/40 p-4">
-        <p className="mb-1 text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">این مورد هنوز در حال آماده‌سازی است.</p>
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium">{label}</p>
+          {item.pre_order && <PreOrderBadge />}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {item.pre_order ? PRE_ORDER_CREDENTIALS_NOTE : "این مورد هنوز در حال آماده‌سازی است."}
+        </p>
       </div>
     )
   }

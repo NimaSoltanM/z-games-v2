@@ -5,6 +5,8 @@ import type {
   GameDetailResponse,
   GamesParams,
   PaginatedGamesResponse,
+  ReleaseStatus,
+  AlertVariant,
 } from "./types"
 
 export function getGames(params: GamesParams = {}) {
@@ -55,4 +57,29 @@ export function updateGame(id: string, form: FormData) {
 
 export function deleteGame(id: string) {
   return apiFetch<{ message: string }>(`/games/admin/${id}`, { method: "DELETE" })
+}
+
+// Sets a game's pre-order lifecycle. release_status is always applied.
+// release_date is a partial field: OMIT it to keep the stored date (so toggling
+// the status is a lossless pause/resume), send a string to set it, or null to
+// clear it.
+export function setGamePreorder(
+  id: string,
+  body: { release_status: ReleaseStatus; release_date?: string | null }
+) {
+  return apiFetch<{ game: Game }>(`/games/admin/${id}/preorder`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+}
+
+// Sets or clears (empty message) the free-form admin alert on a game.
+export function setGameAlert(
+  id: string,
+  body: { message: string; variant: AlertVariant }
+) {
+  return apiFetch<{ game: Game }>(`/games/admin/${id}/alert`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
 }

@@ -35,6 +35,8 @@ import {
   formatToman,
   PLATFORM_LABEL,
   PLATFORM_BADGE_CLASS,
+  PreOrderBadge,
+  gameCoverSrc,
 } from "@/features/games"
 
 const SORT_OPTIONS = [
@@ -298,21 +300,22 @@ function GamesContent() {
             <Link key={game.id} to="/games/$id" params={{ id: game.id }} viewTransition>
               <div className="group rounded-xl border border-border/60 bg-card/75 backdrop-blur-sm overflow-hidden transition-all duration-200 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 cursor-pointer">
                 <img
-                  src={game.cover_image
-                    ? `${import.meta.env.VITE_API_URL ?? "http://localhost:3002"}${game.cover_image}`
-                    : `https://picsum.photos/seed/${game.id}/300/400`}
+                  src={gameCoverSrc(game.cover_image, game.id)}
                   alt={game.name}
                   className="w-full aspect-3/4 object-cover"
                   loading="lazy"
                   style={{ viewTransitionName: `game-cover-${game.id}` }}
                 />
                 <div className="p-3 space-y-2">
-                  <Badge
-                    variant="secondary"
-                    className={`text-xs px-2 py-0.5 border ${PLATFORM_BADGE_CLASS[game.platform]}`}
-                  >
-                    {PLATFORM_LABEL[game.platform]}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge
+                      variant="secondary"
+                      className={`text-xs px-2 py-0.5 border ${PLATFORM_BADGE_CLASS[game.platform]}`}
+                    >
+                      {PLATFORM_LABEL[game.platform]}
+                    </Badge>
+                    {game.phase === "pre_order" && <PreOrderBadge />}
+                  </div>
                   <p className="text-sm font-medium leading-snug line-clamp-2">{game.name}</p>
                   {minPrice !== null && (
                     <p className="text-sm font-semibold text-primary">

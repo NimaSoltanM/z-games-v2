@@ -3,6 +3,12 @@ export type PriceMode = "dynamic" | "fixed"
 export type Zarfiat = "z1" | "z2" | "z3"
 export type ConsolePlatform = "ps4" | "ps5"
 
+// Stored release status vs. the phase the backend derives from it + the release
+// date. The frontend reads `phase`/`purchasable`; it never re-derives the dates.
+export type ReleaseStatus = "released" | "pre_order"
+export type GamePhase = "released" | "pre_order" | "closing_soon"
+export type AlertVariant = "info" | "warning"
+
 export type GameLink = {
   id: string
   url: string
@@ -26,6 +32,12 @@ export type Game = {
   prices: GamePrice[]
   active: boolean
   links: GameLink[]
+  release_status: ReleaseStatus
+  release_date: string | null
+  phase: GamePhase
+  purchasable: boolean
+  alert_message: string | null
+  alert_variant: AlertVariant | null
   created_at: string
   updated_at: string
 }
@@ -92,6 +104,35 @@ export function cheapestPrice(game: Game, rate: ExchangeRate): number | null {
 export function formatToman(amount: number | null): string {
   if (amount === null) return "—"
   return amount.toLocaleString("fa-IR") + " تومان"
+}
+
+// Resolves a game's cover image to a usable <img src>. A stored absolute URL is
+// used as-is; a server-relative path is prefixed with the API origin; a missing
+// cover falls back to a deterministic placeholder.
+export function gameCoverSrc(coverImage: string | null, id: string): string {
+  if (!coverImage) return `https://picsum.photos/seed/${id}/300/400`
+  if (/^https?:\/\//i.test(coverImage)) return coverImage
+  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3002"
+  return `${apiUrl}${coverImage}`
+}
+
+// Whole days from now until the release date (rounded up). Never negative — a
+// past date reads as 0. Used for the pre-order countdown.
+export function daysUntilRelease(iso: string | null): number | null {
+  if (!iso) return null
+  const ms = new Date(iso).getTime() - Date.now()
+  if (Number.isNaN(ms)) return null
+  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)))
+}
+
+// Release date as a Persian (Jalali) calendar date.
+export function formatReleaseDate(iso: string | null): string | null {
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString("fa-IR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
 }
 
 export const PLATFORM_LABEL: Record<Platform, string> = {

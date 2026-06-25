@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/shared/audit"
+	"github.com/soltanmohammdi/z-games/internal/shared/release"
 )
 
 var (
@@ -24,6 +25,7 @@ type orderItem struct {
 	Platform string
 	Zarfiat  string
 	Quantity int
+	PreOrder bool // game was in its pre-order phase at checkout
 }
 
 // computeCart reads the user's cart and prices every line at CURRENT prices
@@ -41,7 +43,8 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 
 	rows, err := db.Query(ctx, `
 		SELECT ci.game_id, g.name, ci.platform, ci.zarfiat, ci.quantity,
-		       g.active, g.price_mode::text, gp.price_usd::float8, gp.price_toman
+		       g.active, g.price_mode::text, gp.price_usd::float8, gp.price_toman,
+		       g.release_status, g.release_date
 		FROM cart_items ci
 		JOIN games g ON g.id = ci.game_id
 		LEFT JOIN game_prices gp
@@ -54,20 +57,31 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 	}
 	defer rows.Close()
 
+	now := time.Now().UTC()
 	var items []orderItem
 	total := 0
 	for rows.Next() {
 		var (
-			it        orderItem
-			active    bool
-			priceMode string
-			priceUSD  *float64
-			priceTmn  *int
+			it            orderItem
+			active        bool
+			priceMode     string
+			priceUSD      *float64
+			priceTmn      *int
+			releaseStatus string
+			releaseDate   *time.Time
 		)
 		if err := rows.Scan(&it.GameID, &it.GameName, &it.Platform, &it.Zarfiat, &it.Quantity,
-			&active, &priceMode, &priceUSD, &priceTmn); err != nil {
+			&active, &priceMode, &priceUSD, &priceTmn, &releaseStatus, &releaseDate); err != nil {
 			return nil, 0, fmt.Errorf("computeCart scan: %w", err)
 		}
+		// Pre-order sales close in the window just before release, so an item that
+		// slipped into that window is no longer purchasable — same as an inactive
+		// game or missing price: we refuse to charge for it.
+		phase := release.Phase(releaseStatus, releaseDate, now)
+		if !release.Purchasable(phase) {
+			return nil, 0, ErrInvalidCart
+		}
+		it.PreOrder = phase == release.PhasePreOrder
 		price, ok := unitPrice(active, priceMode, priceUSD, priceTmn, rate)
 		if !ok {
 			return nil, 0, ErrInvalidCart
@@ -133,9 +147,9 @@ func createPendingOrder(ctx context.Context, db *pgxpool.Pool, userID string, am
 	for _, it := range items {
 		for range it.Quantity {
 			if _, err := tx.Exec(ctx, `
-				INSERT INTO order_items (order_id, game_id, game_name, platform, zarfiat, quantity)
-				VALUES ($1, $2, $3, $4, $5, 1)
-			`, orderID, it.GameID, it.GameName, it.Platform, it.Zarfiat); err != nil {
+				INSERT INTO order_items (order_id, game_id, game_name, platform, zarfiat, quantity, pre_order)
+				VALUES ($1, $2, $3, $4, $5, 1, $6)
+			`, orderID, it.GameID, it.GameName, it.Platform, it.Zarfiat, it.PreOrder); err != nil {
 				return "", fmt.Errorf("createPendingOrder item: %w", err)
 			}
 		}
@@ -211,6 +225,7 @@ type OrderItemView struct {
 	Platform string  `json:"platform"`
 	Zarfiat  string  `json:"zarfiat"`
 	Quantity int     `json:"quantity"`
+	PreOrder bool    `json:"pre_order"`
 	Email    *string `json:"email"`
 	Password *string `json:"password"`
 	PsnPass  *string `json:"psn_pass"`
@@ -529,7 +544,7 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, admin
 
 func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderIDs []string, add func(orderID string, it OrderItemView)) error {
 	rows, err := db.Query(ctx, `
-		SELECT order_id, id, game_id, game_name, platform, zarfiat, quantity, email, password, psn_pass
+		SELECT order_id, id, game_id, game_name, platform, zarfiat, quantity, pre_order, email, password, psn_pass
 		FROM order_items
 		WHERE order_id = ANY($1)
 		ORDER BY game_name
@@ -542,7 +557,7 @@ func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credCipher, o
 		var orderID string
 		var it OrderItemView
 		if err := rows.Scan(&orderID, &it.ID, &it.GameID, &it.GameName, &it.Platform, &it.Zarfiat, &it.Quantity,
-			&it.Email, &it.Password, &it.PsnPass); err != nil {
+			&it.PreOrder, &it.Email, &it.Password, &it.PsnPass); err != nil {
 			return fmt.Errorf("attachOrderItems scan: %w", err)
 		}
 

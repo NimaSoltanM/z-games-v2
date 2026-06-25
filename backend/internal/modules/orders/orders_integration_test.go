@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/testdb"
@@ -232,6 +233,102 @@ func TestComputeCart_EmptyAndInvalid(t *testing.T) {
 	seedCart(t, ctx, db, "u1", "g1", 1)
 	if _, _, err := computeCart(ctx, db, "u1"); !errors.Is(err, ErrInvalidCart) {
 		t.Fatalf("inactive game: got %v, want ErrInvalidCart", err)
+	}
+}
+
+// setPreorder marks a seeded game as pre-order with the given release date.
+func setPreorder(t *testing.T, ctx context.Context, db *pgxpool.Pool, gameID string, releaseDate time.Time) {
+	mustExec(t, ctx, db,
+		"UPDATE games SET release_status = 'pre_order', release_date = $1 WHERE id = $2",
+		releaseDate, gameID)
+}
+
+func TestComputeCart_PreOrderStamped(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+	seedGame(t, ctx, db, "g1", "dynamic", true)
+	seedDynamicPrice(t, ctx, db, "g1", 8)
+	seedRate(t, ctx, db, 95000)
+	seedCart(t, ctx, db, "u1", "g1", 2)
+
+	// Release well beyond the closing window → still taking pre-orders.
+	setPreorder(t, ctx, db, "g1", time.Now().UTC().Add(10*24*time.Hour))
+
+	items, _, err := computeCart(ctx, db, "u1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || !items[0].PreOrder {
+		t.Fatalf("expected one pre-order item, got %+v", items)
+	}
+
+	// The pre-order flag must be snapshotted onto every expanded order_item.
+	orderID, err := createPendingOrder(ctx, db, "u1", 1000, "", items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var preOrderCount, total int
+	if err := db.QueryRow(ctx,
+		"SELECT COUNT(*) FILTER (WHERE pre_order), COUNT(*) FROM order_items WHERE order_id = $1", orderID,
+	).Scan(&preOrderCount, &total); err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 || preOrderCount != 2 {
+		t.Fatalf("pre_order snapshot: got %d/%d pre-order items, want 2/2", preOrderCount, total)
+	}
+}
+
+func TestComputeCart_PastReleaseBuysAsNormal(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+	seedGame(t, ctx, db, "g1", "dynamic", true)
+	seedDynamicPrice(t, ctx, db, "g1", 8)
+	seedRate(t, ctx, db, 95000)
+	seedCart(t, ctx, db, "u1", "g1", 1)
+
+	// Status is still 'pre_order' but the release date has passed: the game
+	// behaves as released, so the purchase must NOT be flagged as a pre-order.
+	setPreorder(t, ctx, db, "g1", time.Now().UTC().Add(-24*time.Hour))
+
+	items, _, err := computeCart(ctx, db, "u1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].PreOrder {
+		t.Fatalf("expected one normal (non-pre-order) item, got %+v", items)
+	}
+
+	orderID, err := createPendingOrder(ctx, db, "u1", 1000, "", items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var preOrderCount int
+	if err := db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM order_items WHERE order_id = $1 AND pre_order", orderID,
+	).Scan(&preOrderCount); err != nil {
+		t.Fatal(err)
+	}
+	if preOrderCount != 0 {
+		t.Fatalf("pre_order items = %d, want 0 (game released by date)", preOrderCount)
+	}
+}
+
+func TestComputeCart_ClosingWindowRejected(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+	seedGame(t, ctx, db, "g1", "dynamic", true)
+	seedDynamicPrice(t, ctx, db, "g1", 8)
+	seedRate(t, ctx, db, 95000)
+	seedCart(t, ctx, db, "u1", "g1", 1)
+
+	// Release is hours away → inside the closing window, sales are shut.
+	setPreorder(t, ctx, db, "g1", time.Now().UTC().Add(2*time.Hour))
+
+	if _, _, err := computeCart(ctx, db, "u1"); !errors.Is(err, ErrInvalidCart) {
+		t.Fatalf("closing window: got %v, want ErrInvalidCart", err)
 	}
 }
 

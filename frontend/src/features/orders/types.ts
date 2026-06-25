@@ -9,6 +9,7 @@ export type OrderItem = {
   platform: ConsolePlatform
   zarfiat: Zarfiat
   quantity: number
+  pre_order: boolean
   email: string | null
   password: string | null
   psn_pass: string | null

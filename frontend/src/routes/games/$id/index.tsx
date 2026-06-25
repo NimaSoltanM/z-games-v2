@@ -17,10 +17,11 @@ import {
   PLATFORM_BADGE_CLASS,
   PLATFORM_GLOW_CLASS,
   ZARFIATS,
-  ZARFIAT_LABEL
-  
-  
-  
+  ZARFIAT_LABEL,
+  GameNotices,
+  ClosingSoonNotice,
+  PreOrderBadge,
+  gameCoverSrc,
 } from "@/features/games"
 import type {ConsolePlatform, Zarfiat, Game} from "@/features/games";
 import { useCart } from "@/features/cart"
@@ -88,9 +89,7 @@ function GameDetail() {
   const platforms: ConsolePlatform[] =
     game.platform === "ps4_ps5" ? ["ps4", "ps5"] : [game.platform]
 
-  const imgSrc = game.cover_image
-    ? `${import.meta.env.VITE_API_URL ?? "http://localhost:3002"}${game.cover_image}`
-    : `https://picsum.photos/seed/${game.id}/300/400`
+  const imgSrc = gameCoverSrc(game.cover_image, game.id)
 
   const platformGlow = PLATFORM_GLOW_CLASS[game.platform]
   const platformBadgeClass = PLATFORM_BADGE_CLASS[game.platform]
@@ -113,15 +112,22 @@ function GameDetail() {
       {/* Info */}
       <div className="flex flex-1 flex-col gap-6">
         <div className="space-y-2">
-          <Badge variant="secondary" className={`border text-xs ${platformBadgeClass}`}>
-            {PLATFORM_LABEL[game.platform]}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className={`border text-xs ${platformBadgeClass}`}>
+              {PLATFORM_LABEL[game.platform]}
+            </Badge>
+            {game.phase === "pre_order" && <PreOrderBadge />}
+          </div>
           <h1 className="text-2xl font-bold leading-snug">{game.name}</h1>
         </div>
 
+        <GameNotices game={game} />
+
         <Separator />
 
-        {game.prices.length > 0 && (
+        {game.phase === "closing_soon" ? (
+          <ClosingSoonNotice game={game} />
+        ) : game.prices.length > 0 ? (
           <div className="space-y-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               قیمت
@@ -149,6 +155,7 @@ function GameDetail() {
                         zarfiat={z}
                         label={label}
                         price={price!}
+                        isPreOrder={game.phase === "pre_order"}
                       />
                     ))}
                   </div>
@@ -156,7 +163,7 @@ function GameDetail() {
               )
             })}
           </div>
-        )}
+        ) : null}
 
         {game.links.length > 0 && (
           <div className="space-y-2">
@@ -190,12 +197,14 @@ function PriceTile({
   zarfiat,
   label,
   price,
+  isPreOrder,
 }: {
   game: Game
   platform: ConsolePlatform
   zarfiat: Zarfiat
   label: string
   price: number
+  isPreOrder: boolean
 }) {
   const { items, addItem } = useCart()
   const inCart =
@@ -223,7 +232,7 @@ function PriceTile({
         }
       >
         <ShoppingCart className="size-3" />
-        {inCart > 0 ? `در سبد (${inCart})` : "افزودن"}
+        {inCart > 0 ? `در سبد (${inCart})` : isPreOrder ? "پیش‌خرید" : "افزودن"}
       </Button>
     </div>
   )

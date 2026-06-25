@@ -53,6 +53,33 @@ For high-demand games (e.g. GTA 6), the admin may pre-buy accounts in advance, b
 
 ---
 
+## Pre-orders
+
+PSN sells some games as pre-orders before launch, often with publisher rewards for early buyers. We mirror this: a customer can pre-order, we buy the real pre-order version on their behalf (so they get the pre-order rewards), but we **do not hand over credentials until the game officially releases**.
+
+### What ships today (backend + storefront)
+
+- **Data model** (`migration 009`): `games.release_status` (`released` | `pre_order`), `games.release_date` (nullable expected launch), `games.alert_message` + `games.alert_variant` (`info` | `warning`) for a free-form per-game admin notice, and `order_items.pre_order` (snapshotted at checkout).
+- **Phase logic** — single source of truth in `internal/shared/release`:
+  - `released` — normal storefront. A pre-order game flips here **automatically** once `release_date` passes, or when an admin sets status to `released`.
+  - `pre_order` — taking pre-orders; purchasable, credentials withheld until launch.
+  - `closing_soon` — within `CloseBuffer` (currently **24h**) of the release date: pre-order sales are closed and normal sales haven't started, so there is **no purchase option** (checkout also rejects these items server-side). Tune `CloseBuffer` if a title needs a wider window.
+- **Storefront**: the game detail page renders the automatic pre-order alert + day countdown, the custom admin alert, the closing-window message, and relabels the buy button "پیش‌خرید"; the orders/dashboard pages explain that pre-order credentials arrive after launch.
+- **Admin API** (admin-guarded, audited as `game.preorder` / `game.alert`), already live and what a future UI should call:
+  - `PATCH /games/admin/:id/preorder` → `{ release_status, release_date? }`. `release_date` is a **partial field**: omit it to keep the stored date, send a string (ISO timestamp or `YYYY-MM-DD`) to set it, or `null`/`""` to clear it. Because a status-only change never touches the date, flipping `pre_order → released → pre_order` is a **lossless pause** — the countdown and auto-close resume exactly as before. Postpone a launch by sending a new date.
+  - `PATCH /games/admin/:id/alert` → `{ message, variant }`; an empty `message` clears the alert.
+  - Frontend client fns already exist: `setGamePreorder` / `setGameAlert` in `features/games/api.ts`.
+
+### To build later (admin UI — deferred with the create-game page)
+
+There is **no admin game-management page yet**. When the create-game/edit-game screens are built, add:
+
+- A **pre-order toggle** + **expected release date** picker (date editable later to postpone).
+- A **custom alert editor** (message + `info`/`warning` variant) per game.
+- Both should call the admin endpoints above. Pre-orders use the same 3-capacity (Z1/Z2/Z3) purchase system — no changes there.
+
+---
+
 ## Payment
 
 ZarinPal (Iranian payment gateway). Flow:

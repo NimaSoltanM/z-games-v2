@@ -19,6 +19,7 @@ import {
   PLATFORM_BADGE_CLASS,
   ZARFIAT_LABEL,
   GAMES_DEFAULT_SEARCH,
+  PreOrderBadge,
 } from "@/features/games"
 import { cn } from "@/lib/utils"
 
@@ -190,6 +191,7 @@ function OrderCard({ order }: { order: Order }) {
               <span className="shrink-0 text-xs text-muted-foreground">
                 {ZARFIAT_LABEL[it.zarfiat]}
               </span>
+              {it.pre_order && <PreOrderBadge className="shrink-0" />}
             </div>
             <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
               × {it.count}

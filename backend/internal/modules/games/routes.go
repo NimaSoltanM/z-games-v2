@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/paginate"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/soltanmohammdi/z-games/internal/shared/middleware"
 )
 
 func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
@@ -21,4 +22,9 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 
 	g.Get("/exchange-rate", h.getExchangeRateHandler)
 	g.Get("/:id", h.getGameHandler)
+
+	// Admin: pre-order lifecycle & per-game alerts.
+	admin := middleware.RequireAdmin(db)
+	g.Patch("/admin/:id/preorder", admin, h.adminSetPreorder)
+	g.Patch("/admin/:id/alert", admin, h.adminSetAlert)
 }

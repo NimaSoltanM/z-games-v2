@@ -22,7 +22,7 @@ import { adminOrderQueryOptions, fulfillOrder } from "@/features/admin"
 import type { AdminOrder, FulfillItem } from "@/features/admin"
 import { formatOrderDate, formatOrderNumber } from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
-import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
+import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL, PreOrderBadge } from "@/features/games"
 
 function AdminOrderError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -299,7 +299,14 @@ function FulfillForm({ order }: { order: AdminOrder }) {
               {PLATFORM_LABEL[it.platform]}
             </Badge>
             <span className="text-xs text-muted-foreground">{ZARFIAT_LABEL[it.zarfiat]}</span>
+            {it.pre_order && <PreOrderBadge />}
           </div>
+
+          {it.pre_order && !it.email && !it.password && !it.psn_pass && (
+            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+              این آیتم به‌صورت پیش‌خرید ثبت شده است. اطلاعات اکانت را تنها پس از انتشار رسمی بازی وارد کنید.
+            </p>
+          )}
 
           <div className="space-y-3">
             <div className="space-y-1.5">

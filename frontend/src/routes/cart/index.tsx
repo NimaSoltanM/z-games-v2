@@ -25,6 +25,8 @@ import {
   PLATFORM_BADGE_CLASS,
   PLATFORM_ACCENT_CLASS,
   ZARFIAT_LABEL,
+  gameCoverSrc,
+  PreOrderBadge,
 } from "@/features/games"
 import { useCart  } from "@/features/cart"
 import type {CartItem} from "@/features/cart";
@@ -151,14 +153,15 @@ function CartItemRow({
   const priceEntry = game.prices.find(
     (p) => p.platform === item.platform && p.zarfiat === item.zarfiat,
   )
-  const isValid = game.active && !!priceEntry
+  // A pre-order in its closing window is active + priced but NOT purchasable, and
+  // checkout would reject it — so flag it unavailable here, exactly like an
+  // inactive game, instead of letting it look buyable and fail at the gateway.
+  const isValid = game.active && !!priceEntry && game.purchasable
   const currentPrice = isValid
     ? calcPrice(game, item.platform, item.zarfiat, exchange_rate)
     : null
 
-  const imgSrc = game.cover_image
-    ? `${import.meta.env.VITE_API_URL ?? "http://localhost:3002"}${game.cover_image}`
-    : `https://picsum.photos/seed/${game.id}/300/400`
+  const imgSrc = gameCoverSrc(game.cover_image, game.id)
 
   const accentClass = PLATFORM_ACCENT_CLASS[item.platform]
 
@@ -172,7 +175,11 @@ function CartItemRow({
         <div className="mb-3 flex items-center gap-2 text-xs text-destructive">
           <AlertTriangle className="size-3.5 shrink-0" />
           <span>
-            {!game.active ? "این بازی دیگر موجود نیست" : "این ظرفیت حذف شده است"}
+            {!game.active
+              ? "این بازی دیگر موجود نیست"
+              : !priceEntry
+                ? "این ظرفیت حذف شده است"
+                : "پیش‌خرید این بازی بسته شده و به‌زودی منتشر می‌شود"}
           </span>
         </div>
       )}
@@ -194,6 +201,7 @@ function CartItemRow({
               {PLATFORM_LABEL[item.platform]}
             </Badge>
             <span className="text-xs text-muted-foreground">{ZARFIAT_LABEL[item.zarfiat]}</span>
+            {isValid && game.phase === "pre_order" && <PreOrderBadge />}
           </div>
           {isValid && currentPrice !== null && (
             <p className="text-sm font-semibold text-primary">{formatToman(currentPrice)}</p>
@@ -259,7 +267,7 @@ function useCartTotal(items: CartItem[]) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     const data = results[i].data
-    if (!data.game.active) continue
+    if (!data.game.active || !data.game.purchasable) continue
     const hasEntry = data.game.prices.some(
       (p) => p.platform === item.platform && p.zarfiat === item.zarfiat,
     )

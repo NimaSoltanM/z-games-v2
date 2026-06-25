@@ -178,7 +178,13 @@ CREATE TABLE public.games (
     price_mode public.price_mode DEFAULT 'dynamic'::public.price_mode NOT NULL,
     active boolean DEFAULT false NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    release_status text DEFAULT 'released'::text NOT NULL,
+    release_date timestamp without time zone,
+    alert_message text,
+    alert_variant text,
+    CONSTRAINT games_release_status_check CHECK ((release_status = ANY (ARRAY['released'::text, 'pre_order'::text]))),
+    CONSTRAINT games_alert_variant_check CHECK (((alert_variant IS NULL) OR (alert_variant = ANY (ARRAY['info'::text, 'warning'::text]))))
 );
 
 
@@ -197,6 +203,7 @@ CREATE TABLE public.order_items (
     email text,
     password text,
     psn_pass text,
+    pre_order boolean DEFAULT false NOT NULL,
     CONSTRAINT order_items_platform_check CHECK ((platform = ANY (ARRAY['ps4'::text, 'ps5'::text]))),
     CONSTRAINT order_items_quantity_check CHECK (((quantity >= 1) AND (quantity <= 10))),
     CONSTRAINT order_items_zarfiat_check CHECK ((zarfiat = ANY (ARRAY['z1'::text, 'z2'::text, 'z3'::text])))

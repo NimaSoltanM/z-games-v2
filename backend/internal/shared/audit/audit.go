@@ -14,6 +14,8 @@ import (
 // Action keys. Add new ones here as new admin actions are built.
 const (
 	ActionOrderFulfill = "order.fulfill"
+	ActionGamePreorder = "game.preorder"
+	ActionGameAlert    = "game.alert"
 )
 
 // execer is satisfied by both *pgxpool.Pool and pgx.Tx.

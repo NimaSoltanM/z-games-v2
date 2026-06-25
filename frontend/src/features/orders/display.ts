@@ -29,6 +29,12 @@ export const ORDER_STATUS_META: Record<OrderStatus, OrderStatusMeta> = {
   },
 }
 
+// Shown for a pre-order line that isn't deliverable yet: credentials are
+// deliberately withheld until the game launches, so the copy explains the wait
+// rather than implying we're slow.
+export const PRE_ORDER_CREDENTIALS_NOTE =
+  "این بازی در مرحله‌ی پیش‌خرید است؛ اطلاعات حساب پس از انتشار رسمی بازی برای شما تحویل داده می‌شود."
+
 // The short, human-readable order number customers read to support. Kept in
 // Latin digits (not Persian) so it's unambiguous when spoken, typed, or searched.
 export function formatOrderNumber(n: number): string {
