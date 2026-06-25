@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getMeFn } from "@/features/auth"
 import { adminOrderQueryOptions, fulfillOrder } from "@/features/admin"
 import type { AdminOrder, FulfillItem } from "@/features/admin"
-import { formatOrderDate } from "@/features/orders"
+import { formatOrderDate, formatOrderNumber } from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
 import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
 
@@ -101,8 +101,11 @@ function OrderSummary({ order }: { order: AdminOrder }) {
   return (
     <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6">
       <div>
-        <h1 className="text-lg font-bold">{order.user_name.trim() || "کاربر"}</h1>
-        <p dir="ltr" className="mt-1 text-left text-sm text-muted-foreground">
+        <p dir="ltr" className="font-mono text-base font-bold">
+          {formatOrderNumber(order.order_number)}
+        </p>
+        <h1 className="mt-1 text-lg font-bold">{order.user_name.trim() || "کاربر"}</h1>
+        <p dir="ltr" className="mt-0.5 text-left text-sm text-muted-foreground">
           {order.user_phone}
         </p>
       </div>
@@ -111,10 +114,7 @@ function OrderSummary({ order }: { order: AdminOrder }) {
         <span className="text-muted-foreground">مبلغ سفارش</span>
         <span className="font-bold text-primary">{formatToman(order.amount)}</span>
       </div>
-      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span>{formatOrderDate(order.created_at)}</span>
-        <span dir="ltr" className="font-mono">{order.id}</span>
-      </div>
+      <div className="mt-2 text-xs text-muted-foreground">{formatOrderDate(order.created_at)}</div>
     </div>
   )
 }
@@ -254,8 +254,11 @@ function FulfillForm({ order }: { order: AdminOrder }) {
       <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-lg font-bold">{fullName || "کاربر"}</h1>
-            <p dir="ltr" className="mt-1 text-left text-sm text-muted-foreground">
+            <p dir="ltr" className="font-mono text-base font-bold">
+              {formatOrderNumber(order.order_number)}
+            </p>
+            <h1 className="mt-1 text-lg font-bold">{fullName || "کاربر"}</h1>
+            <p dir="ltr" className="mt-0.5 text-left text-sm text-muted-foreground">
               {order.user_phone}
             </p>
           </div>
@@ -278,10 +281,7 @@ function FulfillForm({ order }: { order: AdminOrder }) {
           <span className="text-muted-foreground">مبلغ پرداختی</span>
           <span className="font-bold text-primary">{formatToman(order.amount)}</span>
         </div>
-        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span>{date}</span>
-          <span dir="ltr" className="font-mono">{order.id}</span>
-        </div>
+        <div className="mt-2 text-xs text-muted-foreground">{date}</div>
       </div>
 
       {/* Per-item credential fields */}

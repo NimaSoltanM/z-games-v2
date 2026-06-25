@@ -16,7 +16,7 @@ import { getMeFn } from "@/features/auth"
 import { adminOrdersQueryOptions } from "@/features/admin"
 import type { AdminOrder } from "@/features/admin"
 import type { OrderItem, OrderStatus } from "@/features/orders"
-import { formatOrderDate } from "@/features/orders"
+import { formatOrderDate, formatOrderNumber } from "@/features/orders"
 import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
 import { cn } from "@/lib/utils"
 
@@ -128,7 +128,7 @@ function SearchBox({ initial, onSearch }: { initial: string; onSearch: (q: strin
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="جستجو با نام یا شماره موبایل"
+        placeholder="جستجو با شماره سفارش، نام یا موبایل"
         className="h-10 pr-9"
       />
       {value && (
@@ -206,7 +206,10 @@ function AdminOrderCard({ order }: { order: AdminOrder }) {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{order.user_name.trim() || "کاربر"}</p>
+          <p dir="ltr" className="font-mono text-sm font-semibold">
+            {formatOrderNumber(order.order_number)}
+          </p>
+          <p className="mt-0.5 truncate text-sm font-medium">{order.user_name.trim() || "کاربر"}</p>
           <p dir="ltr" className="text-left text-xs text-muted-foreground">
             {order.user_phone}
           </p>

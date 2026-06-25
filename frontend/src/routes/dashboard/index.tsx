@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination } from "@/components/pagination"
 import { getMeFn } from "@/features/auth"
-import { ordersQueryOptions, ORDER_STATUS_META, formatOrderDate } from "@/features/orders"
+import { ordersQueryOptions, ORDER_STATUS_META, formatOrderDate, formatOrderNumber } from "@/features/orders"
 import type { Order, OrderItem } from "@/features/orders"
 import {
   formatToman,
@@ -162,7 +162,12 @@ function OrderCard({ order }: { order: Order }) {
       className="block rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-5 transition-colors hover:border-primary/40"
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{formatOrderDate(order.created_at)}</p>
+        <div className="min-w-0">
+          <p dir="ltr" className="font-mono text-sm font-semibold">
+            {formatOrderNumber(order.order_number)}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{formatOrderDate(order.created_at)}</p>
+        </div>
         <Badge variant="secondary" className={cn("gap-1.5 border", meta.className)}>
           <StatusIcon className="size-3.5" />
           {meta.label}

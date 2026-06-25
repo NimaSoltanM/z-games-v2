@@ -29,6 +29,12 @@ export const ORDER_STATUS_META: Record<OrderStatus, OrderStatusMeta> = {
   },
 }
 
+// The short, human-readable order number customers read to support. Kept in
+// Latin digits (not Persian) so it's unambiguous when spoken, typed, or searched.
+export function formatOrderNumber(n: number): string {
+  return `#${n}`
+}
+
 // Formats an order's ISO timestamp as a Persian (Jalali) calendar date.
 export function formatOrderDate(iso: string): string {
   return new Date(iso).toLocaleDateString("fa-IR", {

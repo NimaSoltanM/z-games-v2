@@ -69,8 +69,8 @@ function PaymentResultPage() {
         </p>
 
         {order && (
-          <p className="mt-4 text-xs text-muted-foreground/70">
-            شماره سفارش: <span dir="ltr" className="font-mono">{order}</span>
+          <p className="mt-4 text-sm text-muted-foreground">
+            شماره سفارش: <span dir="ltr" className="font-mono font-semibold text-foreground">#{order}</span>
           </p>
         )}
 

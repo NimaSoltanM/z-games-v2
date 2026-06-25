@@ -162,18 +162,19 @@ func failOrder(ctx context.Context, db *pgxpool.Pool, orderID string) error {
 }
 
 type orderLookup struct {
-	ID     string
-	UserID string
-	Amount int
-	Status string
+	ID          string
+	OrderNumber int64
+	UserID      string
+	Amount      int
+	Status      string
 }
 
 func getOrderByAuthority(ctx context.Context, db *pgxpool.Pool, authority string) (*orderLookup, error) {
 	var o orderLookup
 	err := db.QueryRow(ctx,
-		"SELECT id, user_id, amount, status FROM orders WHERE authority = $1",
+		"SELECT id, order_number, user_id, amount, status FROM orders WHERE authority = $1",
 		authority,
-	).Scan(&o.ID, &o.UserID, &o.Amount, &o.Status)
+	).Scan(&o.ID, &o.OrderNumber, &o.UserID, &o.Amount, &o.Status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -216,11 +217,12 @@ type OrderItemView struct {
 }
 
 type OrderView struct {
-	ID        string          `json:"id"`
-	Amount    int             `json:"amount"`
-	Status    string          `json:"status"`
-	CreatedAt time.Time       `json:"created_at"`
-	Items     []OrderItemView `json:"items"`
+	ID          string          `json:"id"`
+	OrderNumber int64           `json:"order_number"`
+	Amount      int             `json:"amount"`
+	Status      string          `json:"status"`
+	CreatedAt   time.Time       `json:"created_at"`
+	Items       []OrderItemView `json:"items"`
 }
 
 // listUserOrders returns a page of the user's actual purchases (paid/fulfilled),
@@ -244,7 +246,7 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, use
 	}
 
 	q := fmt.Sprintf(`
-		SELECT id, amount, status, created_at FROM orders %s
+		SELECT id, order_number, amount, status, created_at FROM orders %s
 		ORDER BY created_at DESC LIMIT $%d OFFSET $%d
 	`, where, len(args)+1, len(args)+2)
 	rows, err := db.Query(ctx, q, append(args, limit, offset)...)
@@ -257,7 +259,7 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, use
 	byID := make(map[string]int)
 	for rows.Next() {
 		var o OrderView
-		if err := rows.Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("listUserOrders scan: %w", err)
 		}
 		o.Items = []OrderItemView{}
@@ -287,10 +289,10 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, use
 func getUserOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, userID, orderID string) (*OrderView, error) {
 	var o OrderView
 	err := db.QueryRow(ctx, `
-		SELECT id, amount, status, created_at
+		SELECT id, order_number, amount, status, created_at
 		FROM orders
 		WHERE id = $1 AND user_id = $2
-	`, orderID, userID).Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt)
+	`, orderID, userID).Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -351,8 +353,8 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, f 
 	if f.search != "" {
 		args = append(args, "%"+f.search+"%")
 		conds = append(conds, fmt.Sprintf(
-			"(u.phone ILIKE $%d OR TRIM(CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))) ILIKE $%d)",
-			len(args), len(args)))
+			"(u.phone ILIKE $%d OR TRIM(CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))) ILIKE $%d OR CAST(o.order_number AS TEXT) ILIKE $%d)",
+			len(args), len(args), len(args)))
 	}
 
 	where := "WHERE " + strings.Join(conds, " AND ")
@@ -368,7 +370,7 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, f 
 	}
 
 	q := fmt.Sprintf(`
-		SELECT o.id, o.amount, o.status, o.created_at, o.authority,
+		SELECT o.id, o.order_number, o.amount, o.status, o.created_at, o.authority,
 		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
 		FROM orders o
 		JOIN users u ON u.id = o.user_id
@@ -388,7 +390,7 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, f 
 	byID := make(map[string]int)
 	for rows.Next() {
 		var o AdminOrderView
-		if err := rows.Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName); err != nil {
+		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName); err != nil {
 			return nil, 0, fmt.Errorf("listAdminOrders scan: %w", err)
 		}
 		o.Items = []OrderItemView{}
@@ -416,12 +418,12 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credCipher, f 
 func getAdminOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderID string) (*AdminOrderView, error) {
 	var o AdminOrderView
 	err := db.QueryRow(ctx, `
-		SELECT o.id, o.amount, o.status, o.created_at, o.authority,
+		SELECT o.id, o.order_number, o.amount, o.status, o.created_at, o.authority,
 		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
 		FROM orders o
 		JOIN users u ON u.id = o.user_id
 		WHERE o.id = $1
-	`, orderID).Scan(&o.ID, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName)
+	`, orderID).Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

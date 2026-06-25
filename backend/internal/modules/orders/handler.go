@@ -200,7 +200,7 @@ func (h *handler) callback(c fiber.Ctx) error {
 	status := c.Query("Status")
 
 	if authority == "" {
-		return h.redirectResult(c, "failed", "")
+		return h.redirectResult(c, "failed", 0)
 	}
 
 	order, err := getOrderByAuthority(c.Context(), h.db, authority)
@@ -208,20 +208,20 @@ func (h *handler) callback(c fiber.Ctx) error {
 		return err
 	}
 	if order == nil {
-		return h.redirectResult(c, "failed", "")
+		return h.redirectResult(c, "failed", 0)
 	}
 
 	// Idempotent: if this order is already settled, don't re-verify. ZarinPal can
 	// hit the callback more than once, and re-verifying a paid order would risk a
 	// transient verify error being misread as "pending" for money already taken.
 	if order.Status == "paid" || order.Status == "fulfilled" {
-		return h.redirectResult(c, "success", order.ID)
+		return h.redirectResult(c, "success", order.OrderNumber)
 	}
 
 	// The customer cancelled or the gateway reported a non-OK return.
 	if status != "OK" {
 		_ = failOrder(c.Context(), h.db, order.ID)
-		return h.redirectResult(c, "failed", order.ID)
+		return h.redirectResult(c, "failed", order.OrderNumber)
 	}
 
 	refID, err := h.zp.verifyPayment(c.Context(), order.Amount, authority)
@@ -230,12 +230,12 @@ func (h *handler) callback(c fiber.Ctx) error {
 		// ZarinPal answered cleanly: the payment did not go through.
 		_ = failOrder(c.Context(), h.db, order.ID)
 		log.Printf("zarinpal verify: payment not verified for order %s: %v", order.ID, err)
-		return h.redirectResult(c, "failed", order.ID)
+		return h.redirectResult(c, "failed", order.OrderNumber)
 	case err != nil:
 		// UNKNOWN outcome (timeout/network/gateway error). The customer may have
 		// paid — leave the order pending for reconciliation instead of failing it.
 		log.Printf("zarinpal verify UNKNOWN for order %s (authority %s): %v — leaving pending", order.ID, authority, err)
-		return h.redirectResult(c, "pending", order.ID)
+		return h.redirectResult(c, "pending", order.OrderNumber)
 	}
 
 	transitioned, err := markOrderPaid(c.Context(), h.db, order.ID, refID)
@@ -247,13 +247,13 @@ func (h *handler) callback(c fiber.Ctx) error {
 			log.Printf("clear cart after paid order %s failed: %v", order.ID, err)
 		}
 	}
-	return h.redirectResult(c, "success", order.ID)
+	return h.redirectResult(c, "success", order.OrderNumber)
 }
 
-func (h *handler) redirectResult(c fiber.Ctx, status, orderID string) error {
+func (h *handler) redirectResult(c fiber.Ctx, status string, orderNumber int64) error {
 	url := fmt.Sprintf("%s/payment/result?status=%s", h.frontendURL, status)
-	if orderID != "" {
-		url += "&order=" + orderID
+	if orderNumber > 0 {
+		url += "&order=" + strconv.FormatInt(orderNumber, 10)
 	}
 	return c.Redirect().To(url)
 }

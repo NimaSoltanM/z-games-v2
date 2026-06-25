@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict hgSR1H6CUnH6VwhqWpiM2hUjKE5KNq3qpqFcmoqJEVNCT3dBPIgHGUuV5Zs9t3f
+\restrict unpm3OVFUmjCQQMOjfC4QXE8fNTuyhk07rnLqSAlGwHwdRCvDcAKMtNGx6tbBFe
 
 -- Dumped from database version 18.4
 -- Dumped by pg_dump version 18.4
@@ -204,6 +204,18 @@ CREATE TABLE public.order_items (
 
 
 --
+-- Name: orders_order_number_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.orders_order_number_seq
+    START WITH 100000
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
 -- Name: orders; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -217,6 +229,7 @@ CREATE TABLE public.orders (
     referral_code text,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    order_number bigint DEFAULT nextval('public.orders_order_number_seq'::regclass) NOT NULL,
     CONSTRAINT orders_amount_check CHECK ((amount > 0)),
     CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'paid'::text, 'failed'::text, 'fulfilled'::text])))
 );
@@ -356,6 +369,14 @@ ALTER TABLE ONLY public.orders
 
 
 --
+-- Name: orders orders_order_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.orders
+    ADD CONSTRAINT orders_order_number_key UNIQUE (order_number);
+
+
+--
 -- Name: orders orders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -489,5 +510,5 @@ ALTER TABLE ONLY public.orders
 -- PostgreSQL database dump complete
 --
 
-\unrestrict hgSR1H6CUnH6VwhqWpiM2hUjKE5KNq3qpqFcmoqJEVNCT3dBPIgHGUuV5Zs9t3f
+\unrestrict unpm3OVFUmjCQQMOjfC4QXE8fNTuyhk07rnLqSAlGwHwdRCvDcAKMtNGx6tbBFe
 

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getMeFn } from "@/features/auth"
-import { orderQueryOptions, ORDER_STATUS_META, formatOrderDate } from "@/features/orders"
+import { orderQueryOptions, ORDER_STATUS_META, formatOrderDate, formatOrderNumber } from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
 import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL } from "@/features/games"
 import { cn } from "@/lib/utils"
@@ -89,7 +89,10 @@ function OrderDetail() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-bold">جزئیات سفارش</h1>
-            <p className="mt-1 text-xs text-muted-foreground">{date}</p>
+            <p dir="ltr" className="mt-1 font-mono text-sm font-semibold text-foreground">
+              {formatOrderNumber(order.order_number)}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{date}</p>
           </div>
           <Badge variant="secondary" className={cn("gap-1.5 border", meta.className)}>
             <StatusIcon className="size-3.5" />
@@ -127,9 +130,6 @@ function OrderDetail() {
           <span className="text-sm text-muted-foreground">مبلغ پرداختی</span>
           <span className="text-base font-bold text-primary">{formatToman(order.amount)}</span>
         </div>
-        <p className="mt-3 text-xs text-muted-foreground/70">
-          شماره سفارش: <span dir="ltr" className="font-mono">{order.id}</span>
-        </p>
       </div>
 
       {/* Credentials — delivered by support after the order is prepared. */}
