@@ -9,3 +9,6 @@ dist
 backend/tmp/
 backend/*.exe
 backend/*.test
+
+# Uploaded images (local-disk storage; UPLOAD_DIR)
+backend/uploads/

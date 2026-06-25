@@ -16,6 +16,7 @@ const (
 	ActionOrderFulfill = "order.fulfill"
 	ActionGamePreorder = "game.preorder"
 	ActionGameAlert    = "game.alert"
+	ActionImageUpload  = "image.upload"
 )
 
 // execer is satisfied by both *pgxpool.Pool and pgx.Tx.

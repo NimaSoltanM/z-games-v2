@@ -16,11 +16,15 @@ import (
 	"github.com/soltanmohammdi/z-games/internal/modules/cart"
 	"github.com/soltanmohammdi/z-games/internal/modules/games"
 	"github.com/soltanmohammdi/z-games/internal/modules/orders"
+	"github.com/soltanmohammdi/z-games/internal/modules/uploads"
 )
 
 func NewApp(db *pgxpool.Pool) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: errorHandler,
+		// Headroom for image uploads (uploads.MaxUploadBytes) plus multipart
+		// overhead; every other endpoint takes only small JSON bodies.
+		BodyLimit: uploads.MaxUploadBytes + (1 << 20),
 	})
 
 	app.Use(recoverer.New(recoverer.Config{
@@ -54,6 +58,7 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 	cart.RegisterRoutes(app, db)
 	games.RegisterRoutes(app, db)
 	orders.RegisterRoutes(app, db)
+	uploads.RegisterRoutes(app, db)
 
 	return app
 }
