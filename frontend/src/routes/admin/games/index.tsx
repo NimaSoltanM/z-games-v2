@@ -1,9 +1,4 @@
-import {
-  createFileRoute,
-  ErrorComponent,
-  Link,
-  redirect,
-} from "@tanstack/react-router"
+import { createFileRoute, ErrorComponent, Link } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import {
   useSuspenseQuery,
@@ -22,10 +17,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { AdminShell } from "@/components/admin-shell"
+import { DashboardHeader } from "@/components/dashboard-shell"
 import { MoneyInput } from "@/components/money-input"
 import { Pagination } from "@/components/pagination"
-import { getMeFn } from "@/features/auth"
 import {
   adminGamesQueryOptions,
   gameCoverSrc,
@@ -63,12 +57,6 @@ function AdminGamesError({ error }: ErrorComponentProps) {
 }
 
 export const Route = createFileRoute("/admin/games/")({
-  beforeLoad: async () => {
-    const me = await getMeFn()
-    if (!me)
-      throw redirect({ to: "/auth", search: { redirect: "/admin/games" } })
-    if (me.role === "user") throw redirect({ to: "/" })
-  },
   loader: ({ context }) => {
     context.queryClient.prefetchQuery(adminGamesQueryOptions())
   },
@@ -79,17 +67,19 @@ export const Route = createFileRoute("/admin/games/")({
 function AdminGamesPage() {
   const { reset } = useQueryErrorResetBoundary()
   return (
-    <AdminShell
-      title="مدیریت بازی‌ها"
-      action={
-        <Link to="/admin/games/new">
-          <Button className="gap-1.5">
-            <Plus className="size-4" />
-            بازی جدید
-          </Button>
-        </Link>
-      }
-    >
+    <>
+      <DashboardHeader
+        title="مدیریت بازی‌ها"
+        action={
+          <Link to="/admin/games/new">
+            <Button className="gap-1.5">
+              <Plus className="size-4" />
+              بازی جدید
+            </Button>
+          </Link>
+        }
+      />
+
       <ErrorBoundary
         onReset={reset}
         fallbackRender={({ resetErrorBoundary }) => (
@@ -107,7 +97,7 @@ function AdminGamesPage() {
           <AdminGamesContent />
         </Suspense>
       </ErrorBoundary>
-    </AdminShell>
+    </>
   )
 }
 

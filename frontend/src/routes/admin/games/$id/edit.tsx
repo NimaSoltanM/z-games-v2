@@ -1,8 +1,4 @@
-import {
-  createFileRoute,
-  ErrorComponent,
-  redirect,
-} from "@tanstack/react-router"
+import { createFileRoute, ErrorComponent } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import {
   useSuspenseQuery,
@@ -13,8 +9,7 @@ import { ErrorBoundary } from "react-error-boundary"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AdminShell } from "@/components/admin-shell"
-import { getMeFn } from "@/features/auth"
+import { DashboardHeader } from "@/components/dashboard-shell"
 import {
   adminGameQueryOptions,
   adminPricingQueryOptions,
@@ -26,15 +21,6 @@ function EditGameError({ error }: ErrorComponentProps) {
 }
 
 export const Route = createFileRoute("/admin/games/$id/edit")({
-  beforeLoad: async ({ params }) => {
-    const me = await getMeFn()
-    if (!me)
-      throw redirect({
-        to: "/auth",
-        search: { redirect: `/admin/games/${params.id}/edit` },
-      })
-    if (me.role === "user") throw redirect({ to: "/" })
-  },
   loader: ({ context, params }) => {
     context.queryClient.prefetchQuery(adminGameQueryOptions(params.id))
     context.queryClient.prefetchQuery(adminPricingQueryOptions())
@@ -46,7 +32,11 @@ export const Route = createFileRoute("/admin/games/$id/edit")({
 function EditGamePage() {
   const { reset } = useQueryErrorResetBoundary()
   return (
-    <AdminShell title="ویرایش بازی">
+    <div className="mx-auto max-w-3xl">
+      <DashboardHeader
+        title="ویرایش بازی"
+        back={{ to: "/admin/games", label: "بازگشت به بازی‌ها" }}
+      />
       <ErrorBoundary
         onReset={reset}
         fallbackRender={({ resetErrorBoundary }) => (
@@ -64,7 +54,7 @@ function EditGamePage() {
           <EditGameContent />
         </Suspense>
       </ErrorBoundary>
-    </AdminShell>
+    </div>
   )
 }
 

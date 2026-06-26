@@ -1,17 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 
-import { AdminShell } from "@/components/admin-shell"
-import { getMeFn } from "@/features/auth"
+import { DashboardHeader } from "@/components/dashboard-shell"
 import { adminPricingQueryOptions } from "@/features/games"
 import { GameForm } from "@/features/games/game-form"
 
 export const Route = createFileRoute("/admin/games/new")({
-  beforeLoad: async () => {
-    const me = await getMeFn()
-    if (!me)
-      throw redirect({ to: "/auth", search: { redirect: "/admin/games/new" } })
-    if (me.role === "user") throw redirect({ to: "/" })
-  },
   loader: ({ context }) => {
     context.queryClient.prefetchQuery(adminPricingQueryOptions())
   },
@@ -20,8 +13,12 @@ export const Route = createFileRoute("/admin/games/new")({
 
 function NewGamePage() {
   return (
-    <AdminShell title="ساخت بازی جدید">
+    <div className="mx-auto max-w-3xl">
+      <DashboardHeader
+        title="ساخت بازی جدید"
+        back={{ to: "/admin/games", label: "بازگشت به بازی‌ها" }}
+      />
       <GameForm />
-    </AdminShell>
+    </div>
   )
 }

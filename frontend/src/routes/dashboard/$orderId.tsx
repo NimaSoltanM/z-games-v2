@@ -1,4 +1,4 @@
-import { createFileRoute, ErrorComponent, Link, redirect } from "@tanstack/react-router"
+import { createFileRoute, ErrorComponent, Link } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
 import { Suspense, useState } from "react"
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getMeFn } from "@/features/auth"
 import {
   orderQueryOptions,
   ORDER_STATUS_META,
@@ -26,10 +25,6 @@ function OrderError({ error }: ErrorComponentProps) {
 }
 
 export const Route = createFileRoute("/dashboard/$orderId")({
-  beforeLoad: async ({ params }) => {
-    const me = await getMeFn()
-    if (!me) throw redirect({ to: "/auth", search: { redirect: `/dashboard/${params.orderId}` } })
-  },
   loader: ({ context, params }) => {
     context.queryClient.prefetchQuery(orderQueryOptions(params.orderId))
   },
@@ -41,33 +36,31 @@ function OrderDetailPage() {
   const { reset } = useQueryErrorResetBoundary()
 
   return (
-    <div className="relative min-h-[calc(100vh-57px)] bg-background bg-grid-lines">
-      <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
-        <Link
-          to="/dashboard"
-          search={{ page: 1, status: "" }}
-          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowRight className="size-4" />
-          بازگشت به سفارش‌ها
-        </Link>
+    <div className="mx-auto max-w-2xl">
+      <Link
+        to="/dashboard"
+        search={{ page: 1, status: "" }}
+        className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowRight className="size-4" />
+        بازگشت به سفارش‌ها
+      </Link>
 
-        <ErrorBoundary
-          onReset={reset}
-          fallbackRender={({ resetErrorBoundary }) => (
-            <div className="py-20 text-center">
-              <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری سفارش</p>
-              <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
-                تلاش مجدد
-              </Button>
-            </div>
-          )}
-        >
-          <Suspense fallback={<OrderDetailSkeleton />}>
-            <OrderDetail />
-          </Suspense>
-        </ErrorBoundary>
-      </div>
+      <ErrorBoundary
+        onReset={reset}
+        fallbackRender={({ resetErrorBoundary }) => (
+          <div className="py-20 text-center">
+            <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری سفارش</p>
+            <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+              تلاش مجدد
+            </Button>
+          </div>
+        )}
+      >
+        <Suspense fallback={<OrderDetailSkeleton />}>
+          <OrderDetail />
+        </Suspense>
+      </ErrorBoundary>
     </div>
   )
 }

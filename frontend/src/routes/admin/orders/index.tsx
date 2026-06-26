@@ -2,7 +2,6 @@ import {
   createFileRoute,
   ErrorComponent,
   Link,
-  redirect,
   useNavigate,
 } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
@@ -28,8 +27,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination } from "@/components/pagination"
-import { AdminNav } from "@/components/admin-shell"
-import { getMeFn } from "@/features/auth"
+import { DashboardHeader } from "@/components/dashboard-shell"
 import { adminOrdersQueryOptions } from "@/features/admin"
 import type { AdminOrder } from "@/features/admin"
 import type { OrderItem, OrderStatus } from "@/features/orders"
@@ -94,12 +92,6 @@ export const Route = createFileRoute("/admin/orders/")({
         : "",
     search: typeof search.search === "string" ? search.search : "",
   }),
-  beforeLoad: async () => {
-    const me = await getMeFn()
-    if (!me)
-      throw redirect({ to: "/auth", search: { redirect: "/admin/orders" } })
-    if (me.role === "user") throw redirect({ to: "/" })
-  },
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) => {
     context.queryClient.prefetchQuery(adminOrdersQueryOptions(deps))
@@ -114,54 +106,51 @@ function AdminOrdersPage() {
   const navigate = useNavigate({ from: "/admin/orders/" })
 
   return (
-    <div className="relative min-h-[calc(100vh-57px)] bg-background bg-grid-lines">
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-        <AdminNav />
-        <h1 className="mt-6 mb-6 text-2xl font-bold">مدیریت سفارش‌ها</h1>
+    <>
+      <DashboardHeader title="مدیریت سفارش‌ها" />
 
-        <div className="mb-6 space-y-3">
-          <SearchBox
-            key={search.search}
-            initial={search.search}
-            onSearch={(q) =>
-              navigate({ search: { ...search, search: q, page: 1 } })
-            }
-          />
-          <div className="flex flex-wrap gap-2">
-            {FILTERS.map((f) => (
-              <Button
-                key={f.value}
-                size="sm"
-                variant={search.status === f.value ? "default" : "outline"}
-                onClick={() =>
-                  navigate({ search: { ...search, status: f.value, page: 1 } })
-                }
-              >
-                {f.label}
-              </Button>
-            ))}
-          </div>
+      <div className="mb-6 space-y-3">
+        <SearchBox
+          key={search.search}
+          initial={search.search}
+          onSearch={(q) =>
+            navigate({ search: { ...search, search: q, page: 1 } })
+          }
+        />
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((f) => (
+            <Button
+              key={f.value}
+              size="sm"
+              variant={search.status === f.value ? "default" : "outline"}
+              onClick={() =>
+                navigate({ search: { ...search, status: f.value, page: 1 } })
+              }
+            >
+              {f.label}
+            </Button>
+          ))}
         </div>
-
-        <ErrorBoundary
-          onReset={reset}
-          fallbackRender={({ resetErrorBoundary }) => (
-            <div className="py-20 text-center">
-              <p className="mb-4 text-sm text-muted-foreground">
-                خطا در بارگذاری سفارش‌ها
-              </p>
-              <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
-                تلاش مجدد
-              </Button>
-            </div>
-          )}
-        >
-          <Suspense fallback={<AdminOrdersSkeleton />}>
-            <AdminOrdersList />
-          </Suspense>
-        </ErrorBoundary>
       </div>
-    </div>
+
+      <ErrorBoundary
+        onReset={reset}
+        fallbackRender={({ resetErrorBoundary }) => (
+          <div className="py-20 text-center">
+            <p className="mb-4 text-sm text-muted-foreground">
+              خطا در بارگذاری سفارش‌ها
+            </p>
+            <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+              تلاش مجدد
+            </Button>
+          </div>
+        )}
+      >
+        <Suspense fallback={<AdminOrdersSkeleton />}>
+          <AdminOrdersList />
+        </Suspense>
+      </ErrorBoundary>
+    </>
   )
 }
 

@@ -1,4 +1,4 @@
-import { createFileRoute, ErrorComponent, Link, redirect, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, ErrorComponent, Link, useNavigate } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
 import { Suspense } from "react"
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination } from "@/components/pagination"
-import { getMeFn } from "@/features/auth"
+import { DashboardHeader } from "@/components/dashboard-shell"
 import { ordersQueryOptions, ORDER_STATUS_META, formatOrderDate, formatOrderNumber } from "@/features/orders"
 import type { Order, OrderItem } from "@/features/orders"
 import {
@@ -40,10 +40,6 @@ export const Route = createFileRoute("/dashboard/")({
     page: Math.max(1, Number(search.page) || 1),
     status: search.status === "paid" || search.status === "fulfilled" ? search.status : "",
   }),
-  beforeLoad: async () => {
-    const me = await getMeFn()
-    if (!me) throw redirect({ to: "/auth", search: { redirect: "/dashboard" } })
-  },
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) => {
     context.queryClient.prefetchQuery(ordersQueryOptions(deps))
@@ -58,40 +54,38 @@ function DashboardPage() {
   const navigate = useNavigate({ from: "/dashboard/" })
 
   return (
-    <div className="relative min-h-[calc(100vh-57px)] bg-background bg-grid-lines">
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="mb-6 text-2xl font-bold">سفارش‌های من</h1>
+    <>
+      <DashboardHeader title="سفارش‌های من" />
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {FILTERS.map((f) => (
-            <Button
-              key={f.value}
-              size="sm"
-              variant={search.status === f.value ? "default" : "outline"}
-              onClick={() => navigate({ search: { status: f.value, page: 1 } })}
-            >
-              {f.label}
-            </Button>
-          ))}
-        </div>
-
-        <ErrorBoundary
-          onReset={reset}
-          fallbackRender={({ resetErrorBoundary }) => (
-            <div className="py-20 text-center">
-              <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری سفارش‌ها</p>
-              <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
-                تلاش مجدد
-              </Button>
-            </div>
-          )}
-        >
-          <Suspense fallback={<OrdersSkeleton />}>
-            <OrdersList />
-          </Suspense>
-        </ErrorBoundary>
+      <div className="mb-6 flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <Button
+            key={f.value}
+            size="sm"
+            variant={search.status === f.value ? "default" : "outline"}
+            onClick={() => navigate({ search: { status: f.value, page: 1 } })}
+          >
+            {f.label}
+          </Button>
+        ))}
       </div>
-    </div>
+
+      <ErrorBoundary
+        onReset={reset}
+        fallbackRender={({ resetErrorBoundary }) => (
+          <div className="py-20 text-center">
+            <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری سفارش‌ها</p>
+            <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+              تلاش مجدد
+            </Button>
+          </div>
+        )}
+      >
+        <Suspense fallback={<OrdersSkeleton />}>
+          <OrdersList />
+        </Suspense>
+      </ErrorBoundary>
+    </>
   )
 }
 

@@ -1,13 +1,35 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router"
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
+import { Package, Gamepad2 } from "lucide-react"
+
+import { DashboardLayout } from "@/components/dashboard-shell"
+import type { DashNavItem } from "@/components/dashboard-shell"
+import { getMeFn } from "@/features/auth"
+
+const NAV: readonly DashNavItem[] = [
+  {
+    to: "/admin/orders",
+    search: { page: 1, status: "", search: "" },
+    icon: Package,
+    label: "سفارش‌ها",
+  },
+  { to: "/admin/games", icon: Gamepad2, label: "بازی‌ها" },
+]
 
 export const Route = createFileRoute("/admin")({
-  component: RouteComponent,
+  // Single admin guard for every /admin/* route. Children inherit it, so they no
+  // longer guard individually; non-admins are bounced home, guests to login.
+  beforeLoad: async ({ location }) => {
+    const me = await getMeFn()
+    if (!me) throw redirect({ to: "/auth", search: { redirect: location.pathname } })
+    if (me.role === "user") throw redirect({ to: "/" })
+  },
+  component: AdminLayoutRoute,
 })
 
-function RouteComponent() {
+function AdminLayoutRoute() {
   return (
-    <div>
+    <DashboardLayout items={NAV}>
       <Outlet />
-    </div>
+    </DashboardLayout>
   )
 }
