@@ -28,8 +28,8 @@ import {
   gameCoverSrc,
   PreOrderBadge,
 } from "@/features/games"
-import { useCart  } from "@/features/cart"
-import type {CartItem} from "@/features/cart";
+import { useCart, cartTotal } from "@/features/cart"
+import type { CartItem, GamePricing } from "@/features/cart"
 
 function CartError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -263,21 +263,13 @@ function useCartTotal(items: CartItem[]) {
     return { total: 0, allKnown: false, totalQuantity }
   }
 
-  let total = 0
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
+  const pricingByGame = new Map<string, GamePricing>()
+  items.forEach((item, i) => {
     const data = results[i].data
-    if (!data.game.active || !data.game.purchasable) continue
-    const hasEntry = data.game.prices.some(
-      (p) => p.platform === item.platform && p.zarfiat === item.zarfiat,
-    )
-    if (!hasEntry) continue
-    const price = calcPrice(data.game, item.platform, item.zarfiat, data.exchange_rate)
-    if (price === null) continue
-    total += price * item.quantity
-  }
+    pricingByGame.set(item.gameId, { game: data.game, exchange_rate: data.exchange_rate })
+  })
 
-  return { total, allKnown: true, totalQuantity }
+  return { total: cartTotal(items, pricingByGame), allKnown: true, totalQuantity }
 }
 
 // Shared checkout action: gate on auth, then create the order and hand off to
