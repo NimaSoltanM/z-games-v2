@@ -21,10 +21,20 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 	}), h.listGamesHandler)
 
 	g.Get("/exchange-rate", h.getExchangeRateHandler)
-	g.Get("/:id", h.getGameHandler)
 
-	// Admin: pre-order lifecycle & per-game alerts.
-	admin := middleware.RequireAdmin(db)
-	g.Patch("/admin/:id/preorder", admin, h.adminSetPreorder)
-	g.Patch("/admin/:id/alert", admin, h.adminSetAlert)
+	// Admin game management. Static segments (/all, /exchange-rate) are registered
+	// before the "/:id" param routes so they take precedence.
+	admin := g.Group("/admin", middleware.RequireAdmin(db))
+	admin.Get("/all", h.adminListGames)
+	admin.Get("/exchange-rate", h.adminGetExchangeRate)
+	admin.Post("/exchange-rate", h.adminSetExchangeRate)
+	admin.Post("/", h.adminCreateGame)
+	admin.Get("/:id", h.adminGetGame)
+	admin.Patch("/:id", h.adminUpdateGame)
+	admin.Delete("/:id", h.adminDeleteGame)
+	admin.Patch("/:id/preorder", h.adminSetPreorder)
+	admin.Patch("/:id/alert", h.adminSetAlert)
+
+	// Public single-game lookup — kept last so it never shadows /games/admin/*.
+	g.Get("/:id", h.getGameHandler)
 }

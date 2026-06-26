@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query"
-import { getGames, getGame, getAdminGames, getAdminExchangeRate } from "./api"
+import { getGames, getGame } from "./api"
+import { getAdminGamesFn, getAdminGameFn } from "./server-fns"
 import type { GamesParams } from "./types"
 
 export const gamesQueryOptions = (params: GamesParams = {}) =>
@@ -14,14 +15,16 @@ export const gameQueryOptions = (id: string) =>
     queryFn: () => getGame(id),
   })
 
+// Full catalog (active + inactive) plus the exchange rate, for admin screens.
 export const adminGamesQueryOptions = () =>
   queryOptions({
     queryKey: ["admin", "games"],
-    queryFn: getAdminGames,
+    queryFn: () => getAdminGamesFn(),
   })
 
-export const adminExchangeRateQueryOptions = () =>
+// A single game (any active state) for the admin edit screen.
+export const adminGameQueryOptions = (id: string) =>
   queryOptions({
-    queryKey: ["admin", "exchange-rate"],
-    queryFn: getAdminExchangeRate,
+    queryKey: ["admin", "games", id],
+    queryFn: () => getAdminGameFn({ data: id }),
   })

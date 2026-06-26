@@ -13,7 +13,12 @@ type DownscaleOpts = {
   aspect?: number
 }
 
-type Drawable = { img: CanvasImageSource; w: number; h: number; cleanup: () => void }
+type Drawable = {
+  img: CanvasImageSource
+  w: number
+  h: number
+  cleanup: () => void
+}
 
 async function loadDrawable(file: File): Promise<Drawable> {
   if (typeof createImageBitmap === "function") {
@@ -28,18 +33,32 @@ async function loadDrawable(file: File): Promise<Drawable> {
       i.onerror = () => reject(new Error("decode failed"))
       i.src = url
     })
-    return { img: el, w: el.naturalWidth, h: el.naturalHeight, cleanup: () => URL.revokeObjectURL(url) }
+    return {
+      img: el,
+      w: el.naturalWidth,
+      h: el.naturalHeight,
+      cleanup: () => URL.revokeObjectURL(url),
+    }
   } catch (e) {
     URL.revokeObjectURL(url)
     throw e
   }
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
-  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), type, quality))
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality: number
+): Promise<Blob | null> {
+  return new Promise((resolve) =>
+    canvas.toBlob((b) => resolve(b), type, quality)
+  )
 }
 
-export async function downscaleImage(file: File, opts: DownscaleOpts = {}): Promise<File> {
+export async function downscaleImage(
+  file: File,
+  opts: DownscaleOpts = {}
+): Promise<File> {
   const { maxDim = 1600, quality = 0.85, aspect } = opts
   try {
     const { img, w: iw, h: ih, cleanup } = await loadDrawable(file)

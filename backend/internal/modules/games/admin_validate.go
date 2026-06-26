@@ -1,0 +1,218 @@
+package games
+
+import (
+	"strings"
+	"time"
+
+	"github.com/soltanmohammdi/z-games/internal/shared/release"
+)
+
+// gameInput is the raw create/update payload from an admin. Pointers distinguish
+// "absent/null" where it matters (cover, dates, alert).
+type gameInput struct {
+	Name          string       `json:"name"`
+	Platform      string       `json:"platform"`
+	PriceMode     string       `json:"price_mode"`
+	CoverImage    *string      `json:"cover_image"`
+	Active        bool         `json:"active"`
+	ReleaseStatus string       `json:"release_status"`
+	ReleaseDate   *string      `json:"release_date"`
+	AlertMessage  *string      `json:"alert_message"`
+	AlertVariant  *string      `json:"alert_variant"`
+	Prices        []priceInput `json:"prices"`
+	Links         []string     `json:"links"`
+}
+
+type priceInput struct {
+	Platform   string   `json:"platform"`
+	Zarfiat    string   `json:"zarfiat"`
+	PriceUSD   *float64 `json:"price_usd"`
+	PriceToman *int     `json:"price_toman"`
+	Slots      *int     `json:"slots"`
+}
+
+// normalizedGame is the cleaned, validated form ready for the DB. Every value is
+// already trimmed, parsed, and consistent (e.g. a dynamic game's prices carry
+// only USD; release_date is parsed; links are deduped).
+type normalizedGame struct {
+	Name          string
+	Platform      string
+	PriceMode     string
+	CoverImage    *string
+	Active        bool
+	ReleaseStatus string
+	ReleaseDate   *time.Time
+	AlertMessage  *string
+	AlertVariant  *string
+	Prices        []normalizedPrice
+	Links         []string
+}
+
+type normalizedPrice struct {
+	Platform   string
+	Zarfiat    string
+	PriceUSD   *float64
+	PriceToman *int
+	Slots      *int
+}
+
+const (
+	maxNameLen    = 200
+	maxCoverLen   = 500
+	maxAlertLen   = 500
+	maxLinkLen    = 500
+	maxLinksCount = 20
+)
+
+var validZarfiats = map[string]bool{"z1": true, "z2": true, "z3": true}
+
+// consolesFor returns the physical consoles a game's platform can be priced on.
+func consolesFor(platform string) []string {
+	switch platform {
+	case "ps4":
+		return []string{"ps4"}
+	case "ps5":
+		return []string{"ps5"}
+	case "ps4_ps5":
+		return []string{"ps4", "ps5"}
+	default:
+		return nil
+	}
+}
+
+// validateGameInput cleans and validates an admin payload. On failure it returns
+// a Persian, user-facing message (the second return); ok is false then. The
+// backend is the authoritative validator — the frontend mirrors these rules only
+// for UX.
+func validateGameInput(in gameInput) (normalizedGame, string, bool) {
+	var out normalizedGame
+
+	out.Name = strings.TrimSpace(in.Name)
+	if out.Name == "" {
+		return out, "نام بازی الزامی است", false
+	}
+	if len(out.Name) > maxNameLen {
+		return out, "نام بازی بیش از حد طولانی است", false
+	}
+
+	consoles := consolesFor(in.Platform)
+	if consoles == nil {
+		return out, "کنسول نامعتبر است", false
+	}
+	out.Platform = in.Platform
+
+	if in.PriceMode != "dynamic" && in.PriceMode != "fixed" {
+		return out, "نوع قیمت‌گذاری نامعتبر است", false
+	}
+	out.PriceMode = in.PriceMode
+
+	if in.CoverImage != nil {
+		cover := strings.TrimSpace(*in.CoverImage)
+		if cover != "" {
+			if len(cover) > maxCoverLen {
+				return out, "آدرس تصویر نامعتبر است", false
+			}
+			out.CoverImage = &cover
+		}
+	}
+
+	out.Active = in.Active
+
+	// Release lifecycle (empty status defaults to released).
+	out.ReleaseStatus = in.ReleaseStatus
+	if out.ReleaseStatus == "" {
+		out.ReleaseStatus = release.StatusReleased
+	}
+	if out.ReleaseStatus != release.StatusReleased && out.ReleaseStatus != release.StatusPreOrder {
+		return out, "وضعیت انتشار نامعتبر است", false
+	}
+	if in.ReleaseDate != nil && strings.TrimSpace(*in.ReleaseDate) != "" {
+		t, err := parseReleaseDate(*in.ReleaseDate)
+		if err != nil {
+			return out, "تاریخ انتشار نامعتبر است", false
+		}
+		out.ReleaseDate = &t
+	}
+
+	// Optional admin alert.
+	if in.AlertMessage != nil && strings.TrimSpace(*in.AlertMessage) != "" {
+		msg := strings.TrimSpace(*in.AlertMessage)
+		if len(msg) > maxAlertLen {
+			return out, "متن اعلان بیش از حد طولانی است", false
+		}
+		variant := "info"
+		if in.AlertVariant != nil && *in.AlertVariant != "" {
+			variant = *in.AlertVariant
+		}
+		if variant != "info" && variant != "warning" {
+			return out, "نوع اعلان نامعتبر است", false
+		}
+		out.AlertMessage = &msg
+		out.AlertVariant = &variant
+	}
+
+	// Prices: each cell must match an allowed console + a valid zarfiat, be unique,
+	// and carry the right currency for the game's price mode.
+	allowedConsole := map[string]bool{}
+	for _, c := range consoles {
+		allowedConsole[c] = true
+	}
+	seen := map[string]bool{}
+	out.Prices = make([]normalizedPrice, 0, len(in.Prices))
+	for _, p := range in.Prices {
+		if !allowedConsole[p.Platform] {
+			return out, "کنسول قیمت با پلتفرم بازی همخوانی ندارد", false
+		}
+		if !validZarfiats[p.Zarfiat] {
+			return out, "ظرفیت نامعتبر است", false
+		}
+		key := p.Platform + "_" + p.Zarfiat
+		if seen[key] {
+			return out, "برای هر ظرفیت فقط یک قیمت مجاز است", false
+		}
+		seen[key] = true
+
+		np := normalizedPrice{Platform: p.Platform, Zarfiat: p.Zarfiat}
+		if in.PriceMode == "dynamic" {
+			if p.PriceUSD == nil || *p.PriceUSD <= 0 {
+				return out, "قیمت دلاری باید بزرگ‌تر از صفر باشد", false
+			}
+			np.PriceUSD = p.PriceUSD
+		} else {
+			if p.PriceToman == nil || *p.PriceToman <= 0 {
+				return out, "قیمت تومانی باید بزرگ‌تر از صفر باشد", false
+			}
+			np.PriceToman = p.PriceToman
+		}
+		if p.Slots != nil {
+			if *p.Slots < 0 {
+				return out, "تعداد ظرفیت نامعتبر است", false
+			}
+			np.Slots = p.Slots
+		}
+		out.Prices = append(out.Prices, np)
+	}
+
+	// Links: trim, drop blanks, dedupe, require http(s).
+	linkSeen := map[string]bool{}
+	out.Links = make([]string, 0, len(in.Links))
+	for _, l := range in.Links {
+		url := strings.TrimSpace(l)
+		if url == "" {
+			continue
+		}
+		if len(url) > maxLinkLen || !(strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+			return out, "آدرس لینک نامعتبر است", false
+		}
+		if linkSeen[url] {
+			continue
+		}
+		linkSeen[url] = true
+		out.Links = append(out.Links, url)
+	}
+	if len(out.Links) > maxLinksCount {
+		return out, "تعداد لینک‌ها بیش از حد مجاز است", false
+	}
+
+	return out, "", true
+}

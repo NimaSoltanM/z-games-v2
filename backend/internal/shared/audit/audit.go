@@ -17,6 +17,10 @@ const (
 	ActionGamePreorder = "game.preorder"
 	ActionGameAlert    = "game.alert"
 	ActionImageUpload  = "image.upload"
+	ActionGameCreate   = "game.create"
+	ActionGameUpdate   = "game.update"
+	ActionGameDelete   = "game.delete"
+	ActionExchangeRate = "exchange_rate.set"
 )
 
 // execer is satisfied by both *pgxpool.Pool and pgx.Tx.

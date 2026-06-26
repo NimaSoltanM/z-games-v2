@@ -1,8 +1,8 @@
 import { apiFetch } from "@/lib/api-client"
 import type {
   Game,
-  GamesListResponse,
   GameDetailResponse,
+  GameFormPayload,
   GamesParams,
   PaginatedGamesResponse,
   ReleaseStatus,
@@ -24,14 +24,7 @@ export function getGame(id: string) {
   return apiFetch<GameDetailResponse>(`/games/${id}`)
 }
 
-export function getAdminGames() {
-  return apiFetch<GamesListResponse>("/games/admin/all")
-}
-
-export function getAdminExchangeRate() {
-  return apiFetch<{ usd_to_toman: number | null }>("/games/admin/exchange-rate")
-}
-
+// Sets the USD→Toman rate that dynamic prices are computed against.
 export function setExchangeRate(usd_to_toman: number) {
   return apiFetch<{ usd_to_toman: number }>("/games/admin/exchange-rate", {
     method: "POST",
@@ -39,24 +32,27 @@ export function setExchangeRate(usd_to_toman: number) {
   })
 }
 
-export function createGame(form: FormData) {
-  return apiFetch<Game>("/games/admin", {
+// Creates a game (definition only — pre-order/alert are set separately).
+export function createGame(body: GameFormPayload) {
+  return apiFetch<{ game: Game }>("/games/admin", {
     method: "POST",
-    headers: {},
-    body: form,
+    body: JSON.stringify(body),
   })
 }
 
-export function updateGame(id: string, form: FormData) {
-  return apiFetch<Game>(`/games/admin/${id}`, {
+// Replaces a game's definition (and its full price/link sets), preserving its
+// separately-managed pre-order and alert state.
+export function updateGame(id: string, body: GameFormPayload) {
+  return apiFetch<{ game: Game }>(`/games/admin/${id}`, {
     method: "PATCH",
-    headers: {},
-    body: form,
+    body: JSON.stringify(body),
   })
 }
 
 export function deleteGame(id: string) {
-  return apiFetch<{ message: string }>(`/games/admin/${id}`, { method: "DELETE" })
+  return apiFetch<{ message: string }>(`/games/admin/${id}`, {
+    method: "DELETE",
+  })
 }
 
 // Sets a game's pre-order lifecycle. release_status is always applied.

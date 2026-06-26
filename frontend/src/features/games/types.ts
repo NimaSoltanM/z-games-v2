@@ -77,6 +77,37 @@ export type GameDetailResponse = {
   exchange_rate: ExchangeRate
 }
 
+// --- admin create/edit payloads --------------------------------------------
+
+export type GamePriceInput = {
+  platform: ConsolePlatform
+  zarfiat: Zarfiat
+  price_usd: number | null
+  price_toman: number | null
+  slots: number | null
+}
+
+// The full game payload an admin submits from the form. `active` doubles as the
+// draft (false) / published (true) flag.
+export type GameFormPayload = {
+  name: string
+  platform: Platform
+  price_mode: PriceMode
+  cover_image: string | null
+  active: boolean
+  release_status: ReleaseStatus
+  release_date: string | null
+  alert_message: string | null
+  alert_variant: AlertVariant | null
+  prices: GamePriceInput[]
+  links: string[]
+}
+
+export type AdminGamesResponse = {
+  games: Game[]
+  exchange_rate: ExchangeRate
+}
+
 export function calcPrice(
   game: Game,
   platform: ConsolePlatform,

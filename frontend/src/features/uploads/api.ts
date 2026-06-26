@@ -13,7 +13,10 @@ export type UploadOptions = {
 // Uploads one image to the admin-only endpoint and returns its stored path
 // (e.g. "/uploads/ab12….jpg"). Uses XHR (not fetch) so the UI can show real
 // upload progress and cancel mid-flight. Rejects with an AbortError when aborted.
-export function uploadImage(file: File, opts: UploadOptions = {}): Promise<{ url: string }> {
+export function uploadImage(
+  file: File,
+  opts: UploadOptions = {}
+): Promise<{ url: string }> {
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3002"
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()

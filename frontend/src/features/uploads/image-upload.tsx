@@ -3,7 +3,12 @@ import { ImagePlus, Loader2, RefreshCw, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_BYTES, resolveMediaUrl, uploadImage } from "./api"
+import {
+  ACCEPTED_IMAGE_TYPES,
+  MAX_IMAGE_BYTES,
+  resolveMediaUrl,
+  uploadImage,
+} from "./api"
 import { downscaleImage } from "./image-utils"
 
 type Props = {
@@ -59,7 +64,9 @@ export function ImageUpload({
     setProgress(0)
     setStatus("در حال بارگذاری تصویر")
     try {
-      const prepared = await downscaleImage(file, { aspect: cropAspect ?? undefined })
+      const prepared = await downscaleImage(file, {
+        aspect: cropAspect ?? undefined,
+      })
       const { url } = await uploadImage(prepared, {
         onProgress: setProgress,
         signal: controller.signal,
@@ -90,13 +97,15 @@ export function ImageUpload({
     e.preventDefault()
     setDragging(false)
     if (busy) return
-    const file = e.dataTransfer.files?.[0]
-    if (file) handleFile(file)
+    const { files } = e.dataTransfer
+    if (files.length > 0) handleFile(files[0])
   }
 
   function onPaste(e: React.ClipboardEvent) {
     if (busy) return
-    const file = Array.from(e.clipboardData.files).find((f) => f.type.startsWith("image/"))
+    const file = Array.from(e.clipboardData.files).find((f) =>
+      f.type.startsWith("image/")
+    )
     if (file) {
       e.preventDefault()
       handleFile(file)
@@ -117,12 +126,27 @@ export function ImageUpload({
       />
 
       {value ? (
-        <div className={cn("relative overflow-hidden rounded-xl border border-border/60", boxClassName)}>
-          <img src={resolveMediaUrl(value)} alt="تصویر بارگذاری‌شده" className="h-full w-full object-cover" />
+        <div
+          className={cn(
+            "relative overflow-hidden rounded-xl border border-border/60",
+            boxClassName
+          )}
+        >
+          <img
+            src={resolveMediaUrl(value)}
+            alt="تصویر بارگذاری‌شده"
+            className="h-full w-full object-cover"
+          />
           {uploading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/75 backdrop-blur-sm">
               <ProgressRingLabel progress={progress} />
-              <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={cancel}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={cancel}
+              >
                 لغو
               </Button>
             </div>
@@ -170,20 +194,28 @@ export function ImageUpload({
           className={cn(
             "flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-background/40 p-4 text-center transition-colors",
             boxClassName,
-            dragging ? "border-primary/60 bg-primary/5" : "border-border/60 hover:border-primary/40",
-            disabled && "cursor-not-allowed opacity-60",
+            dragging
+              ? "border-primary/60 bg-primary/5"
+              : "border-border/60 hover:border-primary/40",
+            disabled && "cursor-not-allowed opacity-60"
           )}
         >
           {uploading ? (
             <>
               <ProgressRingLabel progress={progress} />
-              <span className="text-[11px] text-muted-foreground">برای لغو کلیک کنید</span>
+              <span className="text-[11px] text-muted-foreground">
+                برای لغو کلیک کنید
+              </span>
             </>
           ) : (
             <>
               <ImagePlus className="size-6 text-muted-foreground/60" />
-              <span className="text-xs font-medium">انتخاب، کشیدن یا چسباندن تصویر</span>
-              <span className="text-[11px] text-muted-foreground">JPEG، PNG یا WebP تا ۵ مگابایت</span>
+              <span className="text-xs font-medium">
+                انتخاب، کشیدن یا چسباندن تصویر
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                JPEG، PNG یا WebP تا ۵ مگابایت
+              </span>
             </>
           )}
         </button>

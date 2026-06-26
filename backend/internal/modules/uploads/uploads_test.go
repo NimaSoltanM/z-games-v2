@@ -384,8 +384,8 @@ func TestSweepOrphans(t *testing.T) {
 		}
 	}
 
-	write("referenced.jpg", old) // old but in use → kept
-	write("orphan_old.jpg", old) // old and unused → removed
+	write("referenced.jpg", old)        // old but in use → kept
+	write("orphan_old.jpg", old)        // old and unused → removed
 	write("orphan_new.jpg", time.Now()) // unused but fresh → spared by grace
 
 	mustExec(t, db,

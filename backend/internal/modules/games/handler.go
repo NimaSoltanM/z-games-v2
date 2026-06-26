@@ -208,6 +208,120 @@ func (h *handler) adminSetAlert(c fiber.Ctx) error {
 	return h.respondGame(c, id)
 }
 
+// --- admin: game CRUD + exchange rate ---------------------------------------
+
+// adminListGames returns the full catalog (active and inactive) plus the current
+// exchange rate, for the admin management screen.
+func (h *handler) adminListGames(c fiber.Ctx) error {
+	games, _, err := listGames(c.Context(), h.db, listFilter{onlyActive: false}, "created_at DESC", 500, 0)
+	if err != nil {
+		return fmt.Errorf("adminListGames: %w", err)
+	}
+	rate, err := getExchangeRate(c.Context(), h.db)
+	if err != nil {
+		return fmt.Errorf("adminListGames rate: %w", err)
+	}
+	return c.JSON(fiber.Map{"games": games, "exchange_rate": rate})
+}
+
+// adminGetGame returns a single game (any active state) for the edit screen.
+func (h *handler) adminGetGame(c fiber.Ctx) error {
+	return h.respondGame(c, c.Params("id"))
+}
+
+func (h *handler) adminCreateGame(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+
+	var in gameInput
+	if err := c.Bind().JSON(&in); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
+	}
+	norm, msg, ok := validateGameInput(in)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": msg})
+	}
+
+	id, err := createGame(c.Context(), h.db, adminID, norm)
+	if errors.Is(err, ErrDuplicateLink) {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این لینک قبلاً برای بازی دیگری ثبت شده است"})
+	}
+	if err != nil {
+		return err
+	}
+
+	game, err := getGameByID(c.Context(), h.db, id, false)
+	if err != nil {
+		return fmt.Errorf("adminCreateGame load: %w", err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"game": game})
+}
+
+func (h *handler) adminUpdateGame(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+	id := c.Params("id")
+
+	var in gameInput
+	if err := c.Bind().JSON(&in); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
+	}
+	norm, msg, ok := validateGameInput(in)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": msg})
+	}
+
+	err := updateGame(c.Context(), h.db, adminID, id, norm)
+	switch {
+	case errors.Is(err, ErrGameNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
+	case errors.Is(err, ErrDuplicateLink):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این لینک قبلاً برای بازی دیگری ثبت شده است"})
+	case err != nil:
+		return err
+	}
+	return h.respondGame(c, id)
+}
+
+func (h *handler) adminDeleteGame(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+	err := deleteGame(c.Context(), h.db, adminID, c.Params("id"))
+	switch {
+	case errors.Is(err, ErrGameNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
+	case err != nil:
+		return err
+	}
+	return c.JSON(fiber.Map{"message": "بازی حذف شد"})
+}
+
+func (h *handler) adminGetExchangeRate(c fiber.Ctx) error {
+	rate, err := getExchangeRate(c.Context(), h.db)
+	if err != nil {
+		return fmt.Errorf("adminGetExchangeRate: %w", err)
+	}
+	var value any
+	if rate != nil {
+		value = rate.USDToToman
+	}
+	return c.JSON(fiber.Map{"usd_to_toman": value})
+}
+
+func (h *handler) adminSetExchangeRate(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+	var body struct {
+		USDToToman int `json:"usd_to_toman"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
+	}
+	if err := setExchangeRate(c.Context(), h.db, adminID, body.USDToToman); err != nil {
+		if errors.Is(err, ErrInvalidInput) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "نرخ ارز باید بزرگ‌تر از صفر باشد"})
+		}
+		return err
+	}
+	return c.JSON(fiber.Map{"usd_to_toman": body.USDToToman})
+}
+
 // respondGame returns a game by id without the active-only filter (admin view).
 func (h *handler) respondGame(c fiber.Ctx, id string) error {
 	game, err := getGameByID(c.Context(), h.db, id, false)
