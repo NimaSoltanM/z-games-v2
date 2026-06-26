@@ -24,11 +24,20 @@ export function getGame(id: string) {
   return apiFetch<GameDetailResponse>(`/games/${id}`)
 }
 
-// Sets the USD→Toman rate that dynamic prices are computed against.
-export function setExchangeRate(usd_to_toman: number) {
-  return apiFetch<{ usd_to_toman: number }>("/games/admin/exchange-rate", {
+// Sets the global pricing config: the USD→Toman rate, the capacity split, and
+// the default margin that dynamic prices derive from.
+export type PricingConfigInput = {
+  usd_to_toman: number
+  z1_pct: number
+  z2_pct: number
+  z3_pct: number
+  default_margin_pct: number
+}
+
+export function setPricingConfig(body: PricingConfigInput) {
+  return apiFetch<unknown>("/games/admin/exchange-rate", {
     method: "POST",
-    body: JSON.stringify({ usd_to_toman }),
+    body: JSON.stringify(body),
   })
 }
 

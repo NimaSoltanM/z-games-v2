@@ -19,6 +19,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { AdminShell } from "@/components/admin-shell"
@@ -32,8 +33,8 @@ import {
   PLATFORM_BADGE_CLASS,
   PreOrderBadge,
 } from "@/features/games"
-import type { Game, Platform } from "@/features/games"
-import { setExchangeRate } from "@/features/games/api"
+import type { ExchangeRate, Game, Platform } from "@/features/games"
+import { setPricingConfig } from "@/features/games/api"
 import {
   ActiveToggle,
   AlertPopover,
@@ -150,7 +151,7 @@ function AdminGamesContent() {
 
   return (
     <div className="space-y-5">
-      <ExchangeRatePanel rate={data.exchange_rate?.usd_to_toman ?? null} />
+      <PricingPanel config={data.exchange_rate} />
 
       <div className="space-y-3">
         <div className="relative">
@@ -285,38 +286,86 @@ function GameRow({ game }: { game: Game }) {
   )
 }
 
-function ExchangeRatePanel({ rate }: { rate: number | null }) {
+function PctField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        dir="ltr"
+        inputMode="numeric"
+        className="h-9 w-20"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+      />
+    </div>
+  )
+}
+
+function PricingPanel({ config }: { config: ExchangeRate }) {
   const queryClient = useQueryClient()
-  const [value, setValue] = useState(rate?.toString() ?? "")
+  const [rate, setRate] = useState(
+    config?.usd_to_toman != null ? String(config.usd_to_toman) : ""
+  )
+  const [z1, setZ1] = useState(String(config?.z1_pct ?? 15))
+  const [z2, setZ2] = useState(String(config?.z2_pct ?? 60))
+  const [z3, setZ3] = useState(String(config?.z3_pct ?? 25))
+  const [margin, setMargin] = useState(String(config?.default_margin_pct ?? 10))
+
+  const splitSum = Number(z1 || 0) + Number(z2 || 0) + Number(z3 || 0)
+  const valid = Number(rate) > 0 && splitSum === 100 && margin !== ""
 
   const m = useMutation({
-    mutationFn: () => setExchangeRate(Number(value)),
+    mutationFn: () =>
+      setPricingConfig({
+        usd_to_toman: Number(rate),
+        z1_pct: Number(z1),
+        z2_pct: Number(z2),
+        z3_pct: Number(z3),
+        default_margin_pct: Number(margin),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "games"] })
       queryClient.invalidateQueries({ queryKey: ["games"] })
-      toast.success("نرخ ارز به‌روزرسانی شد")
+      queryClient.invalidateQueries({ queryKey: ["admin", "pricing"] })
+      toast.success("تنظیمات قیمت‌گذاری ذخیره شد")
     },
     onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "خطا در ذخیره نرخ ارز"),
+      toast.error(e instanceof Error ? e.message : "خطا در ذخیره"),
   })
 
-  const valid = Number(value) > 0
-
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card/75 p-4 backdrop-blur-sm">
-      <div className="min-w-0">
-        <p className="text-sm font-medium">نرخ ارز (دلار → تومان)</p>
+    <div className="space-y-3 rounded-xl border border-border/60 bg-card/75 p-4 backdrop-blur-sm">
+      <div>
+        <p className="text-sm font-medium">تنظیمات قیمت‌گذاری</p>
         <p className="text-xs text-muted-foreground">
-          قیمت بازی‌های داینامیک بر این اساس محاسبه می‌شود
+          نرخ ارز، درصد سود پیش‌فرض، و سهم هر ظرفیت از قیمت کل (مجموع باید ۱۰۰
+          باشد)
         </p>
       </div>
-      <div className="ms-auto flex items-center gap-2">
-        <MoneyInput
-          value={value}
-          onChange={setValue}
-          className="h-9 w-36"
-          placeholder="95,000"
-        />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">
+            نرخ ارز (دلار → تومان)
+          </Label>
+          <MoneyInput
+            value={rate}
+            onChange={setRate}
+            className="h-9 w-36"
+            placeholder="95,000"
+          />
+        </div>
+        <PctField label="سود پیش‌فرض (٪)" value={margin} onChange={setMargin} />
+        <PctField label="ظرفیت ۱ (٪)" value={z1} onChange={setZ1} />
+        <PctField label="ظرفیت ۲ (٪)" value={z2} onChange={setZ2} />
+        <PctField label="ظرفیت ۳ (٪)" value={z3} onChange={setZ3} />
         <Button
           size="sm"
           disabled={!valid || m.isPending}
@@ -325,6 +374,12 @@ function ExchangeRatePanel({ rate }: { rate: number | null }) {
           ذخیره
         </Button>
       </div>
+      {splitSum !== 100 && (
+        <p className="text-xs text-destructive">
+          مجموع درصد ظرفیت‌ها باید ۱۰۰ باشد (اکنون{" "}
+          {splitSum.toLocaleString("fa-IR")})
+        </p>
+      )}
     </div>
   )
 }

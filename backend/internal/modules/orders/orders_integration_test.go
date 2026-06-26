@@ -27,9 +27,11 @@ func seedGame(t *testing.T, ctx context.Context, db *pgxpool.Pool, id, mode stri
 		id, mode, active)
 }
 
+// seedDynamicPrice gives a dynamic game a base USD price per console; the z2
+// price (used by the cart helpers) derives as usd * (1+10%) * 60% * rate.
 func seedDynamicPrice(t *testing.T, ctx context.Context, db *pgxpool.Pool, gameID string, usd float64) {
 	mustExec(t, ctx, db,
-		"INSERT INTO game_prices (game_id, platform, zarfiat, price_usd) VALUES ($1, 'ps5', 'z2', $2)",
+		"INSERT INTO game_base_prices (game_id, platform, base_usd) VALUES ($1, 'ps5', $2)",
 		gameID, usd)
 }
 
@@ -211,7 +213,8 @@ func TestComputeCart(t *testing.T) {
 	if len(items) != 1 {
 		t.Fatalf("items = %d, want 1", len(items))
 	}
-	if want := 8 * 95000 * 2; total != want {
+	// z2 = 8 * (1+10%) * 60% * 95000 = 501,600; quantity 2.
+	if want := 501600 * 2; total != want {
 		t.Fatalf("total = %d, want %d", total, want)
 	}
 }

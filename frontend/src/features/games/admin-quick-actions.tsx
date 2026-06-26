@@ -43,13 +43,20 @@ function gameToPayload(game: Game): GameFormPayload {
     release_date: game.release_date,
     alert_message: game.alert_message,
     alert_variant: game.alert_variant,
-    prices: game.prices.map((p) => ({
-      platform: p.platform,
-      zarfiat: p.zarfiat,
-      price_usd: p.price_usd !== null ? Number(p.price_usd) : null,
-      price_toman: p.price_toman,
-      slots: p.slots,
+    profit_margin_pct: game.profit_margin_pct,
+    base_prices: game.base_prices.map((b) => ({
+      platform: b.platform,
+      base_usd: Number(b.base_usd),
     })),
+    prices:
+      game.price_mode === "fixed"
+        ? game.prices.map((p) => ({
+            platform: p.platform,
+            zarfiat: p.zarfiat,
+            price_toman: p.price_toman,
+            slots: p.slots,
+          }))
+        : [],
     links: game.links.map((l) => l.url),
   }
 }

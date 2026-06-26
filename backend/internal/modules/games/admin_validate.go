@@ -7,52 +7,63 @@ import (
 	"github.com/soltanmohammdi/z-games/internal/shared/release"
 )
 
-// gameInput is the raw create/update payload from an admin. Pointers distinguish
-// "absent/null" where it matters (cover, dates, alert).
+// gameInput is the raw create/update payload from an admin. Dynamic games carry
+// base_prices (one USD price per console) + an optional margin override; fixed
+// games carry per-tier Toman prices.
 type gameInput struct {
-	Name          string       `json:"name"`
-	Platform      string       `json:"platform"`
-	PriceMode     string       `json:"price_mode"`
-	CoverImage    *string      `json:"cover_image"`
-	Active        bool         `json:"active"`
-	ReleaseStatus string       `json:"release_status"`
-	ReleaseDate   *string      `json:"release_date"`
-	AlertMessage  *string      `json:"alert_message"`
-	AlertVariant  *string      `json:"alert_variant"`
-	Prices        []priceInput `json:"prices"`
-	Links         []string     `json:"links"`
+	Name            string           `json:"name"`
+	Platform        string           `json:"platform"`
+	PriceMode       string           `json:"price_mode"`
+	CoverImage      *string          `json:"cover_image"`
+	Active          bool             `json:"active"`
+	ReleaseStatus   string           `json:"release_status"`
+	ReleaseDate     *string          `json:"release_date"`
+	AlertMessage    *string          `json:"alert_message"`
+	AlertVariant    *string          `json:"alert_variant"`
+	ProfitMarginPct *int             `json:"profit_margin_pct"`
+	BasePrices      []basePriceInput `json:"base_prices"`
+	Prices          []priceInput     `json:"prices"`
+	Links           []string         `json:"links"`
+}
+
+type basePriceInput struct {
+	Platform string  `json:"platform"`
+	BaseUSD  float64 `json:"base_usd"`
 }
 
 type priceInput struct {
-	Platform   string   `json:"platform"`
-	Zarfiat    string   `json:"zarfiat"`
-	PriceUSD   *float64 `json:"price_usd"`
-	PriceToman *int     `json:"price_toman"`
-	Slots      *int     `json:"slots"`
+	Platform   string `json:"platform"`
+	Zarfiat    string `json:"zarfiat"`
+	PriceToman *int   `json:"price_toman"`
+	Slots      *int   `json:"slots"`
 }
 
-// normalizedGame is the cleaned, validated form ready for the DB. Every value is
-// already trimmed, parsed, and consistent (e.g. a dynamic game's prices carry
-// only USD; release_date is parsed; links are deduped).
+// normalizedGame is the cleaned, validated form ready for the DB.
 type normalizedGame struct {
-	Name          string
-	Platform      string
-	PriceMode     string
-	CoverImage    *string
-	Active        bool
-	ReleaseStatus string
-	ReleaseDate   *time.Time
-	AlertMessage  *string
-	AlertVariant  *string
-	Prices        []normalizedPrice
-	Links         []string
+	Name            string
+	Platform        string
+	PriceMode       string
+	CoverImage      *string
+	Active          bool
+	ReleaseStatus   string
+	ReleaseDate     *time.Time
+	AlertMessage    *string
+	AlertVariant    *string
+	ProfitMarginPct *int
+	BasePrices      []normalizedBasePrice // dynamic only
+	Prices          []normalizedPrice     // fixed only
+	Links           []string
+}
+
+type normalizedBasePrice struct {
+	Platform string
+	BaseUSD  float64
 }
 
 type normalizedPrice struct {
 	Platform   string
 	Zarfiat    string
-	PriceUSD   *float64
-	PriceToman *int
+	PriceToman int
 	Slots      *int
 }
 
@@ -62,6 +73,7 @@ const (
 	maxAlertLen   = 500
 	maxLinkLen    = 500
 	maxLinksCount = 20
+	maxMarginPct  = 1000
 )
 
 var validZarfiats = map[string]bool{"z1": true, "z2": true, "z3": true}
@@ -81,9 +93,8 @@ func consolesFor(platform string) []string {
 }
 
 // validateGameInput cleans and validates an admin payload. On failure it returns
-// a Persian, user-facing message (the second return); ok is false then. The
-// backend is the authoritative validator — the frontend mirrors these rules only
-// for UX.
+// a Persian, user-facing message; ok is false then. The backend is the
+// authoritative validator — the frontend mirrors these rules only for UX.
 func validateGameInput(in gameInput) (normalizedGame, string, bool) {
 	var out normalizedGame
 
@@ -100,6 +111,10 @@ func validateGameInput(in gameInput) (normalizedGame, string, bool) {
 		return out, "کنسول نامعتبر است", false
 	}
 	out.Platform = in.Platform
+	allowedConsole := map[string]bool{}
+	for _, c := range consoles {
+		allowedConsole[c] = true
+	}
 
 	if in.PriceMode != "dynamic" && in.PriceMode != "fixed" {
 		return out, "نوع قیمت‌گذاری نامعتبر است", false
@@ -151,46 +166,56 @@ func validateGameInput(in gameInput) (normalizedGame, string, bool) {
 		out.AlertVariant = &variant
 	}
 
-	// Prices: each cell must match an allowed console + a valid zarfiat, be unique,
-	// and carry the right currency for the game's price mode.
-	allowedConsole := map[string]bool{}
-	for _, c := range consoles {
-		allowedConsole[c] = true
-	}
-	seen := map[string]bool{}
-	out.Prices = make([]normalizedPrice, 0, len(in.Prices))
-	for _, p := range in.Prices {
-		if !allowedConsole[p.Platform] {
-			return out, "کنسول قیمت با پلتفرم بازی همخوانی ندارد", false
+	// Pricing — branches on the mode.
+	if in.PriceMode == "dynamic" {
+		if in.ProfitMarginPct != nil {
+			if *in.ProfitMarginPct < 0 || *in.ProfitMarginPct > maxMarginPct {
+				return out, "درصد سود نامعتبر است", false
+			}
+			out.ProfitMarginPct = in.ProfitMarginPct
 		}
-		if !validZarfiats[p.Zarfiat] {
-			return out, "ظرفیت نامعتبر است", false
-		}
-		key := p.Platform + "_" + p.Zarfiat
-		if seen[key] {
-			return out, "برای هر ظرفیت فقط یک قیمت مجاز است", false
-		}
-		seen[key] = true
-
-		np := normalizedPrice{Platform: p.Platform, Zarfiat: p.Zarfiat}
-		if in.PriceMode == "dynamic" {
-			if p.PriceUSD == nil || *p.PriceUSD <= 0 {
+		seen := map[string]bool{}
+		out.BasePrices = make([]normalizedBasePrice, 0, len(in.BasePrices))
+		for _, b := range in.BasePrices {
+			if !allowedConsole[b.Platform] {
+				return out, "کنسول قیمت با پلتفرم بازی همخوانی ندارد", false
+			}
+			if seen[b.Platform] {
+				return out, "برای هر کنسول فقط یک قیمت پایه مجاز است", false
+			}
+			seen[b.Platform] = true
+			if b.BaseUSD <= 0 {
 				return out, "قیمت دلاری باید بزرگ‌تر از صفر باشد", false
 			}
-			np.PriceUSD = p.PriceUSD
-		} else {
+			out.BasePrices = append(out.BasePrices, normalizedBasePrice{Platform: b.Platform, BaseUSD: b.BaseUSD})
+		}
+	} else {
+		seen := map[string]bool{}
+		out.Prices = make([]normalizedPrice, 0, len(in.Prices))
+		for _, p := range in.Prices {
+			if !allowedConsole[p.Platform] {
+				return out, "کنسول قیمت با پلتفرم بازی همخوانی ندارد", false
+			}
+			if !validZarfiats[p.Zarfiat] {
+				return out, "ظرفیت نامعتبر است", false
+			}
+			key := p.Platform + "_" + p.Zarfiat
+			if seen[key] {
+				return out, "برای هر ظرفیت فقط یک قیمت مجاز است", false
+			}
+			seen[key] = true
 			if p.PriceToman == nil || *p.PriceToman <= 0 {
 				return out, "قیمت تومانی باید بزرگ‌تر از صفر باشد", false
 			}
-			np.PriceToman = p.PriceToman
-		}
-		if p.Slots != nil {
-			if *p.Slots < 0 {
-				return out, "تعداد ظرفیت نامعتبر است", false
+			np := normalizedPrice{Platform: p.Platform, Zarfiat: p.Zarfiat, PriceToman: *p.PriceToman}
+			if p.Slots != nil {
+				if *p.Slots < 0 {
+					return out, "تعداد ظرفیت نامعتبر است", false
+				}
+				np.Slots = p.Slots
 			}
-			np.Slots = p.Slots
+			out.Prices = append(out.Prices, np)
 		}
-		out.Prices = append(out.Prices, np)
 	}
 
 	// Links: trim, drop blanks, dedupe, require http(s).

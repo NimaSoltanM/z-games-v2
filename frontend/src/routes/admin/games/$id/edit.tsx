@@ -15,7 +15,10 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AdminShell } from "@/components/admin-shell"
 import { getMeFn } from "@/features/auth"
-import { adminGameQueryOptions } from "@/features/games"
+import {
+  adminGameQueryOptions,
+  adminPricingQueryOptions,
+} from "@/features/games"
 import { GameForm } from "@/features/games/game-form"
 
 function EditGameError({ error }: ErrorComponentProps) {
@@ -34,6 +37,7 @@ export const Route = createFileRoute("/admin/games/$id/edit")({
   },
   loader: ({ context, params }) => {
     context.queryClient.prefetchQuery(adminGameQueryOptions(params.id))
+    context.queryClient.prefetchQuery(adminPricingQueryOptions())
   },
   component: EditGamePage,
   errorComponent: EditGameError,

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/modules/uploads"
 	"github.com/soltanmohammdi/z-games/internal/shared/audit"
+	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
 	"github.com/soltanmohammdi/z-games/internal/shared/release"
 )
 
@@ -36,12 +37,22 @@ func isUniqueViolation(err error) bool {
 // insertChildren writes a game's prices and links inside an open transaction.
 // Returns ErrDuplicateLink if a link URL collides with another game's.
 func insertChildren(ctx context.Context, tx pgx.Tx, gameID string, in normalizedGame) error {
-	for _, p := range in.Prices {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO game_prices (game_id, platform, zarfiat, price_usd, price_toman, slots)
-			VALUES ($1, $2, $3, $4, $5, $6)
-		`, gameID, p.Platform, p.Zarfiat, p.PriceUSD, p.PriceToman, p.Slots); err != nil {
-			return fmt.Errorf("insert price: %w", err)
+	if in.PriceMode == "dynamic" {
+		for _, b := range in.BasePrices {
+			if _, err := tx.Exec(ctx,
+				"INSERT INTO game_base_prices (game_id, platform, base_usd) VALUES ($1, $2, $3)",
+				gameID, b.Platform, b.BaseUSD); err != nil {
+				return fmt.Errorf("insert base price: %w", err)
+			}
+		}
+	} else {
+		for _, p := range in.Prices {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO game_prices (game_id, platform, zarfiat, price_toman, slots)
+				VALUES ($1, $2, $3, $4, $5)
+			`, gameID, p.Platform, p.Zarfiat, p.PriceToman, p.Slots); err != nil {
+				return fmt.Errorf("insert price: %w", err)
+			}
 		}
 	}
 	for _, url := range in.Links {
@@ -78,10 +89,11 @@ func createGame(ctx context.Context, db *pgxpool.Pool, adminID string, in normal
 
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO games (id, name, cover_image, platform, price_mode, active,
-		                   release_status, release_date, alert_message, alert_variant)
-		VALUES ($1, $2, $3, $4::platform, $5::price_mode, $6, $7, $8, $9, $10)
+		                   release_status, release_date, alert_message, alert_variant, profit_margin_pct)
+		VALUES ($1, $2, $3, $4::platform, $5::price_mode, $6, $7, $8, $9, $10, $11)
 	`, id, in.Name, in.CoverImage, in.Platform, in.PriceMode, in.Active,
-		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant); err != nil {
+		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant,
+		in.ProfitMarginPct); err != nil {
 		return "", fmt.Errorf("createGame insert: %w", err)
 	}
 
@@ -127,15 +139,21 @@ func updateGame(ctx context.Context, db *pgxpool.Pool, adminID, id string, in no
 	if _, err := tx.Exec(ctx, `
 		UPDATE games SET name = $2, cover_image = $3, platform = $4::platform,
 		       price_mode = $5::price_mode, active = $6, release_status = $7,
-		       release_date = $8, alert_message = $9, alert_variant = $10, updated_at = NOW()
+		       release_date = $8, alert_message = $9, alert_variant = $10,
+		       profit_margin_pct = $11, updated_at = NOW()
 		WHERE id = $1
 	`, id, in.Name, in.CoverImage, in.Platform, in.PriceMode, in.Active,
-		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant); err != nil {
+		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant,
+		in.ProfitMarginPct); err != nil {
 		return fmt.Errorf("updateGame update: %w", err)
 	}
 
+	// Replace both price representations (the game may have switched modes).
 	if _, err := tx.Exec(ctx, "DELETE FROM game_prices WHERE game_id = $1", id); err != nil {
 		return fmt.Errorf("updateGame clear prices: %w", err)
+	}
+	if _, err := tx.Exec(ctx, "DELETE FROM game_base_prices WHERE game_id = $1", id); err != nil {
+		return fmt.Errorf("updateGame clear base prices: %w", err)
 	}
 	if _, err := tx.Exec(ctx, "DELETE FROM game_links WHERE game_id = $1", id); err != nil {
 		return fmt.Errorf("updateGame clear links: %w", err)
@@ -217,11 +235,24 @@ func cleanupReplacedCover(oldCover, newCover *string) {
 	}
 }
 
-// setExchangeRate upserts the single USD→Toman rate row. Audited.
-func setExchangeRate(ctx context.Context, db *pgxpool.Pool, adminID string, rate int) error {
+var (
+	ErrRateInvalid  = errors.New("RATE_INVALID")
+	ErrSplitInvalid = errors.New("SPLIT_INVALID")
+)
+
+// setExchangeRate upserts the global pricing config singleton: the USD→Toman rate,
+// the capacity split, and the default margin. The split must sum to 100. Audited.
+func setExchangeRate(ctx context.Context, db *pgxpool.Pool, adminID string, rate int, cfg pricing.Config) error {
 	if rate <= 0 {
+		return ErrRateInvalid
+	}
+	if cfg.Z1Pct < 0 || cfg.Z2Pct < 0 || cfg.Z3Pct < 0 || cfg.Z1Pct+cfg.Z2Pct+cfg.Z3Pct != 100 {
+		return ErrSplitInvalid
+	}
+	if cfg.DefaultMarginPct < 0 {
 		return ErrInvalidInput
 	}
+
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("setExchangeRate begin: %w", err)
@@ -229,15 +260,17 @@ func setExchangeRate(ctx context.Context, db *pgxpool.Pool, adminID string, rate
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO exchange_rate (id, usd_to_toman, updated_at) VALUES (1, $1, NOW())
-		ON CONFLICT (id) DO UPDATE SET usd_to_toman = $1, updated_at = NOW()
-	`, rate); err != nil {
+		INSERT INTO exchange_rate (id, usd_to_toman, z1_pct, z2_pct, z3_pct, default_margin_pct, updated_at)
+		VALUES (1, $1, $2, $3, $4, $5, NOW())
+		ON CONFLICT (id) DO UPDATE SET usd_to_toman = $1, z1_pct = $2, z2_pct = $3,
+		       z3_pct = $4, default_margin_pct = $5, updated_at = NOW()
+	`, rate, cfg.Z1Pct, cfg.Z2Pct, cfg.Z3Pct, cfg.DefaultMarginPct); err != nil {
 		return fmt.Errorf("setExchangeRate upsert: %w", err)
 	}
 	if err := audit.Record(ctx, tx, audit.Entry{
 		AdminID:  adminID,
 		Action:   audit.ActionExchangeRate,
-		Metadata: map[string]any{"usd_to_toman": rate},
+		Metadata: map[string]any{"usd_to_toman": rate, "split": []int{cfg.Z1Pct, cfg.Z2Pct, cfg.Z3Pct}, "default_margin_pct": cfg.DefaultMarginPct},
 	}); err != nil {
 		return fmt.Errorf("setExchangeRate: %w", err)
 	}

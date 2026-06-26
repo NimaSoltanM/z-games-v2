@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
 import { getRequestHeader } from "@tanstack/react-start/server"
-import type { AdminGamesResponse, Game } from "./types"
+import type { AdminGamesResponse, ExchangeRate, Game } from "./types"
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3002"
 
@@ -29,3 +29,15 @@ export const getAdminGameFn = createServerFn({ method: "GET" })
     if (!res.ok) throw new Error("FETCH_ADMIN_GAME_FAILED")
     return (await res.json()) as { game: Game }
   })
+
+// The global pricing config (rate + split + default margin), for the form preview.
+export const getAdminPricingFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const cookie = getRequestHeader("cookie")
+    const res = await fetch(`${API_URL}/games/admin/exchange-rate`, {
+      headers: cookie ? { cookie } : {},
+    })
+    if (!res.ok) throw new Error("FETCH_ADMIN_PRICING_FAILED")
+    return (await res.json()) as NonNullable<ExchangeRate>
+  }
+)

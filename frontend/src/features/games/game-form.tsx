@@ -1,6 +1,10 @@
 import { useRef } from "react"
 import { useForm } from "@tanstack/react-form"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { Plus, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -15,11 +19,13 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { MoneyInput } from "@/components/money-input"
 import { ImageUpload } from "@/features/uploads"
 import { createGame, updateGame } from "./api"
-import { PLATFORM_LABEL, ZARFIAT_LABEL } from "./types"
+import { adminPricingQueryOptions } from "./queries"
+import { PLATFORM_LABEL, ZARFIAT_LABEL, formatToman } from "./types"
 import type {
   AlertVariant,
   ConsolePlatform,
   Game,
+  GameBasePriceInput,
   GameFormPayload,
   GamePriceInput,
   Platform,
@@ -49,6 +55,8 @@ type FormValues = {
   platform: Platform
   price_mode: PriceMode
   cover_image: string | null
+  margin: string
+  bases: Record<ConsolePlatform, string>
   prices: Cell[]
   links: { url: string }[]
   release_status: ReleaseStatus
@@ -67,13 +75,10 @@ function emptyCells(): Cell[] {
 
 function initialValues(game?: Game): FormValues {
   const cells = emptyCells()
-  if (game) {
+  if (game && game.price_mode === "fixed") {
     for (const pr of game.prices) {
       const cell = cells[cellIndex(pr.platform, pr.zarfiat)]
-      cell.price =
-        game.price_mode === "fixed"
-          ? (pr.price_toman?.toString() ?? "")
-          : (pr.price_usd ?? "")
+      cell.price = pr.price_toman?.toString() ?? ""
       cell.slots = pr.slots?.toString() ?? ""
     }
   }
@@ -82,6 +87,12 @@ function initialValues(game?: Game): FormValues {
     platform: game?.platform ?? "ps5",
     price_mode: game?.price_mode ?? "dynamic",
     cover_image: game?.cover_image ?? null,
+    margin:
+      game?.profit_margin_pct != null ? String(game.profit_margin_pct) : "",
+    bases: {
+      ps4: game?.base_prices.find((b) => b.platform === "ps4")?.base_usd ?? "",
+      ps5: game?.base_prices.find((b) => b.platform === "ps5")?.base_usd ?? "",
+    },
     prices: cells,
     links: game?.links.map((l) => ({ url: l.url })) ?? [],
     release_status: game?.release_status ?? "released",
@@ -101,6 +112,8 @@ const schema = z
     platform: z.enum(["ps4", "ps5", "ps4_ps5"]),
     price_mode: z.enum(["dynamic", "fixed"]),
     cover_image: z.string().nullable(),
+    margin: z.string(),
+    bases: z.object({ ps4: z.string(), ps5: z.string() }),
     prices: z.array(
       z.object({
         platform: z.enum(["ps4", "ps5"]),
@@ -117,31 +130,58 @@ const schema = z
   })
   .superRefine((val, ctx) => {
     const consoles = consolesFor(val.platform)
-    val.prices.forEach((cell, i) => {
-      if (!consoles.includes(cell.platform)) return
-      const p = cell.price.trim()
-      if (p !== "") {
-        const n = Number(p)
-        if (!Number.isFinite(n) || n <= 0) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["prices", i, "price"],
-            message: "قیمت باید بزرگ‌تر از صفر باشد",
-          })
+    if (val.price_mode === "dynamic") {
+      for (const con of consoles) {
+        const b = val.bases[con].trim()
+        if (b !== "") {
+          const n = Number(b)
+          if (!Number.isFinite(n) || n <= 0) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["bases", con],
+              message: "قیمت پایه باید بزرگ‌تر از صفر باشد",
+            })
+          }
         }
       }
-      const s = cell.slots.trim()
-      if (s !== "") {
-        const n = Number(s)
+      const m = val.margin.trim()
+      if (m !== "") {
+        const n = Number(m)
         if (!Number.isInteger(n) || n < 0) {
           ctx.addIssue({
             code: "custom",
-            path: ["prices", i, "slots"],
-            message: "تعداد نامعتبر است",
+            path: ["margin"],
+            message: "درصد سود نامعتبر است",
           })
         }
       }
-    })
+    } else {
+      val.prices.forEach((cell, i) => {
+        if (!consoles.includes(cell.platform)) return
+        const p = cell.price.trim()
+        if (p !== "") {
+          const n = Number(p)
+          if (!Number.isFinite(n) || n <= 0) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["prices", i, "price"],
+              message: "قیمت باید بزرگ‌تر از صفر باشد",
+            })
+          }
+        }
+        const s = cell.slots.trim()
+        if (s !== "") {
+          const n = Number(s)
+          if (!Number.isInteger(n) || n < 0) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["prices", i, "slots"],
+              message: "تعداد نامعتبر است",
+            })
+          }
+        }
+      })
+    }
     val.links.forEach((l, i) => {
       const u = l.url.trim()
       if (u !== "" && !/^https?:\/\//i.test(u)) {
@@ -156,20 +196,30 @@ const schema = z
 
 function toPayload(v: FormValues, active: boolean): GameFormPayload {
   const consoles = consolesFor(v.platform)
+  const basePrices: GameBasePriceInput[] = []
   const prices: GamePriceInput[] = []
-  for (const cell of v.prices) {
-    if (!consoles.includes(cell.platform)) continue
-    const p = cell.price.trim()
-    if (p === "") continue
-    const num = Number(p)
-    prices.push({
-      platform: cell.platform,
-      zarfiat: cell.zarfiat,
-      price_usd: v.price_mode === "dynamic" ? num : null,
-      price_toman: v.price_mode === "fixed" ? Math.round(num) : null,
-      slots: cell.slots.trim() === "" ? null : Number(cell.slots),
-    })
+  let margin: number | null = null
+
+  if (v.price_mode === "dynamic") {
+    for (const con of consoles) {
+      const b = v.bases[con].trim()
+      if (b !== "") basePrices.push({ platform: con, base_usd: Number(b) })
+    }
+    margin = v.margin.trim() === "" ? null : Number(v.margin)
+  } else {
+    for (const cell of v.prices) {
+      if (!consoles.includes(cell.platform)) continue
+      const p = cell.price.trim()
+      if (p === "") continue
+      prices.push({
+        platform: cell.platform,
+        zarfiat: cell.zarfiat,
+        price_toman: Math.round(Number(p)),
+        slots: cell.slots.trim() === "" ? null : Number(cell.slots),
+      })
+    }
   }
+
   const alertMessage = v.alert_message.trim()
   return {
     name: v.name.trim(),
@@ -184,6 +234,8 @@ function toPayload(v: FormValues, active: boolean): GameFormPayload {
         : null,
     alert_message: alertMessage === "" ? null : alertMessage,
     alert_variant: alertMessage === "" ? null : v.alert_variant,
+    profit_margin_pct: margin,
+    base_prices: basePrices,
     prices,
     links: v.links.map((l) => l.url.trim()).filter(Boolean),
   }
@@ -201,8 +253,8 @@ function errText(errors: unknown[]): string {
 export function GameForm({ game }: { game?: Game }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { data: pricing } = useSuspenseQuery(adminPricingQueryOptions())
   const published = game?.active ?? false
-  // Which "active" the next submit applies, set by the Draft / Publish button.
   const activeRef = useRef(published)
 
   const mutation = useMutation({
@@ -251,7 +303,6 @@ export function GameForm({ game }: { game?: Game }) {
         </Badge>
       )}
 
-      {/* Name */}
       <Card>
         <form.Field name="name">
           {(field) => {
@@ -275,7 +326,6 @@ export function GameForm({ game }: { game?: Game }) {
         </form.Field>
       </Card>
 
-      {/* Platform + price mode */}
       <Card className="grid gap-5 sm:grid-cols-2">
         <form.Field name="platform">
           {(field) => (
@@ -325,111 +375,184 @@ export function GameForm({ game }: { game?: Game }) {
         </form.Field>
       </Card>
 
-      {/* Pricing matrix */}
+      {/* Pricing */}
       <Card>
-        <p className="mb-1 text-sm font-semibold">قیمت‌ها</p>
-        <form.Subscribe
-          selector={(s) => ({
-            platform: s.values.platform,
-            mode: s.values.price_mode,
-          })}
-        >
-          {({ platform, mode }) => {
-            const dynamic = mode === "dynamic"
-            return (
+        <p className="mb-3 text-sm font-semibold">قیمت‌گذاری</p>
+        <form.Subscribe selector={(s) => s.values.price_mode}>
+          {(mode) =>
+            mode === "dynamic" ? (
               <div className="space-y-4">
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  فقط ظرفیت‌هایی که قیمت دارند فروخته می‌شوند؛ بقیه را خالی
-                  بگذارید.{" "}
-                  {dynamic ? (
-                    <>
-                      مبلغ به{" "}
-                      <span className="font-medium text-foreground">دلار</span>{" "}
-                      است و می‌توانید اعشار وارد کنید (مثلاً{" "}
-                      <span dir="ltr">۶۹.۹۹</span> یا <span dir="ltr">۶۹</span>
-                      ). قیمت نهایی تومان بر اساس نرخ ارز محاسبه می‌شود.
-                    </>
-                  ) : (
-                    <>
-                      مبلغ به{" "}
-                      <span className="font-medium text-foreground">تومان</span>{" "}
-                      است؛ جداکننده‌ی هزارگان خودکار اضافه می‌شود (کافی است عدد
-                      را وارد کنید، مثلاً <span dir="ltr">۹۵۰۰۰</span> →{" "}
-                      <span dir="ltr">95,000</span>).
-                    </>
-                  )}
+                  یک{" "}
+                  <span className="font-medium text-foreground">
+                    قیمت پایه به دلار
+                  </span>{" "}
+                  برای هر کنسول وارد کنید؛ قیمت سه ظرفیت به‌صورت خودکار محاسبه
+                  می‌شود. می‌توانید اعشار وارد کنید (مثلاً{" "}
+                  <span dir="ltr">۶۹.۹۹</span>).
                 </p>
-                {consolesFor(platform).map((con) => (
-                  <div key={con} className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {con.toUpperCase()}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      {ZARFIATS_ALL.map((zf) => {
-                        const i = cellIndex(con, zf)
-                        return (
-                          <div
-                            key={zf}
-                            className="space-y-2 rounded-xl border border-border/60 bg-background/40 p-3"
-                          >
-                            <p className="text-xs text-muted-foreground">
-                              {ZARFIAT_LABEL[zf]}
-                            </p>
-                            <form.Field name={`prices[${i}].price`}>
-                              {(field) => {
-                                const invalid =
-                                  field.state.meta.isTouched &&
-                                  !field.state.meta.isValid
-                                return (
-                                  <div className="space-y-1">
-                                    <MoneyInput
-                                      decimals={dynamic}
-                                      placeholder={
-                                        dynamic ? "قیمت ($)" : "قیمت (تومان)"
-                                      }
+
+                <form.Field name="margin">
+                  {(field) => {
+                    const invalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    return (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="margin">درصد سود (اختیاری)</Label>
+                        <Input
+                          id="margin"
+                          dir="ltr"
+                          inputMode="numeric"
+                          className="w-32"
+                          placeholder={`پیش‌فرض ${pricing.default_margin_pct.toLocaleString("fa-IR")}٪`}
+                          value={field.state.value}
+                          onChange={(e) =>
+                            field.handleChange(
+                              e.target.value.replace(/\D/g, "")
+                            )
+                          }
+                          aria-invalid={invalid}
+                        />
+                        {invalid && (
+                          <FieldError errors={field.state.meta.errors} />
+                        )}
+                      </div>
+                    )
+                  }}
+                </form.Field>
+
+                <form.Subscribe
+                  selector={(s) => ({
+                    platform: s.values.platform,
+                    margin: s.values.margin,
+                    bases: s.values.bases,
+                  })}
+                >
+                  {({ platform, margin, bases }) => (
+                    <div className="space-y-4">
+                      {consolesFor(platform).map((con) => (
+                        <div
+                          key={con}
+                          className="space-y-2 rounded-xl border border-border/60 bg-background/40 p-3"
+                        >
+                          <form.Field name={`bases.${con}`}>
+                            {(field) => {
+                              const invalid =
+                                field.state.meta.isTouched &&
+                                !field.state.meta.isValid
+                              return (
+                                <div className="space-y-1.5">
+                                  <Label>
+                                    {con.toUpperCase()} — قیمت پایه ($)
+                                  </Label>
+                                  <MoneyInput
+                                    decimals
+                                    className="w-40"
+                                    placeholder="69.99"
+                                    value={field.state.value}
+                                    onChange={field.handleChange}
+                                    onBlur={field.handleBlur}
+                                    aria-invalid={invalid}
+                                  />
+                                  {invalid && (
+                                    <FieldError
+                                      errors={field.state.meta.errors}
+                                    />
+                                  )}
+                                </div>
+                              )
+                            }}
+                          </form.Field>
+                          <DerivedPreview
+                            base={bases[con]}
+                            margin={margin}
+                            config={pricing}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </form.Subscribe>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  قیمت هر ظرفیت را به{" "}
+                  <span className="font-medium text-foreground">تومان</span>{" "}
+                  وارد کنید؛ جداکننده‌ی هزارگان خودکار اضافه می‌شود. ظرفیت‌های
+                  بدون قیمت فروخته نمی‌شوند.
+                </p>
+                <form.Subscribe selector={(s) => s.values.platform}>
+                  {(platform) =>
+                    consolesFor(platform).map((con) => (
+                      <div key={con} className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          {con.toUpperCase()}
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          {ZARFIATS_ALL.map((zf) => {
+                            const i = cellIndex(con, zf)
+                            return (
+                              <div
+                                key={zf}
+                                className="space-y-2 rounded-xl border border-border/60 bg-background/40 p-3"
+                              >
+                                <p className="text-xs text-muted-foreground">
+                                  {ZARFIAT_LABEL[zf]}
+                                </p>
+                                <form.Field name={`prices[${i}].price`}>
+                                  {(field) => {
+                                    const invalid =
+                                      field.state.meta.isTouched &&
+                                      !field.state.meta.isValid
+                                    return (
+                                      <div className="space-y-1">
+                                        <MoneyInput
+                                          placeholder="قیمت (تومان)"
+                                          className="h-8 text-xs"
+                                          value={field.state.value}
+                                          onChange={field.handleChange}
+                                          onBlur={field.handleBlur}
+                                          aria-invalid={invalid}
+                                        />
+                                        {invalid && (
+                                          <FieldError
+                                            errors={field.state.meta.errors}
+                                          />
+                                        )}
+                                      </div>
+                                    )
+                                  }}
+                                </form.Field>
+                                <form.Field name={`prices[${i}].slots`}>
+                                  {(field) => (
+                                    <Input
+                                      dir="ltr"
+                                      inputMode="numeric"
+                                      placeholder="ظرفیت (اختیاری)"
                                       className="h-8 text-xs"
                                       value={field.state.value}
-                                      onChange={field.handleChange}
                                       onBlur={field.handleBlur}
-                                      aria-invalid={invalid}
+                                      onChange={(e) =>
+                                        field.handleChange(e.target.value)
+                                      }
                                     />
-                                    {invalid && (
-                                      <FieldError
-                                        errors={field.state.meta.errors}
-                                      />
-                                    )}
-                                  </div>
-                                )
-                              }}
-                            </form.Field>
-                            <form.Field name={`prices[${i}].slots`}>
-                              {(field) => (
-                                <Input
-                                  dir="ltr"
-                                  inputMode="numeric"
-                                  placeholder="ظرفیت (اختیاری)"
-                                  className="h-8 text-xs"
-                                  value={field.state.value}
-                                  onBlur={field.handleBlur}
-                                  onChange={(e) =>
-                                    field.handleChange(e.target.value)
-                                  }
-                                />
-                              )}
-                            </form.Field>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
+                                  )}
+                                </form.Field>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  }
+                </form.Subscribe>
               </div>
             )
-          }}
+          }
         </form.Subscribe>
       </Card>
 
-      {/* Cover */}
       <Card>
         <form.Field name="cover_image">
           {(field) => (
@@ -481,9 +604,6 @@ export function GameForm({ game }: { game?: Game }) {
                         value={dateField.state.value}
                         onChange={(e) => dateField.handleChange(e.target.value)}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        فروش پیش‌خرید یک روز پیش از این تاریخ بسته می‌شود.
-                      </p>
                     </div>
                   )}
                 </form.Field>
@@ -498,8 +618,7 @@ export function GameForm({ game }: { game?: Game }) {
         <div>
           <p className="text-sm font-semibold">اعلان بازی (اختیاری)</p>
           <p className="text-xs text-muted-foreground">
-            یک پیام در صفحه‌ی بازی نمایش داده می‌شود. خالی بگذارید تا اعلانی
-            نباشد.
+            خالی بگذارید تا اعلانی نباشد.
           </p>
         </div>
         <form.Field name="alert_message">
@@ -590,7 +709,7 @@ export function GameForm({ game }: { game?: Game }) {
         </form.Field>
       </Card>
 
-      {/* Actions: draft vs publish */}
+      {/* Actions */}
       <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           type="button"
@@ -610,7 +729,6 @@ export function GameForm({ game }: { game?: Game }) {
                 <Button
                   type="button"
                   variant="outline"
-                  className="gap-1.5"
                   disabled={!canSubmit || busy}
                   onClick={() => submitAs(false)}
                 >
@@ -631,6 +749,55 @@ export function GameForm({ game }: { game?: Game }) {
         </form.Subscribe>
       </div>
     </form>
+  )
+}
+
+// Live preview of the three derived tier prices for a dynamic base price.
+function DerivedPreview({
+  base,
+  margin,
+  config,
+}: {
+  base: string
+  margin: string
+  config: {
+    z1_pct: number
+    z2_pct: number
+    z3_pct: number
+    default_margin_pct: number
+    usd_to_toman: number | null
+  }
+}) {
+  const b = Number(base.trim())
+  if (!base.trim() || !Number.isFinite(b) || b <= 0) return null
+  const m = margin.trim() === "" ? config.default_margin_pct : Number(margin)
+  const rate = config.usd_to_toman
+  const split: Record<Zarfiat, number> = {
+    z1: config.z1_pct,
+    z2: config.z2_pct,
+    z3: config.z3_pct,
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-2 pt-1">
+      {ZARFIATS_ALL.map((zf) => {
+        const usd = b * (1 + m / 100) * (split[zf] / 100)
+        const toman = rate != null ? Math.round(usd * rate) : null
+        return (
+          <div
+            key={zf}
+            className="rounded-lg bg-background/60 px-2 py-1.5 text-center"
+          >
+            <p className="text-[10px] text-muted-foreground">
+              {ZARFIAT_LABEL[zf]}
+            </p>
+            <p className="text-xs font-semibold text-primary">
+              {toman != null ? formatToman(toman) : `$${usd.toFixed(2)}`}
+            </p>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

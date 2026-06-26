@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/shared/audit"
+	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
 	"github.com/soltanmohammdi/z-games/internal/shared/release"
 )
 
@@ -28,27 +28,27 @@ type orderItem struct {
 	PreOrder bool // game was in its pre-order phase at checkout
 }
 
-// computeCart reads the user's cart and prices every line at CURRENT prices
-// (dynamic = price_usd * exchange rate, fixed = price_toman). Returns the items
-// and the total in Toman. Errors if the cart is empty or any item is no longer
-// purchasable (inactive game or missing price) — we never charge for those.
+// computeCart reads the user's cart and prices every line at CURRENT prices: a
+// fixed game uses its stored per-tier Toman price; a dynamic game derives its
+// tier price from its base USD price * rate * (1+margin) * split. Returns the
+// items and the Toman total. Errors if the cart is empty or any item is no longer
+// purchasable (inactive game, missing price, or closing pre-order window).
 func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderItem, int, error) {
-	var rate int
-	err := db.QueryRow(ctx, "SELECT usd_to_toman FROM exchange_rate WHERE id = 1").Scan(&rate)
-	if errors.Is(err, pgx.ErrNoRows) {
-		rate = 0
-	} else if err != nil {
-		return nil, 0, fmt.Errorf("computeCart rate: %w", err)
+	rate, cfg, err := loadPricing(ctx, db)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	rows, err := db.Query(ctx, `
 		SELECT ci.game_id, g.name, ci.platform, ci.zarfiat, ci.quantity,
-		       g.active, g.price_mode::text, gp.price_usd::float8, gp.price_toman,
-		       g.release_status, g.release_date
+		       g.active, g.price_mode::text, gp.price_toman, gbp.base_usd::float8,
+		       g.profit_margin_pct, g.release_status, g.release_date
 		FROM cart_items ci
 		JOIN games g ON g.id = ci.game_id
 		LEFT JOIN game_prices gp
 		  ON gp.game_id = ci.game_id AND gp.platform = ci.platform AND gp.zarfiat = ci.zarfiat
+		LEFT JOIN game_base_prices gbp
+		  ON gbp.game_id = ci.game_id AND gbp.platform = ci.platform
 		WHERE ci.user_id = $1
 		ORDER BY ci.created_at ASC
 	`, userID)
@@ -65,13 +65,14 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 			it            orderItem
 			active        bool
 			priceMode     string
-			priceUSD      *float64
 			priceTmn      *int
+			baseUSD       *float64
+			marginPct     *int
 			releaseStatus string
 			releaseDate   *time.Time
 		)
 		if err := rows.Scan(&it.GameID, &it.GameName, &it.Platform, &it.Zarfiat, &it.Quantity,
-			&active, &priceMode, &priceUSD, &priceTmn, &releaseStatus, &releaseDate); err != nil {
+			&active, &priceMode, &priceTmn, &baseUSD, &marginPct, &releaseStatus, &releaseDate); err != nil {
 			return nil, 0, fmt.Errorf("computeCart scan: %w", err)
 		}
 		// Pre-order sales close in the window just before release, so an item that
@@ -82,7 +83,7 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 			return nil, 0, ErrInvalidCart
 		}
 		it.PreOrder = phase == release.PhasePreOrder
-		price, ok := unitPrice(active, priceMode, priceUSD, priceTmn, rate)
+		price, ok := unitPrice(active, priceMode, baseUSD, marginPct, priceTmn, rate, cfg, it.Zarfiat)
 		if !ok {
 			return nil, 0, ErrInvalidCart
 		}
@@ -102,7 +103,24 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 	return items, total, nil
 }
 
-func unitPrice(active bool, priceMode string, priceUSD *float64, priceTmn *int, rate int) (int, bool) {
+// loadPricing reads the exchange rate + global pricing config; the rate is 0 and
+// the config is defaults if none has been saved yet.
+func loadPricing(ctx context.Context, db *pgxpool.Pool) (int, pricing.Config, error) {
+	rate := 0
+	cfg := pricing.DefaultConfig
+	err := db.QueryRow(ctx,
+		"SELECT usd_to_toman, z1_pct, z2_pct, z3_pct, default_margin_pct FROM exchange_rate WHERE id = 1",
+	).Scan(&rate, &cfg.Z1Pct, &cfg.Z2Pct, &cfg.Z3Pct, &cfg.DefaultMarginPct)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, pricing.DefaultConfig, nil
+	}
+	if err != nil {
+		return 0, pricing.Config{}, fmt.Errorf("loadPricing: %w", err)
+	}
+	return rate, cfg, nil
+}
+
+func unitPrice(active bool, priceMode string, baseUSD *float64, marginOverride *int, priceTmn *int, rate int, cfg pricing.Config, zarfiat string) (int, bool) {
 	if !active {
 		return 0, false
 	}
@@ -112,11 +130,15 @@ func unitPrice(active bool, priceMode string, priceUSD *float64, priceTmn *int, 
 		}
 		return *priceTmn, true
 	}
-	// dynamic
-	if priceUSD == nil || rate <= 0 {
+	// Dynamic: derive the tier price from the game's base USD price.
+	if baseUSD == nil || rate <= 0 {
 		return 0, false
 	}
-	return int(math.Round(*priceUSD * float64(rate))), true
+	p := cfg.TierToman(*baseUSD, cfg.Margin(marginOverride), rate, zarfiat)
+	if p <= 0 {
+		return 0, false
+	}
+	return p, true
 }
 
 func createPendingOrder(ctx context.Context, db *pgxpool.Pool, userID string, amount int, referralCode string, items []orderItem) (string, error) {

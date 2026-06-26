@@ -23,6 +23,11 @@ export type GamePrice = {
   slots: number | null
 }
 
+export type GameBasePrice = {
+  platform: ConsolePlatform
+  base_usd: string
+}
+
 export type Game = {
   id: string
   name: string
@@ -30,6 +35,8 @@ export type Game = {
   platform: Platform
   price_mode: PriceMode
   prices: GamePrice[]
+  base_prices: GameBasePrice[]
+  profit_margin_pct: number | null
   active: boolean
   links: GameLink[]
   release_status: ReleaseStatus
@@ -42,11 +49,20 @@ export type Game = {
   updated_at: string
 }
 
-export type ExchangeRate = {
-  id: number
-  usd_to_toman: number
-  updated_at: string
-} | null
+// Global pricing config (capacity split + default margin), returned alongside the
+// USD→Toman rate. The whole object is always present; usd_to_toman may be null.
+export type PricingConfig = {
+  z1_pct: number
+  z2_pct: number
+  z3_pct: number
+  default_margin_pct: number
+}
+
+export type ExchangeRate =
+  | ({
+      usd_to_toman: number | null
+    } & PricingConfig)
+  | null
 
 export type GamesParams = {
   page?: number
@@ -82,13 +98,18 @@ export type GameDetailResponse = {
 export type GamePriceInput = {
   platform: ConsolePlatform
   zarfiat: Zarfiat
-  price_usd: number | null
   price_toman: number | null
   slots: number | null
 }
 
+export type GameBasePriceInput = {
+  platform: ConsolePlatform
+  base_usd: number
+}
+
 // The full game payload an admin submits from the form. `active` doubles as the
-// draft (false) / published (true) flag.
+// draft (false) / published (true) flag. Dynamic games send base_prices (+ an
+// optional margin override); fixed games send per-tier prices.
 export type GameFormPayload = {
   name: string
   platform: Platform
@@ -99,6 +120,8 @@ export type GameFormPayload = {
   release_date: string | null
   alert_message: string | null
   alert_variant: AlertVariant | null
+  profit_margin_pct: number | null
+  base_prices: GameBasePriceInput[]
   prices: GamePriceInput[]
   links: string[]
 }
@@ -119,7 +142,7 @@ export function calcPrice(
   )
   if (!entry) return null
   if (game.price_mode === "fixed") return entry.price_toman
-  if (!entry.price_usd || !rate) return null
+  if (!entry.price_usd || !rate || rate.usd_to_toman == null) return null
   return Math.round(parseFloat(entry.price_usd) * rate.usd_to_toman)
 }
 

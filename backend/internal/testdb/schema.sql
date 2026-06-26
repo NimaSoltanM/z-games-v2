@@ -133,7 +133,25 @@ CREATE TABLE public.cart_items (
 CREATE TABLE public.exchange_rate (
     id integer DEFAULT 1 NOT NULL,
     usd_to_toman integer NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    z1_pct integer DEFAULT 15 NOT NULL,
+    z2_pct integer DEFAULT 60 NOT NULL,
+    z3_pct integer DEFAULT 25 NOT NULL,
+    default_margin_pct integer DEFAULT 10 NOT NULL
+);
+
+
+--
+-- Name: game_base_prices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.game_base_prices (
+    id character varying(36) DEFAULT (gen_random_uuid())::text NOT NULL,
+    game_id character varying NOT NULL,
+    platform character varying(4) NOT NULL,
+    base_usd numeric(10,2) NOT NULL,
+    CONSTRAINT game_base_prices_base_usd_check CHECK ((base_usd > (0)::numeric)),
+    CONSTRAINT game_base_prices_platform_check CHECK (((platform)::text = ANY ((ARRAY['ps4'::character varying, 'ps5'::character varying])::text[])))
 );
 
 
@@ -183,8 +201,10 @@ CREATE TABLE public.games (
     release_date timestamp without time zone,
     alert_message text,
     alert_variant text,
+    profit_margin_pct integer,
     CONSTRAINT games_release_status_check CHECK ((release_status = ANY (ARRAY['released'::text, 'pre_order'::text]))),
-    CONSTRAINT games_alert_variant_check CHECK (((alert_variant IS NULL) OR (alert_variant = ANY (ARRAY['info'::text, 'warning'::text]))))
+    CONSTRAINT games_alert_variant_check CHECK (((alert_variant IS NULL) OR (alert_variant = ANY (ARRAY['info'::text, 'warning'::text])))),
+    CONSTRAINT games_profit_margin_pct_check CHECK (((profit_margin_pct IS NULL) OR (profit_margin_pct >= 0)))
 );
 
 
@@ -357,6 +377,30 @@ ALTER TABLE ONLY public.game_prices
 
 ALTER TABLE ONLY public.games
     ADD CONSTRAINT games_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: game_base_prices game_base_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_base_prices
+    ADD CONSTRAINT game_base_prices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: game_base_prices game_base_prices_game_id_platform_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_base_prices
+    ADD CONSTRAINT game_base_prices_game_id_platform_key UNIQUE (game_id, platform);
+
+
+--
+-- Name: game_base_prices game_base_prices_game_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_base_prices
+    ADD CONSTRAINT game_base_prices_game_id_fkey FOREIGN KEY (game_id) REFERENCES public.games(id) ON DELETE CASCADE;
 
 
 --

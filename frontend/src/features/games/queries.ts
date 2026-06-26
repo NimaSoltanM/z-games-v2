@@ -1,6 +1,10 @@
 import { queryOptions } from "@tanstack/react-query"
 import { getGames, getGame } from "./api"
-import { getAdminGamesFn, getAdminGameFn } from "./server-fns"
+import {
+  getAdminGamesFn,
+  getAdminGameFn,
+  getAdminPricingFn,
+} from "./server-fns"
 import type { GamesParams } from "./types"
 
 export const gamesQueryOptions = (params: GamesParams = {}) =>
@@ -27,4 +31,11 @@ export const adminGameQueryOptions = (id: string) =>
   queryOptions({
     queryKey: ["admin", "games", id],
     queryFn: () => getAdminGameFn({ data: id }),
+  })
+
+// Global pricing config (rate + split + default margin), for the form preview.
+export const adminPricingQueryOptions = () =>
+  queryOptions({
+    queryKey: ["admin", "pricing"],
+    queryFn: () => getAdminPricingFn(),
   })

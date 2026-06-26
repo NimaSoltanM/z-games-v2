@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import { AdminShell } from "@/components/admin-shell"
 import { getMeFn } from "@/features/auth"
+import { adminPricingQueryOptions } from "@/features/games"
 import { GameForm } from "@/features/games/game-form"
 
 export const Route = createFileRoute("/admin/games/new")({
@@ -10,6 +11,9 @@ export const Route = createFileRoute("/admin/games/new")({
     if (!me)
       throw redirect({ to: "/auth", search: { redirect: "/admin/games/new" } })
     if (me.role === "user") throw redirect({ to: "/" })
+  },
+  loader: ({ context }) => {
+    context.queryClient.prefetchQuery(adminPricingQueryOptions())
   },
   component: NewGamePage,
 })

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GamesIndexRouteImport } from './routes/games/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
@@ -23,6 +24,11 @@ import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin/orders/$o
 import { Route as AdminGamesNewRouteImport } from './routes/admin/games/new'
 import { Route as AdminGamesIdEditRouteImport } from './routes/admin/games/$id/edit'
 
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -64,33 +70,34 @@ const GamesIdIndexRoute = GamesIdIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
-  id: '/admin/orders/',
-  path: '/admin/orders/',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminGamesIndexRoute = AdminGamesIndexRouteImport.update({
-  id: '/admin/games/',
-  path: '/admin/games/',
-  getParentRoute: () => rootRouteImport,
+  id: '/games/',
+  path: '/games/',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
-  id: '/admin/orders/$orderId',
-  path: '/admin/orders/$orderId',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders/$orderId',
+  path: '/orders/$orderId',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminGamesNewRoute = AdminGamesNewRouteImport.update({
-  id: '/admin/games/new',
-  path: '/admin/games/new',
-  getParentRoute: () => rootRouteImport,
+  id: '/games/new',
+  path: '/games/new',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminGamesIdEditRoute = AdminGamesIdEditRouteImport.update({
-  id: '/admin/games/$id/edit',
-  path: '/admin/games/$id/edit',
-  getParentRoute: () => rootRouteImport,
+  id: '/games/$id/edit',
+  path: '/games/$id/edit',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/payment/result': typeof PaymentResultRoute
   '/auth/': typeof AuthIndexRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/payment/result': typeof PaymentResultRoute
   '/auth': typeof AuthIndexRoute
@@ -122,6 +130,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/payment/result': typeof PaymentResultRoute
   '/auth/': typeof AuthIndexRoute
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/dashboard/$orderId'
     | '/payment/result'
     | '/auth/'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/dashboard/$orderId'
     | '/payment/result'
     | '/auth'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/dashboard/$orderId'
     | '/payment/result'
     | '/auth/'
@@ -185,22 +197,25 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   DashboardOrderIdRoute: typeof DashboardOrderIdRoute
   PaymentResultRoute: typeof PaymentResultRoute
   AuthIndexRoute: typeof AuthIndexRoute
   CartIndexRoute: typeof CartIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   GamesIndexRoute: typeof GamesIndexRoute
-  AdminGamesNewRoute: typeof AdminGamesNewRoute
-  AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
-  AdminGamesIndexRoute: typeof AdminGamesIndexRoute
-  AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
   GamesIdIndexRoute: typeof GamesIdIndexRoute
-  AdminGamesIdEditRoute: typeof AdminGamesIdEditRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -259,56 +274,72 @@ declare module '@tanstack/react-router' {
     }
     '/admin/orders/': {
       id: '/admin/orders/'
-      path: '/admin/orders'
+      path: '/orders'
       fullPath: '/admin/orders/'
       preLoaderRoute: typeof AdminOrdersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/games/': {
       id: '/admin/games/'
-      path: '/admin/games'
+      path: '/games'
       fullPath: '/admin/games/'
       preLoaderRoute: typeof AdminGamesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/orders/$orderId': {
       id: '/admin/orders/$orderId'
-      path: '/admin/orders/$orderId'
+      path: '/orders/$orderId'
       fullPath: '/admin/orders/$orderId'
       preLoaderRoute: typeof AdminOrdersOrderIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/games/new': {
       id: '/admin/games/new'
-      path: '/admin/games/new'
+      path: '/games/new'
       fullPath: '/admin/games/new'
       preLoaderRoute: typeof AdminGamesNewRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/games/$id/edit': {
       id: '/admin/games/$id/edit'
-      path: '/admin/games/$id/edit'
+      path: '/games/$id/edit'
       fullPath: '/admin/games/$id/edit'
       preLoaderRoute: typeof AdminGamesIdEditRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
   }
 }
 
+interface AdminRouteRouteChildren {
+  AdminGamesNewRoute: typeof AdminGamesNewRoute
+  AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
+  AdminGamesIndexRoute: typeof AdminGamesIndexRoute
+  AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
+  AdminGamesIdEditRoute: typeof AdminGamesIdEditRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminGamesNewRoute: AdminGamesNewRoute,
+  AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
+  AdminGamesIndexRoute: AdminGamesIndexRoute,
+  AdminOrdersIndexRoute: AdminOrdersIndexRoute,
+  AdminGamesIdEditRoute: AdminGamesIdEditRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   DashboardOrderIdRoute: DashboardOrderIdRoute,
   PaymentResultRoute: PaymentResultRoute,
   AuthIndexRoute: AuthIndexRoute,
   CartIndexRoute: CartIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   GamesIndexRoute: GamesIndexRoute,
-  AdminGamesNewRoute: AdminGamesNewRoute,
-  AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
-  AdminGamesIndexRoute: AdminGamesIndexRoute,
-  AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   GamesIdIndexRoute: GamesIdIndexRoute,
-  AdminGamesIdEditRoute: AdminGamesIdEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

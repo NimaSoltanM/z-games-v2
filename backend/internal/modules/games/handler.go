@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/paginate"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/shared/middleware"
+	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
 )
 
 var sortColMap = map[string]string{
@@ -43,7 +44,7 @@ func (h *handler) listGamesHandler(c fiber.Ctx) error {
 		return fmt.Errorf("list games: %w", err)
 	}
 
-	rate, err := getExchangeRate(c.Context(), h.db)
+	rate, err := getPricingResponse(c.Context(), h.db)
 	if err != nil {
 		return fmt.Errorf("get exchange rate: %w", err)
 	}
@@ -79,7 +80,7 @@ func (h *handler) getGameHandler(c fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
 	}
 
-	rate, err := getExchangeRate(c.Context(), h.db)
+	rate, err := getPricingResponse(c.Context(), h.db)
 	if err != nil {
 		return fmt.Errorf("get exchange rate: %w", err)
 	}
@@ -91,7 +92,7 @@ func (h *handler) getGameHandler(c fiber.Ctx) error {
 }
 
 func (h *handler) getExchangeRateHandler(c fiber.Ctx) error {
-	rate, err := getExchangeRate(c.Context(), h.db)
+	rate, err := getPricingResponse(c.Context(), h.db)
 	if err != nil {
 		return fmt.Errorf("get exchange rate: %w", err)
 	}
@@ -217,7 +218,7 @@ func (h *handler) adminListGames(c fiber.Ctx) error {
 	if err != nil {
 		return fmt.Errorf("adminListGames: %w", err)
 	}
-	rate, err := getExchangeRate(c.Context(), h.db)
+	rate, err := getPricingResponse(c.Context(), h.db)
 	if err != nil {
 		return fmt.Errorf("adminListGames rate: %w", err)
 	}
@@ -294,32 +295,39 @@ func (h *handler) adminDeleteGame(c fiber.Ctx) error {
 }
 
 func (h *handler) adminGetExchangeRate(c fiber.Ctx) error {
-	rate, err := getExchangeRate(c.Context(), h.db)
+	rate, err := getPricingResponse(c.Context(), h.db)
 	if err != nil {
 		return fmt.Errorf("adminGetExchangeRate: %w", err)
 	}
-	var value any
-	if rate != nil {
-		value = rate.USDToToman
-	}
-	return c.JSON(fiber.Map{"usd_to_toman": value})
+	return c.JSON(rate)
 }
 
 func (h *handler) adminSetExchangeRate(c fiber.Ctx) error {
 	adminID := c.Locals(middleware.LocalUserID).(string)
 	var body struct {
-		USDToToman int `json:"usd_to_toman"`
+		USDToToman       int `json:"usd_to_toman"`
+		Z1Pct            int `json:"z1_pct"`
+		Z2Pct            int `json:"z2_pct"`
+		Z3Pct            int `json:"z3_pct"`
+		DefaultMarginPct int `json:"default_margin_pct"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
-	if err := setExchangeRate(c.Context(), h.db, adminID, body.USDToToman); err != nil {
-		if errors.Is(err, ErrInvalidInput) {
+	cfg := pricing.Config{Z1Pct: body.Z1Pct, Z2Pct: body.Z2Pct, Z3Pct: body.Z3Pct, DefaultMarginPct: body.DefaultMarginPct}
+	if err := setExchangeRate(c.Context(), h.db, adminID, body.USDToToman, cfg); err != nil {
+		switch {
+		case errors.Is(err, ErrRateInvalid):
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "نرخ ارز باید بزرگ‌تر از صفر باشد"})
+		case errors.Is(err, ErrSplitInvalid):
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "مجموع درصد ظرفیت‌ها باید ۱۰۰ باشد"})
+		case errors.Is(err, ErrInvalidInput):
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "مقادیر نامعتبر است"})
+		default:
+			return err
 		}
-		return err
 	}
-	return c.JSON(fiber.Map{"usd_to_toman": body.USDToToman})
+	return h.adminGetExchangeRate(c)
 }
 
 // respondGame returns a game by id without the active-only filter (admin view).
