@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
-import { Package, Gamepad2 } from "lucide-react"
+import { Package, Gamepad2, ScrollText } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-shell"
 import type { DashNavItem } from "@/components/dashboard-shell"
@@ -13,6 +13,12 @@ const NAV: readonly DashNavItem[] = [
     label: "سفارش‌ها",
   },
   { to: "/admin/games", icon: Gamepad2, label: "بازی‌ها" },
+  {
+    to: "/admin/audit",
+    search: { page: 1, action: "", admin_id: "" },
+    icon: ScrollText,
+    label: "تاریخچه",
+  },
 ]
 
 export const Route = createFileRoute("/admin")({

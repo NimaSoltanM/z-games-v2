@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/helmet"
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/soltanmohammdi/z-games/internal/modules/audit"
 	"github.com/soltanmohammdi/z-games/internal/modules/auth"
 	"github.com/soltanmohammdi/z-games/internal/modules/cart"
 	"github.com/soltanmohammdi/z-games/internal/modules/games"
@@ -59,6 +60,7 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 	games.RegisterRoutes(app, db)
 	orders.RegisterRoutes(app, db)
 	uploads.RegisterRoutes(app, db)
+	audit.RegisterRoutes(app, db)
 
 	return app
 }
