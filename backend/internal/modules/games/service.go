@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/shared/audit"
 	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
@@ -39,25 +38,25 @@ func setGamePreorder(ctx context.Context, db *pgxpool.Pool, adminID, gameID, sta
 	}
 	defer tx.Rollback(ctx)
 
-	var tag pgconn.CommandTag
+	var name string
 	if updateDate {
-		tag, err = tx.Exec(ctx,
-			"UPDATE games SET release_status = $1, release_date = $2, updated_at = NOW() WHERE id = $3",
-			status, releaseDate, gameID)
+		err = tx.QueryRow(ctx,
+			"UPDATE games SET release_status = $1, release_date = $2, updated_at = NOW() WHERE id = $3 RETURNING name",
+			status, releaseDate, gameID).Scan(&name)
 	} else {
 		// Leave release_date exactly as-is — this is the pause/resume path.
-		tag, err = tx.Exec(ctx,
-			"UPDATE games SET release_status = $1, updated_at = NOW() WHERE id = $2",
-			status, gameID)
+		err = tx.QueryRow(ctx,
+			"UPDATE games SET release_status = $1, updated_at = NOW() WHERE id = $2 RETURNING name",
+			status, gameID).Scan(&name)
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrGameNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("setGamePreorder update: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrGameNotFound
-	}
 
-	meta := map[string]any{"release_status": status, "date_updated": updateDate}
+	meta := map[string]any{"name": name, "release_status": status, "date_updated": updateDate}
 	if updateDate {
 		meta["release_date"] = releaseDate
 	}
@@ -98,14 +97,15 @@ func setGameAlert(ctx context.Context, db *pgxpool.Pool, adminID, gameID, messag
 	}
 	defer tx.Rollback(ctx)
 
-	tag, err := tx.Exec(ctx,
-		"UPDATE games SET alert_message = $1, alert_variant = $2, updated_at = NOW() WHERE id = $3",
-		msgArg, variantArg, gameID)
+	var name string
+	err = tx.QueryRow(ctx,
+		"UPDATE games SET alert_message = $1, alert_variant = $2, updated_at = NOW() WHERE id = $3 RETURNING name",
+		msgArg, variantArg, gameID).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrGameNotFound
+	}
 	if err != nil {
 		return fmt.Errorf("setGameAlert update: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrGameNotFound
 	}
 
 	if err := audit.Record(ctx, tx, audit.Entry{
@@ -113,9 +113,68 @@ func setGameAlert(ctx context.Context, db *pgxpool.Pool, adminID, gameID, messag
 		Action:     audit.ActionGameAlert,
 		TargetType: "game",
 		TargetID:   gameID,
-		Metadata:   map[string]any{"cleared": message == "", "variant": variant},
+		Metadata:   map[string]any{"name": name, "cleared": message == "", "variant": variant},
 	}); err != nil {
 		return fmt.Errorf("setGameAlert: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
+// setGameDiscount starts or stops a game's time-boxed percentage discount.
+// percent in 1..99 with days > 0 opens a discount window [now, now+days); percent
+// of 0 (or below) clears it immediately — this is the "stop before the deadline"
+// path. Audited. Returns ErrGameNotFound / ErrInvalidInput.
+func setGameDiscount(ctx context.Context, db *pgxpool.Pool, adminID, gameID string, percent, days int) error {
+	clear := percent <= 0
+	if !clear {
+		if percent > 99 || days <= 0 {
+			return ErrInvalidInput
+		}
+	}
+
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("setGameDiscount begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var (
+		name             string
+		pct              *int
+		startsAt, endsAt *time.Time
+	)
+	if !clear {
+		now := time.Now().UTC()
+		end := now.Add(time.Duration(days) * 24 * time.Hour)
+		p := percent
+		pct, startsAt, endsAt = &p, &now, &end
+	}
+
+	err = tx.QueryRow(ctx, `
+		UPDATE games SET discount_pct = $1, discount_starts_at = $2, discount_ends_at = $3, updated_at = NOW()
+		WHERE id = $4 RETURNING name
+	`, pct, startsAt, endsAt, gameID).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrGameNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("setGameDiscount update: %w", err)
+	}
+
+	meta := map[string]any{"name": name, "cleared": clear}
+	if !clear {
+		meta["percent"] = percent
+		meta["days"] = days
+		meta["ends_at"] = endsAt
+	}
+	if err := audit.Record(ctx, tx, audit.Entry{
+		AdminID:    adminID,
+		Action:     audit.ActionGameDiscount,
+		TargetType: "game",
+		TargetID:   gameID,
+		Metadata:   meta,
+	}); err != nil {
+		return fmt.Errorf("setGameDiscount: %w", err)
 	}
 	return tx.Commit(ctx)
 }
@@ -131,6 +190,7 @@ type gamePriceRow struct {
 
 type gameRow struct {
 	ID         string         `json:"id"`
+	Slug       string         `json:"slug"`
 	Name       string         `json:"name"`
 	CoverImage *string        `json:"cover_image"`
 	Platform   string         `json:"platform"`
@@ -138,6 +198,11 @@ type gameRow struct {
 	Prices     []gamePriceRow `json:"prices"`
 	Active     bool           `json:"active"`
 	Links      []gameLinkRow  `json:"links"`
+	// Merchandising. Featured is a manual editorial flag; Tags double as genres.
+	// ViewCount is incremented on each public detail view.
+	Featured  bool     `json:"featured"`
+	Tags      []string `json:"tags"`
+	ViewCount int      `json:"view_count"`
 	// Pre-order lifecycle. ReleaseStatus/ReleaseDate are the stored fields; Phase
 	// and Purchasable are derived (see internal/shared/release) so the frontend
 	// never re-implements the date math.
@@ -152,8 +217,17 @@ type gameRow struct {
 	// and an optional per-game margin override. Prices above are derived from these.
 	BasePrices      []gameBasePriceRow `json:"base_prices"`
 	ProfitMarginPct *int               `json:"profit_margin_pct"`
-	CreatedAt       time.Time          `json:"created_at"`
-	UpdatedAt       time.Time          `json:"updated_at"`
+	// Time-boxed percentage discount. The stored fields are all-or-nothing; Discount
+	// is the derived "active right now" view the storefront applies to prices.
+	DiscountPct      *int       `json:"discount_pct"`
+	DiscountStartsAt *time.Time `json:"discount_starts_at"`
+	DiscountEndsAt   *time.Time `json:"discount_ends_at"`
+	Discount         *int       `json:"discount"`
+	// TrendingScore is derived from recent sales + views (see attachTrending); it is
+	// always present so the frontend can rank without re-deriving.
+	TrendingScore float64   `json:"trending_score"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type gameBasePriceRow struct {
@@ -161,11 +235,23 @@ type gameBasePriceRow struct {
 	BaseUSD  string `json:"base_usd"`
 }
 
-// derivePhase fills the computed Phase/Purchasable fields from the stored release
-// status and date. Call after scanning rows from the DB.
+// derivePhase fills the computed Phase/Purchasable and Discount fields from the
+// stored release status, date, and discount window. Call after scanning rows.
 func (g *gameRow) derivePhase(now time.Time) {
 	g.Phase = release.Phase(g.ReleaseStatus, g.ReleaseDate, now)
 	g.Purchasable = release.Purchasable(g.Phase)
+	g.Discount = activeDiscount(g.DiscountPct, g.DiscountStartsAt, g.DiscountEndsAt, now)
+}
+
+// activeDiscount returns the discount percent if one is currently in effect,
+// otherwise nil (for the JSON `discount` field). The window math lives in the
+// pricing package so the storefront display and the checkout charge never diverge.
+func activeDiscount(pct *int, startsAt, endsAt *time.Time, now time.Time) *int {
+	d := pricing.ActiveDiscountPct(pct, startsAt, endsAt, now)
+	if d == 0 {
+		return nil
+	}
+	return &d
 }
 
 type gameLinkRow struct {
@@ -180,10 +266,28 @@ type exchangeRateRow struct {
 }
 
 type listFilter struct {
-	platform   string
-	zarfiat    string // "z1", "z2", or "z3" — games that have any price entry for this zarfiat
-	search     string
-	onlyActive bool
+	platform     string
+	zarfiat      string // "z1", "z2", or "z3" — games that have any price entry for this zarfiat
+	search       string
+	onlyActive   bool
+	onlyFeatured bool
+}
+
+// gameColumns is the shared SELECT list for a game row, kept in one place so the
+// list and single-game reads (and their Scan order in scanGameRow) never drift.
+const gameColumns = `id, slug, name, cover_image, platform::text, price_mode::text, active,
+	release_status, release_date, alert_message, alert_variant, profit_margin_pct,
+	featured, view_count, tags, discount_pct, discount_starts_at, discount_ends_at,
+	created_at, updated_at`
+
+// scanGameRow scans one row selected with gameColumns (in that exact order).
+func scanGameRow(row pgx.Row, g *gameRow) error {
+	return row.Scan(
+		&g.ID, &g.Slug, &g.Name, &g.CoverImage, &g.Platform, &g.PriceMode, &g.Active,
+		&g.ReleaseStatus, &g.ReleaseDate, &g.AlertMessage, &g.AlertVariant, &g.ProfitMarginPct,
+		&g.Featured, &g.ViewCount, &g.Tags, &g.DiscountPct, &g.DiscountStartsAt, &g.DiscountEndsAt,
+		&g.CreatedAt, &g.UpdatedAt,
+	)
 }
 
 func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy string, limit, offset int) ([]gameRow, int, error) {
@@ -193,6 +297,9 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 
 	if filter.onlyActive {
 		conds = append(conds, "active = true")
+	}
+	if filter.onlyFeatured {
+		conds = append(conds, "featured = true")
 	}
 	if filter.platform != "" {
 		conds = append(conds, fmt.Sprintf("platform::text = $%d", n))
@@ -226,12 +333,11 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 	}
 
 	rows, err := db.Query(ctx, fmt.Sprintf(`
-		SELECT id, name, cover_image, platform::text, price_mode::text, active,
-		       release_status, release_date, alert_message, alert_variant, profit_margin_pct, created_at, updated_at
+		SELECT %s
 		FROM games %s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, where, orderBy, n, n+1), append(args, limit, offset)...)
+	`, gameColumns, where, orderBy, n, n+1), append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list games: %w", err)
 	}
@@ -241,11 +347,7 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 	result := make([]gameRow, 0)
 	for rows.Next() {
 		var g gameRow
-		if err := rows.Scan(
-			&g.ID, &g.Name, &g.CoverImage, &g.Platform, &g.PriceMode, &g.Active,
-			&g.ReleaseStatus, &g.ReleaseDate, &g.AlertMessage, &g.AlertVariant, &g.ProfitMarginPct,
-			&g.CreatedAt, &g.UpdatedAt,
-		); err != nil {
+		if err := scanGameRow(rows, &g); err != nil {
 			return nil, 0, fmt.Errorf("scan game: %w", err)
 		}
 		g.Prices = []gamePriceRow{}
@@ -263,24 +365,34 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 	if err := attachLinks(ctx, db, result); err != nil {
 		return nil, 0, err
 	}
+	if err := attachTrending(ctx, db, result, now); err != nil {
+		return nil, 0, err
+	}
 	return result, total, nil
 }
 
+// getGameByID looks up a single game by its id. See getGame for the lookup that
+// also accepts a slug.
 func getGameByID(ctx context.Context, db *pgxpool.Pool, id string, onlyActive bool) (*gameRow, error) {
-	cond := "id = $1"
+	return getGame(ctx, db, "id = $1", id, onlyActive)
+}
+
+// getGame resolves a single game by an identifier that may be either its id or its
+// slug. Slugs and ids never overlap in practice (slugs contain hyphens / words,
+// ids are 24-char base36), so matching on either is unambiguous and lets URLs use
+// slugs while the cart keeps referencing games by id.
+func getGameByIDOrSlug(ctx context.Context, db *pgxpool.Pool, idOrSlug string, onlyActive bool) (*gameRow, error) {
+	return getGame(ctx, db, "(id = $1 OR slug = $1)", idOrSlug, onlyActive)
+}
+
+func getGame(ctx context.Context, db *pgxpool.Pool, cond, arg string, onlyActive bool) (*gameRow, error) {
 	if onlyActive {
 		cond += " AND active = true"
 	}
 	var g gameRow
-	err := db.QueryRow(ctx, fmt.Sprintf(`
-		SELECT id, name, cover_image, platform::text, price_mode::text, active,
-		       release_status, release_date, alert_message, alert_variant, profit_margin_pct, created_at, updated_at
-		FROM games WHERE %s LIMIT 1
-	`, cond), id).Scan(
-		&g.ID, &g.Name, &g.CoverImage, &g.Platform, &g.PriceMode, &g.Active,
-		&g.ReleaseStatus, &g.ReleaseDate, &g.AlertMessage, &g.AlertVariant, &g.ProfitMarginPct,
-		&g.CreatedAt, &g.UpdatedAt,
-	)
+	err := scanGameRow(db.QueryRow(ctx, fmt.Sprintf(`
+		SELECT %s FROM games WHERE %s LIMIT 1
+	`, gameColumns, cond), arg), &g)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -288,15 +400,19 @@ func getGameByID(ctx context.Context, db *pgxpool.Pool, id string, onlyActive bo
 		return nil, fmt.Errorf("get game: %w", err)
 	}
 
+	now := time.Now().UTC()
 	g.Prices = []gamePriceRow{}
 	g.Links = []gameLinkRow{}
-	g.derivePhase(time.Now().UTC())
+	g.derivePhase(now)
 
 	games := []gameRow{g}
 	if err := attachPrices(ctx, db, games); err != nil {
 		return nil, err
 	}
 	if err := attachLinks(ctx, db, games); err != nil {
+		return nil, err
+	}
+	if err := attachTrending(ctx, db, games, now); err != nil {
 		return nil, err
 	}
 	return &games[0], nil
@@ -465,4 +581,86 @@ func attachLinks(ctx context.Context, db *pgxpool.Pool, games []gameRow) error {
 		}
 	}
 	return nil
+}
+
+const (
+	// trendingWindow is how far back paid orders count toward the trending score.
+	trendingWindow = 14 * 24 * time.Hour
+	// trendingViewWeight keeps all-time views a soft tiebreaker so they never
+	// overwhelm recent sales — sales are the dominant signal.
+	trendingViewWeight = 0.02
+)
+
+// attachTrending fills each game's TrendingScore: units sold over the recent
+// window (the dominant signal) plus a small all-time view component. It is one
+// grouped query over the whole batch, mirroring attachPrices/attachLinks.
+func attachTrending(ctx context.Context, db *pgxpool.Pool, games []gameRow, now time.Time) error {
+	if len(games) == 0 {
+		return nil
+	}
+
+	ids := make([]string, len(games))
+	for i := range games {
+		ids[i] = games[i].ID
+	}
+
+	rows, err := db.Query(ctx, `
+		SELECT oi.game_id, COALESCE(SUM(oi.quantity), 0)
+		FROM order_items oi
+		JOIN orders o ON o.id = oi.order_id
+		WHERE oi.game_id = ANY($1)
+		  AND o.status IN ('paid', 'fulfilled')
+		  AND o.created_at >= $2
+		GROUP BY oi.game_id
+	`, ids, now.Add(-trendingWindow))
+	if err != nil {
+		return fmt.Errorf("get trending: %w", err)
+	}
+	defer rows.Close()
+
+	recentUnits := make(map[string]int, len(games))
+	for rows.Next() {
+		var gameID string
+		var units int
+		if err := rows.Scan(&gameID, &units); err != nil {
+			return fmt.Errorf("scan trending: %w", err)
+		}
+		recentUnits[gameID] = units
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("trending rows error: %w", err)
+	}
+
+	for i := range games {
+		games[i].TrendingScore =
+			float64(recentUnits[games[i].ID]) + trendingViewWeight*float64(games[i].ViewCount)
+	}
+	return nil
+}
+
+// bumpViewCount increments a game's all-time view counter, matching on id or slug.
+// Best-effort: a missing game (no rows) is not an error.
+func bumpViewCount(ctx context.Context, db *pgxpool.Pool, idOrSlug string) error {
+	_, err := db.Exec(ctx,
+		"UPDATE games SET view_count = view_count + 1 WHERE id = $1 OR slug = $1",
+		idOrSlug)
+	if err != nil {
+		return fmt.Errorf("bump view count: %w", err)
+	}
+	return nil
+}
+
+// slugTaken reports whether slug already belongs to a game other than excludeID
+// (pass "" when creating). Powers the admin live-uniqueness check; the unique
+// index remains the authoritative guard at write time.
+func slugTaken(ctx context.Context, db *pgxpool.Pool, slug, excludeID string) (bool, error) {
+	var exists bool
+	err := db.QueryRow(ctx,
+		"SELECT EXISTS (SELECT 1 FROM games WHERE slug = $1 AND id <> $2)",
+		slug, excludeID,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("slug taken: %w", err)
+	}
+	return exists, nil
 }

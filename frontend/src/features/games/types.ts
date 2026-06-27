@@ -30,6 +30,7 @@ export type GameBasePrice = {
 
 export type Game = {
   id: string
+  slug: string
   name: string
   cover_image: string | null
   platform: Platform
@@ -45,6 +46,17 @@ export type Game = {
   purchasable: boolean
   alert_message: string | null
   alert_variant: AlertVariant | null
+  // Merchandising. `featured` is a manual editorial flag; `tags` double as genres.
+  featured: boolean
+  tags: string[]
+  view_count: number
+  // `discount` is the percent in effect right now (null when no active discount);
+  // the *_at fields describe the stored window. `trending_score` is computed.
+  discount: number | null
+  discount_pct: number | null
+  discount_starts_at: string | null
+  discount_ends_at: string | null
+  trending_score: number
   created_at: string
   updated_at: string
 }
@@ -70,6 +82,7 @@ export type GamesParams = {
   zarfiat?: string
   search?: string
   sort?: string
+  featured?: boolean
 }
 
 export type GamesListResponse = {
@@ -112,10 +125,13 @@ export type GameBasePriceInput = {
 // optional margin override); fixed games send per-tier prices.
 export type GameFormPayload = {
   name: string
+  slug: string
   platform: Platform
   price_mode: PriceMode
   cover_image: string | null
   active: boolean
+  featured: boolean
+  tags: string[]
   release_status: ReleaseStatus
   release_date: string | null
   alert_message: string | null
@@ -153,6 +169,31 @@ export function cheapestPrice(game: Game, rate: ExchangeRate): number | null {
     if (price !== null && (min === null || price < min)) min = price
   }
   return min
+}
+
+// Applies a game's active discount (game.discount, a percent) to a Toman price,
+// rounding to the nearest Toman. Returns the price unchanged when no discount is
+// active. Use alongside the original price to show a strike-through + sale price.
+export function discountedPrice(
+  price: number | null,
+  game: Pick<Game, "discount">
+): number | null {
+  if (price === null || !game.discount) return price
+  return Math.round(price * (1 - game.discount / 100))
+}
+
+// Mirrors the backend slugify (internal/modules/games/slug.go): lowercase,
+// apostrophes dropped, runs of other non-alphanumerics collapsed to single hyphens,
+// trimmed, capped at 120. Used to auto-suggest a slug from the game name.
+export function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/['’ʼ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120)
+    .replace(/-+$/g, "")
 }
 
 export function formatToman(amount: number | null): string {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -32,10 +33,11 @@ func (h *handler) listGamesHandler(c fiber.Ctx) error {
 	}
 
 	filter := listFilter{
-		platform:   strings.TrimSpace(c.Query("platform")),
-		zarfiat:    strings.TrimSpace(c.Query("zarfiat")),
-		search:     strings.TrimSpace(c.Query("search")),
-		onlyActive: true,
+		platform:     strings.TrimSpace(c.Query("platform")),
+		zarfiat:      strings.TrimSpace(c.Query("zarfiat")),
+		search:       strings.TrimSpace(c.Query("search")),
+		onlyActive:   true,
+		onlyFeatured: c.Query("featured") == "true",
 	}
 
 	orderBy := buildOrderBy(pageInfo.Sort)
@@ -67,17 +69,23 @@ func (h *handler) listGamesHandler(c fiber.Ctx) error {
 }
 
 func (h *handler) getGameHandler(c fiber.Ctx) error {
-	id := c.Params("id")
-	if id == "" {
+	idOrSlug := c.Params("id")
+	if idOrSlug == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "شناسه بازی الزامی است"})
 	}
 
-	game, err := getGameByID(c.Context(), h.db, id, true)
+	game, err := getGameByIDOrSlug(c.Context(), h.db, idOrSlug, true)
 	if err != nil {
 		return fmt.Errorf("get game: %w", err)
 	}
 	if game == nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
+	}
+
+	// Count this detail view. Best-effort: a failed counter must never fail the
+	// page load, so the error is logged, not surfaced.
+	if err := bumpViewCount(c.Context(), h.db, game.ID); err != nil {
+		log.Printf("getGameHandler: view bump failed for %s: %v", game.ID, err)
 	}
 
 	rate, err := getPricingResponse(c.Context(), h.db)
@@ -89,6 +97,21 @@ func (h *handler) getGameHandler(c fiber.Ctx) error {
 		"game":          game,
 		"exchange_rate": rate,
 	})
+}
+
+// slugAvailableHandler powers the admin form's live uniqueness check. It normalizes
+// the candidate the same way a create/update would, then reports whether it is free
+// (optionally ignoring the game being edited via ?exclude=<id>).
+func (h *handler) slugAvailableHandler(c fiber.Ctx) error {
+	slug := slugify(c.Query("slug"))
+	if slug == "" {
+		return c.JSON(fiber.Map{"slug": "", "available": false})
+	}
+	taken, err := slugTaken(c.Context(), h.db, slug, c.Query("exclude"))
+	if err != nil {
+		return fmt.Errorf("slug available: %w", err)
+	}
+	return c.JSON(fiber.Map{"slug": slug, "available": !taken})
 }
 
 func (h *handler) getExchangeRateHandler(c fiber.Ctx) error {
@@ -243,6 +266,9 @@ func (h *handler) adminCreateGame(c fiber.Ctx) error {
 	}
 
 	id, err := createGame(c.Context(), h.db, adminID, norm)
+	if errors.Is(err, ErrDuplicateSlug) {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این نامک قبلاً برای بازی دیگری ثبت شده است"})
+	}
 	if errors.Is(err, ErrDuplicateLink) {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این لینک قبلاً برای بازی دیگری ثبت شده است"})
 	}
@@ -274,8 +300,36 @@ func (h *handler) adminUpdateGame(c fiber.Ctx) error {
 	switch {
 	case errors.Is(err, ErrGameNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
+	case errors.Is(err, ErrDuplicateSlug):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این نامک قبلاً برای بازی دیگری ثبت شده است"})
 	case errors.Is(err, ErrDuplicateLink):
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این لینک قبلاً برای بازی دیگری ثبت شده است"})
+	case err != nil:
+		return err
+	}
+	return h.respondGame(c, id)
+}
+
+// adminSetDiscount starts or stops a game's time-boxed percentage discount. A
+// percent of 0 clears it (stop before the deadline). Returns the updated game.
+func (h *handler) adminSetDiscount(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+	id := c.Params("id")
+
+	var body struct {
+		Percent int `json:"percent"`
+		Days    int `json:"days"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
+	}
+
+	err := setGameDiscount(c.Context(), h.db, adminID, id, body.Percent, body.Days)
+	switch {
+	case errors.Is(err, ErrGameNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
+	case errors.Is(err, ErrInvalidInput):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "درصد تخفیف باید بین ۱ تا ۹۹ و مدت آن بیشتر از صفر باشد"})
 	case err != nil:
 		return err
 	}

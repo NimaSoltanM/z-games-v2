@@ -1,6 +1,9 @@
 package pricing
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestTierToman(t *testing.T) {
 	cfg := Config{Z1Pct: 15, Z2Pct: 60, Z3Pct: 25, DefaultMarginPct: 10}
@@ -31,5 +34,48 @@ func TestMargin(t *testing.T) {
 	thirty := 30
 	if cfg.Margin(&thirty) != 30 {
 		t.Fatal("override should win")
+	}
+}
+
+func TestActiveDiscountPct(t *testing.T) {
+	now := time.Date(2026, 6, 27, 12, 0, 0, 0, time.UTC)
+	pct := 20
+	earlier := now.Add(-time.Hour)
+	later := now.Add(time.Hour)
+
+	cases := []struct {
+		name             string
+		pct              *int
+		startsAt, endsAt *time.Time
+		want             int
+	}{
+		{"none", nil, nil, nil, 0},
+		{"active", &pct, &earlier, &later, 20},
+		{"not started", &pct, &later, &later, 0},
+		{"ended", &pct, &earlier, &earlier, 0},
+		{"ends now is over", &pct, &earlier, &now, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := ActiveDiscountPct(c.pct, c.startsAt, c.endsAt, now); got != c.want {
+				t.Fatalf("got %d, want %d", got, c.want)
+			}
+		})
+	}
+}
+
+func TestApplyDiscount(t *testing.T) {
+	cases := []struct {
+		price, pct, want int
+	}{
+		{100_000, 0, 100_000}, // no discount
+		{100_000, 20, 80_000}, // 20% off
+		{99_999, 10, 89_999},  // 89999.1 → rounds to 89999
+		{1_000_000, 33, 670_000},
+	}
+	for _, c := range cases {
+		if got := ApplyDiscount(c.price, c.pct); got != c.want {
+			t.Fatalf("ApplyDiscount(%d, %d) = %d, want %d", c.price, c.pct, got, c.want)
+		}
 	}
 }

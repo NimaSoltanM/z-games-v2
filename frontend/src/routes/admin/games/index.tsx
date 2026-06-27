@@ -26,6 +26,7 @@ import {
   PLATFORM_LABEL,
   PLATFORM_BADGE_CLASS,
   PreOrderBadge,
+  DiscountBadge,
 } from "@/features/games"
 import type { ExchangeRate, Game, Platform } from "@/features/games"
 import { setPricingConfig } from "@/features/games/api"
@@ -33,6 +34,8 @@ import {
   ActiveToggle,
   AlertPopover,
   DeleteGameButton,
+  DiscountPopover,
+  FeaturedToggle,
   PreorderPopover,
 } from "@/features/games/admin-quick-actions"
 
@@ -238,6 +241,7 @@ function GameRow({ game }: { game: Game }) {
             </Badge>
           )}
           {game.phase === "pre_order" && <PreOrderBadge />}
+          {game.discount && <DiscountBadge percent={game.discount} />}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <Badge
@@ -258,8 +262,10 @@ function GameRow({ game }: { game: Game }) {
 
       <div className="flex shrink-0 items-center gap-0.5">
         <ActiveToggle game={game} />
+        <FeaturedToggle game={game} />
         <PreorderPopover game={game} />
         <AlertPopover game={game} />
+        <DiscountPopover game={game} />
         <Link to="/admin/games/$id/edit" params={{ id: game.id }}>
           <Button
             variant="ghost"

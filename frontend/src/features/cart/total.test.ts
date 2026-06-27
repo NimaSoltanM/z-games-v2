@@ -37,6 +37,7 @@ function priceEntry(
 function makeGame(overrides: Partial<Game> = {}): Game {
   return {
     id: "g1",
+    slug: "g1",
     name: "Test Game",
     cover_image: null,
     platform: "ps5",
@@ -52,6 +53,14 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     purchasable: true,
     alert_message: null,
     alert_variant: null,
+    featured: false,
+    tags: [],
+    view_count: 0,
+    discount: null,
+    discount_pct: null,
+    discount_starts_at: null,
+    discount_ends_at: null,
+    trending_score: 0,
     created_at: "",
     updated_at: "",
     ...overrides,
@@ -70,7 +79,10 @@ function line(overrides: Partial<CartItem> = {}): CartItem {
   }
 }
 
-function pricing(game: Game, rate: ExchangeRate = RATE): Map<string, GamePricing> {
+function pricing(
+  game: Game,
+  rate: ExchangeRate = RATE
+): Map<string, GamePricing> {
   return new Map([[game.id, { game, exchange_rate: rate }]])
 }
 
@@ -90,7 +102,9 @@ describe("cartTotal", () => {
       price_mode: "fixed",
       prices: [priceEntry("ps5", "z2", { toman: 300_000 })],
     })
-    expect(cartTotal([line({ quantity: 3 })], pricing(game, null))).toBe(900_000)
+    expect(cartTotal([line({ quantity: 3 })], pricing(game, null))).toBe(
+      900_000
+    )
   })
 
   it("sums multiple lines of the same game (different tiers)", () => {
@@ -101,19 +115,28 @@ describe("cartTotal", () => {
       ],
     })
     const total = cartTotal(
-      [line({ zarfiat: "z2", quantity: 2 }), line({ zarfiat: "z3", quantity: 1 })],
+      [
+        line({ zarfiat: "z2", quantity: 2 }),
+        line({ zarfiat: "z3", quantity: 1 }),
+      ],
       pricing(game)
     )
     expect(total).toBe(2 * 500_000 + 300_000)
   })
 
   it("excludes an inactive game", () => {
-    const game = makeGame({ active: false, prices: [priceEntry("ps5", "z2", { usd: "5" })] })
+    const game = makeGame({
+      active: false,
+      prices: [priceEntry("ps5", "z2", { usd: "5" })],
+    })
     expect(cartTotal([line()], pricing(game))).toBe(0)
   })
 
   it("excludes a non-purchasable game (e.g. pre-order closing window)", () => {
-    const game = makeGame({ purchasable: false, prices: [priceEntry("ps5", "z2", { usd: "5" })] })
+    const game = makeGame({
+      purchasable: false,
+      prices: [priceEntry("ps5", "z2", { usd: "5" })],
+    })
     expect(cartTotal([line()], pricing(game))).toBe(0)
   })
 
@@ -139,14 +162,24 @@ describe("cartTotal", () => {
   })
 
   it("counts only the billable lines in a mixed cart", () => {
-    const valid = makeGame({ id: "g1", prices: [priceEntry("ps5", "z2", { usd: "5" })] })
-    const dead = makeGame({ id: "g2", active: false, prices: [priceEntry("ps5", "z2", { usd: "9" })] })
+    const valid = makeGame({
+      id: "g1",
+      prices: [priceEntry("ps5", "z2", { usd: "5" })],
+    })
+    const dead = makeGame({
+      id: "g2",
+      active: false,
+      prices: [priceEntry("ps5", "z2", { usd: "9" })],
+    })
     const map = new Map<string, GamePricing>([
       ["g1", { game: valid, exchange_rate: RATE }],
       ["g2", { game: dead, exchange_rate: RATE }],
     ])
     const total = cartTotal(
-      [line({ gameId: "g1", quantity: 2 }), line({ gameId: "g2", quantity: 5 })],
+      [
+        line({ gameId: "g1", quantity: 2 }),
+        line({ gameId: "g2", quantity: 5 }),
+      ],
       map
     )
     expect(total).toBe(1_000_000) // only g1: 500_000 x2

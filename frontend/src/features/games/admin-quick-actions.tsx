@@ -1,6 +1,13 @@
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { CalendarClock, Loader2, Megaphone, Trash2 } from "lucide-react"
+import {
+  CalendarClock,
+  Loader2,
+  Megaphone,
+  Percent,
+  Star,
+  Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -14,7 +21,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Switch } from "@/components/ui/switch"
-import { deleteGame, setGameAlert, setGamePreorder, updateGame } from "./api"
+import {
+  deleteGame,
+  setGameAlert,
+  setGameDiscount,
+  setGamePreorder,
+  updateGame,
+} from "./api"
+import { formatReleaseDate } from "./types"
 import type {
   AlertVariant,
   Game,
@@ -35,10 +49,13 @@ function useInvalidateGames() {
 function gameToPayload(game: Game): GameFormPayload {
   return {
     name: game.name,
+    slug: game.slug,
     platform: game.platform,
     price_mode: game.price_mode,
     cover_image: game.cover_image,
     active: game.active,
+    featured: game.featured,
+    tags: game.tags,
     release_status: game.release_status,
     release_date: game.release_date,
     alert_message: game.alert_message,
@@ -240,6 +257,145 @@ export function AlertPopover({ game }: { game: Game }) {
           {m.isPending && <Loader2 className="size-4 animate-spin" />}
           ذخیره
         </Button>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export function FeaturedToggle({ game }: { game: Game }) {
+  const invalidate = useInvalidateGames()
+  const m = useMutation({
+    mutationFn: () =>
+      updateGame(game.id, { ...gameToPayload(game), featured: !game.featured }),
+    onSuccess: () => invalidate(),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "خطا در تغییر وضعیت منتخب"),
+  })
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={`h-8 w-8 ${game.featured ? "text-amber-500" : "text-muted-foreground"}`}
+      disabled={m.isPending}
+      onClick={() => m.mutate()}
+      aria-label={game.featured ? "حذف از منتخب" : "افزودن به منتخب"}
+    >
+      <Star className={`size-4 ${game.featured ? "fill-current" : ""}`} />
+    </Button>
+  )
+}
+
+export function DiscountPopover({ game }: { game: Game }) {
+  const [open, setOpen] = useState(false)
+  const [percent, setPercent] = useState("")
+  const [days, setDays] = useState("")
+  const invalidate = useInvalidateGames()
+
+  const active = game.discount != null
+
+  const start = useMutation({
+    mutationFn: () =>
+      setGameDiscount(game.id, {
+        percent: Number(percent),
+        days: Number(days),
+      }),
+    onSuccess: () => {
+      invalidate()
+      toast.success("تخفیف ذخیره شد")
+      setOpen(false)
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "خطا"),
+  })
+
+  const stop = useMutation({
+    mutationFn: () => setGameDiscount(game.id, { percent: 0, days: 0 }),
+    onSuccess: () => {
+      invalidate()
+      toast.success("تخفیف متوقف شد")
+      setOpen(false)
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "خطا"),
+  })
+
+  const validPercent = Number(percent) >= 1 && Number(percent) <= 99
+  const validDays = Number(days) >= 1
+  const busy = start.isPending || stop.isPending
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (o) {
+          setPercent(game.discount != null ? String(game.discount) : "")
+          setDays("")
+        }
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-8 gap-1.5 text-xs ${active ? "text-rose-500" : ""}`}
+          />
+        }
+      >
+        <Percent className="size-3.5" />
+        {active ? `${game.discount!.toLocaleString("fa-IR")}٪ تخفیف` : "تخفیف"}
+      </PopoverTrigger>
+      <PopoverContent className="w-72 gap-3">
+        <p className="text-sm font-medium">تخفیف زمان‌دار</p>
+        {active && game.discount_ends_at && (
+          <p className="text-xs text-muted-foreground">
+            تخفیف فعلی تا {formatReleaseDate(game.discount_ends_at)} ادامه دارد.
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <Label htmlFor={`disc-pct-${game.id}`}>درصد (۱ تا ۹۹)</Label>
+            <Input
+              id={`disc-pct-${game.id}`}
+              dir="ltr"
+              inputMode="numeric"
+              placeholder="20"
+              value={percent}
+              onChange={(e) => setPercent(e.target.value.replace(/\D/g, ""))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`disc-days-${game.id}`}>مدت (روز)</Label>
+            <Input
+              id={`disc-days-${game.id}`}
+              dir="ltr"
+              inputMode="numeric"
+              placeholder="7"
+              value={days}
+              onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))}
+            />
+          </div>
+        </div>
+        <Button
+          size="sm"
+          className="w-full gap-1.5"
+          disabled={busy || !validPercent || !validDays}
+          onClick={() => start.mutate()}
+        >
+          {start.isPending && <Loader2 className="size-4 animate-spin" />}
+          {active ? "به‌روزرسانی تخفیف" : "شروع تخفیف"}
+        </Button>
+        {active && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full gap-1.5"
+            disabled={busy}
+            onClick={() => stop.mutate()}
+          >
+            {stop.isPending && <Loader2 className="size-4 animate-spin" />}
+            توقف تخفیف
+          </Button>
+        )}
       </PopoverContent>
     </Popover>
   )

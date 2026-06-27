@@ -26,6 +26,7 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 	// before the "/:id" param routes so they take precedence.
 	admin := g.Group("/admin", middleware.RequireAdmin(db))
 	admin.Get("/all", h.adminListGames)
+	admin.Get("/slug-available", h.slugAvailableHandler)
 	admin.Get("/exchange-rate", h.adminGetExchangeRate)
 	admin.Post("/exchange-rate", h.adminSetExchangeRate)
 	admin.Post("/", h.adminCreateGame)
@@ -34,6 +35,7 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 	admin.Delete("/:id", h.adminDeleteGame)
 	admin.Patch("/:id/preorder", h.adminSetPreorder)
 	admin.Patch("/:id/alert", h.adminSetAlert)
+	admin.Patch("/:id/discount", h.adminSetDiscount)
 
 	// Public single-game lookup — kept last so it never shadows /games/admin/*.
 	g.Get("/:id", h.getGameHandler)

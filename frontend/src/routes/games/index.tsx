@@ -5,10 +5,13 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
-import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
+import {
+  useSuspenseQuery,
+  useQueryErrorResetBoundary,
+} from "@tanstack/react-query"
 import { Suspense, useState, useEffect } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { SlidersHorizontal, X } from "lucide-react"
+import { SlidersHorizontal, Sparkles, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -28,16 +31,24 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { BackgroundGradient } from "@/components/ui/background-gradient"
 
 import {
   gamesQueryOptions,
   cheapestPrice,
+  discountedPrice,
   formatToman,
   PLATFORM_LABEL,
   PLATFORM_BADGE_CLASS,
   PreOrderBadge,
+  DiscountBadge,
+  GameTags,
   gameCoverSrc,
 } from "@/features/games"
+import type { Game, ExchangeRate } from "@/features/games"
+
+// Params for the "منتخب" rail — a stable object so its query key never churns.
+const FEATURED_PARAMS = { featured: true } as const
 
 const SORT_OPTIONS = [
   { value: "-created_at", label: "جدیدترین" },
@@ -73,8 +84,10 @@ export const Route = createFileRoute("/games/")({
     sort: String(search.sort || "-created_at"),
   }),
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) =>
-    context.queryClient.prefetchQuery(gamesQueryOptions(deps)),
+  loader: ({ context, deps }) => {
+    context.queryClient.prefetchQuery(gamesQueryOptions(deps))
+    context.queryClient.prefetchQuery(gamesQueryOptions(FEATURED_PARAMS))
+  },
   component: GamesPage,
   errorComponent: GamesError,
 })
@@ -96,10 +109,15 @@ function FilterContent() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-full gap-1 text-xs text-muted-foreground justify-start"
+            className="h-7 w-full justify-start gap-1 text-xs text-muted-foreground"
             onClick={() =>
               navigate({
-                search: (prev) => ({ ...prev, platform: "", zarfiat: "", page: 1 }),
+                search: (prev) => ({
+                  ...prev,
+                  platform: "",
+                  zarfiat: "",
+                  page: 1,
+                }),
               })
             }
           >
@@ -117,10 +135,10 @@ function FilterContent() {
                 <button
                   key={opt.value}
                   onClick={() => setFilter("platform", opt.value)}
-                  className={`w-full rounded-md px-2 py-1.5 text-right text-sm transition-all border-r-2 ${
+                  className={`w-full rounded-md border-r-2 px-2 py-1.5 text-right text-sm transition-all ${
                     search.platform === opt.value
                       ? "border-primary bg-primary/8 font-semibold text-primary"
-                      : "border-transparent hover:bg-accent text-foreground"
+                      : "border-transparent text-foreground hover:bg-accent"
                   }`}
                 >
                   {opt.label}
@@ -137,10 +155,10 @@ function FilterContent() {
                 <button
                   key={opt.value}
                   onClick={() => setFilter("zarfiat", opt.value)}
-                  className={`w-full rounded-md px-2 py-1.5 text-right text-sm transition-all border-r-2 ${
+                  className={`w-full rounded-md border-r-2 px-2 py-1.5 text-right text-sm transition-all ${
                     search.zarfiat === opt.value
                       ? "border-primary bg-primary/8 font-semibold text-primary"
-                      : "border-transparent hover:bg-accent text-foreground"
+                      : "border-transparent text-foreground hover:bg-accent"
                   }`}
                 >
                   {opt.label}
@@ -156,8 +174,8 @@ function FilterContent() {
 
 function FilterSidebar() {
   return (
-    <aside className="w-56 shrink-0 rounded-xl border border-border/50 bg-background/60 backdrop-blur-md p-4 sticky top-24 h-fit">
-      <p className="text-sm font-semibold pb-2">فیلترها</p>
+    <aside className="sticky top-24 h-fit w-56 shrink-0 rounded-xl border border-border/50 bg-background/60 p-4 backdrop-blur-md">
+      <p className="pb-2 text-sm font-semibold">فیلترها</p>
       <Separator className="mb-1" />
       <FilterContent />
     </aside>
@@ -177,7 +195,9 @@ function GamesPage() {
   useEffect(() => {
     if (searchInput === search.search) return
     const timer = setTimeout(() => {
-      navigate({ search: (prev) => ({ ...prev, search: searchInput, page: 1 }) })
+      navigate({
+        search: (prev) => ({ ...prev, search: searchInput, page: 1 }),
+      })
     }, 500)
     return () => clearTimeout(timer)
   }, [searchInput])
@@ -187,16 +207,22 @@ function GamesPage() {
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute top-1/2 -left-48 h-80 w-80 rounded-full bg-violet-500/8 blur-3xl" />
-        <div className="absolute -bottom-32 right-1/3 h-64 w-64 rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute right-1/3 -bottom-32 h-64 w-64 rounded-full bg-primary/8 blur-3xl" />
       </div>
 
       {/* Top bar */}
-      <div className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:bottom-0 after:inset-x-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
+      <div className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 py-3">
             <Sheet>
               <SheetTrigger
-                render={<Button variant="outline" size="sm" className="shrink-0 lg:hidden" />}
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 lg:hidden"
+                  />
+                }
               >
                 <SlidersHorizontal className="size-4" />
                 <span className="mr-1.5 hidden sm:inline">فیلترها</span>
@@ -215,22 +241,31 @@ function GamesPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="جستجوی بازی..."
-              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 flex-1"
+              className="h-9 w-full flex-1 rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/50 focus:outline-none"
             />
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-none">
-            <span className="shrink-0 text-xs text-muted-foreground hidden sm:inline">مرتب‌سازی:</span>
+          <div className="flex scrollbar-none items-center gap-2 overflow-x-auto pb-3">
+            <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+              مرتب‌سازی:
+            </span>
             <ToggleGroup
               value={[search.sort]}
               onValueChange={(v) => {
-                if (v[0]) navigate({ search: (prev) => ({ ...prev, sort: v[0], page: 1 }) })
+                if (v[0])
+                  navigate({
+                    search: (prev) => ({ ...prev, sort: v[0], page: 1 }),
+                  })
               }}
               spacing={0}
               variant="outline"
               size="sm"
             >
               {SORT_OPTIONS.map((opt) => (
-                <ToggleGroupItem key={opt.value} value={opt.value} className="shrink-0 text-xs px-3">
+                <ToggleGroupItem
+                  key={opt.value}
+                  value={opt.value}
+                  className="shrink-0 px-3 text-xs"
+                >
                   {opt.label}
                 </ToggleGroupItem>
               ))}
@@ -239,7 +274,7 @@ function GamesPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex gap-6">
           <div className="hidden lg:block">
             <FilterSidebar />
@@ -249,8 +284,14 @@ function GamesPage() {
               onReset={reset}
               fallbackRender={({ resetErrorBoundary }) => (
                 <div className="py-20 text-center">
-                  <p className="mb-4 text-sm text-muted-foreground">خطایی رخ داد</p>
-                  <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    خطایی رخ داد
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetErrorBoundary}
+                  >
                     تلاش مجدد
                   </Button>
                 </div>
@@ -287,46 +328,21 @@ function GamesContent() {
     )
   }
 
+  const showRail =
+    !search.platform && !search.zarfiat && !search.search && page === 1
+
   return (
     <div className="space-y-6">
+      {showRail && <FeaturedRail rate={exchange_rate} />}
+
       <p className="text-xs text-muted-foreground">
         نمایش {from}–{to} از {total} بازی
       </p>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {games.map((game) => {
-          const minPrice = cheapestPrice(game, exchange_rate)
-          return (
-            <Link key={game.id} to="/games/$id" params={{ id: game.id }} viewTransition>
-              <div className="group rounded-xl border border-border/60 bg-card/75 backdrop-blur-sm overflow-hidden transition-all duration-200 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 cursor-pointer">
-                <img
-                  src={gameCoverSrc(game.cover_image, game.id)}
-                  alt={game.name}
-                  className="w-full aspect-3/4 object-cover"
-                  loading="lazy"
-                  style={{ viewTransitionName: `game-cover-${game.id}` }}
-                />
-                <div className="p-3 space-y-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge
-                      variant="secondary"
-                      className={`text-xs px-2 py-0.5 border ${PLATFORM_BADGE_CLASS[game.platform]}`}
-                    >
-                      {PLATFORM_LABEL[game.platform]}
-                    </Badge>
-                    {game.phase === "pre_order" && <PreOrderBadge />}
-                  </div>
-                  <p className="text-sm font-medium leading-snug line-clamp-2">{game.name}</p>
-                  {minPrice !== null && (
-                    <p className="text-sm font-semibold text-primary">
-                      از {formatToman(minPrice)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Link>
-          )
-        })}
+        {games.map((game) => (
+          <GameCard key={game.id} game={game} rate={exchange_rate} />
+        ))}
       </div>
 
       {total_pages > 1 && (
@@ -335,23 +351,32 @@ function GamesContent() {
             variant="outline"
             size="sm"
             disabled={page === 1}
-            onClick={() => navigate({ search: (prev) => ({ ...prev, page: page - 1 }) })}
+            onClick={() =>
+              navigate({ search: (prev) => ({ ...prev, page: page - 1 }) })
+            }
           >
             قبلی
           </Button>
 
           {/* Full page numbers on sm+ */}
-          <div className="hidden sm:flex items-center gap-1">
+          <div className="hidden items-center gap-1 sm:flex">
             {getPages(page, total_pages).map((p, i) =>
               p === "ellipsis" ? (
-                <span key={`e-${i}`} className="px-1 text-muted-foreground text-sm">...</span>
+                <span
+                  key={`e-${i}`}
+                  className="px-1 text-sm text-muted-foreground"
+                >
+                  ...
+                </span>
               ) : (
                 <Button
                   key={p}
                   variant={p === page ? "default" : "outline"}
                   size="sm"
                   className="min-w-9"
-                  onClick={() => navigate({ search: (prev) => ({ ...prev, page: p }) })}
+                  onClick={() =>
+                    navigate({ search: (prev) => ({ ...prev, page: p }) })
+                  }
                 >
                   {p}
                 </Button>
@@ -360,7 +385,7 @@ function GamesContent() {
           </div>
 
           {/* Compact indicator on mobile */}
-          <span className="sm:hidden px-3 text-sm text-muted-foreground tabular-nums">
+          <span className="px-3 text-sm text-muted-foreground tabular-nums sm:hidden">
             {page} / {total_pages}
           </span>
 
@@ -368,12 +393,150 @@ function GamesContent() {
             variant="outline"
             size="sm"
             disabled={page === total_pages}
-            onClick={() => navigate({ search: (prev) => ({ ...prev, page: page + 1 }) })}
+            onClick={() =>
+              navigate({ search: (prev) => ({ ...prev, page: page + 1 }) })
+            }
           >
             بعدی
           </Button>
         </div>
       )}
+    </div>
+  )
+}
+
+// A single game card for the main grid. Shows the platform/pre-order/discount
+// badges, tags, and a discounted "از" price.
+function GameCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
+  const minPrice = cheapestPrice(game, rate)
+  const finalMin = discountedPrice(minPrice, game)
+  const hasDiscount =
+    minPrice !== null && finalMin !== null && finalMin < minPrice
+
+  return (
+    <Link to="/games/$slug" params={{ slug: game.slug }} viewTransition>
+      <div className="group h-full cursor-pointer overflow-hidden rounded-xl border border-border/60 bg-card/75 backdrop-blur-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10">
+        <img
+          src={gameCoverSrc(game.cover_image, game.id)}
+          alt={game.name}
+          className="aspect-3/4 w-full object-cover"
+          loading="lazy"
+          style={{ viewTransitionName: `game-cover-${game.id}` }}
+        />
+        <div className="space-y-2 p-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge
+              variant="secondary"
+              className={`border px-2 py-0.5 text-xs ${PLATFORM_BADGE_CLASS[game.platform]}`}
+            >
+              {PLATFORM_LABEL[game.platform]}
+            </Badge>
+            {game.phase === "pre_order" && <PreOrderBadge />}
+            {game.discount && <DiscountBadge percent={game.discount} />}
+          </div>
+          <p className="line-clamp-2 text-sm leading-snug font-medium">
+            {game.name}
+          </p>
+          <GameTags tags={game.tags.slice(0, 2)} />
+          {minPrice !== null && (
+            <div className="space-y-0.5">
+              {hasDiscount && (
+                <p className="text-xs text-muted-foreground tabular-nums line-through">
+                  {formatToman(minPrice)}
+                </p>
+              )}
+              <p className="text-sm font-semibold text-primary tabular-nums">
+                از {formatToman(hasDiscount ? finalMin : minPrice)}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// A wide, landscape "featured" card: a large cover beside the title, badges, tags,
+// and price. Deliberately bigger and a different shape than the portrait grid cards
+// so the gradient-framed featured items read as a standout, not just taller tiles.
+function FeaturedCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
+  const minPrice = cheapestPrice(game, rate)
+  const finalMin = discountedPrice(minPrice, game)
+  const hasDiscount =
+    minPrice !== null && finalMin !== null && finalMin < minPrice
+
+  return (
+    <Link to="/games/$slug" params={{ slug: game.slug }} viewTransition>
+      <div className="group flex h-full cursor-pointer gap-4">
+        <img
+          src={gameCoverSrc(game.cover_image, game.id)}
+          alt={game.name}
+          className="h-full min-h-44 w-28 shrink-0 object-cover sm:w-32"
+          loading="lazy"
+          style={{ viewTransitionName: `game-cover-${game.id}` }}
+        />
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 py-4 pl-4">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge
+              variant="secondary"
+              className={`border px-2 py-0.5 text-xs ${PLATFORM_BADGE_CLASS[game.platform]}`}
+            >
+              {PLATFORM_LABEL[game.platform]}
+            </Badge>
+            {game.phase === "pre_order" && <PreOrderBadge />}
+            {game.discount && <DiscountBadge percent={game.discount} />}
+          </div>
+          <p className="line-clamp-2 text-base leading-snug font-semibold">
+            {game.name}
+          </p>
+          <GameTags tags={game.tags.slice(0, 3)} />
+          {minPrice !== null && (
+            <div className="flex items-baseline gap-2">
+              {hasDiscount && (
+                <span className="text-xs text-muted-foreground tabular-nums line-through">
+                  {formatToman(minPrice)}
+                </span>
+              )}
+              <span className="text-base font-bold text-primary tabular-nums">
+                از {formatToman(hasDiscount ? finalMin : minPrice)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// The "منتخب" rail: a horizontal strip of featured games above the grid, shown only
+// on the unfiltered first page. Renders nothing when no games are featured.
+function FeaturedRail({ rate }: { rate: ExchangeRate }) {
+  const { data } = useSuspenseQuery(gamesQueryOptions(FEATURED_PARAMS))
+  const featured = data.games
+  if (featured.length === 0) return null
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 px-1">
+        <Sparkles className="size-4 text-primary" />
+        <h2 className="text-sm font-semibold">منتخب</h2>
+      </div>
+      {/* The scroll container clips on both axes, so it needs enough padding to fit
+          the gradient's blurred glow — otherwise the soft round glow gets sliced
+          into a hard rectangle. py-8 clears the blur-xl radius; the negative margins
+          reclaim that padding so spacing stays normal and cards align with the title
+          (full-bleed) instead of being indented. */}
+      <div className="-mx-4 -my-3 flex scrollbar-none gap-6 overflow-x-auto px-4 py-8">
+        {featured.map((game) => (
+          <BackgroundGradient
+            key={game.id}
+            containerClassName="w-[20rem] shrink-0 sm:w-[24rem]"
+            className="overflow-hidden rounded-[20px] bg-card"
+          >
+            <FeaturedCard game={game} rate={rate} />
+          </BackgroundGradient>
+        ))}
+      </div>
     </div>
   )
 }
@@ -384,9 +547,12 @@ function GamesGridSkeleton() {
       <Skeleton className="h-4 w-32" />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="rounded-xl overflow-hidden border border-border">
+          <div
+            key={i}
+            className="overflow-hidden rounded-xl border border-border"
+          >
             <Skeleton className="aspect-3/4 w-full rounded-none" />
-            <div className="p-2.5 space-y-2">
+            <div className="space-y-2 p-2.5">
               <Skeleton className="h-3 w-full" />
               <Skeleton className="h-3 w-2/3" />
               <Skeleton className="h-4 w-1/3 rounded-full" />

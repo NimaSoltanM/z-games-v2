@@ -12,10 +12,13 @@ import (
 // games carry per-tier Toman prices.
 type gameInput struct {
 	Name            string           `json:"name"`
+	Slug            string           `json:"slug"`
 	Platform        string           `json:"platform"`
 	PriceMode       string           `json:"price_mode"`
 	CoverImage      *string          `json:"cover_image"`
 	Active          bool             `json:"active"`
+	Featured        bool             `json:"featured"`
+	Tags            []string         `json:"tags"`
 	ReleaseStatus   string           `json:"release_status"`
 	ReleaseDate     *string          `json:"release_date"`
 	AlertMessage    *string          `json:"alert_message"`
@@ -41,10 +44,13 @@ type priceInput struct {
 // normalizedGame is the cleaned, validated form ready for the DB.
 type normalizedGame struct {
 	Name            string
+	Slug            string
 	Platform        string
 	PriceMode       string
 	CoverImage      *string
 	Active          bool
+	Featured        bool
+	Tags            []string
 	ReleaseStatus   string
 	ReleaseDate     *time.Time
 	AlertMessage    *string
@@ -74,6 +80,8 @@ const (
 	maxLinkLen    = 500
 	maxLinksCount = 20
 	maxMarginPct  = 1000
+	maxTagsCount  = 20
+	maxTagLen     = 40
 )
 
 var validZarfiats = map[string]bool{"z1": true, "z2": true, "z3": true}
@@ -104,6 +112,41 @@ func validateGameInput(in gameInput) (normalizedGame, string, bool) {
 	}
 	if len(out.Name) > maxNameLen {
 		return out, "نام بازی بیش از حد طولانی است", false
+	}
+
+	// Slug: normalize the admin-supplied value; fall back to the name when blank.
+	// slugify guarantees a well-formed result, so a remaining empty means the name
+	// has no latin characters and the admin must type a slug explicitly.
+	out.Slug = slugify(in.Slug)
+	if out.Slug == "" {
+		out.Slug = slugify(in.Name)
+	}
+	if out.Slug == "" {
+		return out, "نامک (اسلاگ) الزامی است؛ از حروف انگلیسی استفاده کنید", false
+	}
+
+	out.Featured = in.Featured
+
+	// Tags double as genres: trim, drop blanks, dedupe (case-insensitively).
+	tagSeen := map[string]bool{}
+	out.Tags = make([]string, 0, len(in.Tags))
+	for _, t := range in.Tags {
+		tag := strings.TrimSpace(t)
+		if tag == "" {
+			continue
+		}
+		if len(tag) > maxTagLen {
+			return out, "برچسب بیش از حد طولانی است", false
+		}
+		key := strings.ToLower(tag)
+		if tagSeen[key] {
+			continue
+		}
+		tagSeen[key] = true
+		out.Tags = append(out.Tags, tag)
+	}
+	if len(out.Tags) > maxTagsCount {
+		return out, "تعداد برچسب‌ها بیش از حد مجاز است", false
 	}
 
 	consoles := consolesFor(in.Platform)

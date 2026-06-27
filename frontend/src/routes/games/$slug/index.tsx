@@ -1,6 +1,13 @@
-import { createFileRoute, ErrorComponent, useRouter } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  ErrorComponent,
+  useRouter,
+} from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
-import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
+import {
+  useSuspenseQuery,
+  useQueryErrorResetBoundary,
+} from "@tanstack/react-query"
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 import { ArrowRight, ExternalLink, ShoppingCart } from "lucide-react"
@@ -12,6 +19,7 @@ import { Separator } from "@/components/ui/separator"
 import {
   gameQueryOptions,
   calcPrice,
+  discountedPrice,
   formatToman,
   PLATFORM_LABEL,
   PLATFORM_BADGE_CLASS,
@@ -21,18 +29,20 @@ import {
   GameNotices,
   ClosingSoonNotice,
   PreOrderBadge,
+  DiscountBadge,
+  GameTags,
   gameCoverSrc,
 } from "@/features/games"
-import type {ConsolePlatform, Zarfiat, Game} from "@/features/games";
+import type { ConsolePlatform, Zarfiat, Game } from "@/features/games"
 import { useCart } from "@/features/cart"
 
 function GameError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
 }
 
-export const Route = createFileRoute("/games/$id/")({
+export const Route = createFileRoute("/games/$slug/")({
   loader: ({ context, params }) =>
-    context.queryClient.prefetchQuery(gameQueryOptions(params.id)),
+    context.queryClient.prefetchQuery(gameQueryOptions(params.slug)),
   component: GameDetailPage,
   errorComponent: GameError,
 })
@@ -47,17 +57,23 @@ function GameDetailPage() {
     } else {
       router.navigate({
         to: "/games",
-        search: { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" },
+        search: {
+          page: 1,
+          platform: "",
+          zarfiat: "",
+          search: "",
+          sort: "-created_at",
+        },
       })
     }
   }
 
   return (
-    <div className="relative min-h-screen bg-background bg-grid-lines overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-background bg-grid-lines">
       <div className="relative z-10 mx-auto max-w-4xl px-4 pt-10 pb-16 sm:px-6 lg:px-8">
         <button
           onClick={goBack}
-          className="mb-6 sm:mb-10 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:mb-10"
         >
           <ArrowRight className="size-4" />
           بازگشت به لیست
@@ -83,8 +99,8 @@ function GameDetailPage() {
 }
 
 function GameDetail() {
-  const { id } = Route.useParams()
-  const { data } = useSuspenseQuery(gameQueryOptions(id))
+  const { slug } = Route.useParams()
+  const { data } = useSuspenseQuery(gameQueryOptions(slug))
   const { game, exchange_rate } = data
   const platforms: ConsolePlatform[] =
     game.platform === "ps4_ps5" ? ["ps4", "ps5"] : [game.platform]
@@ -97,9 +113,9 @@ function GameDetail() {
   return (
     <div className="flex flex-col gap-10 sm:flex-row sm:gap-12">
       {/* Cover with platform glow — the signature detail */}
-      <div className="relative w-44 shrink-0 self-center sm:self-auto sm:w-56">
+      <div className="relative w-44 shrink-0 self-center sm:w-56 sm:self-auto">
         <div
-          className={`absolute inset-4 rounded-2xl blur-2xl opacity-25 ${platformGlow}`}
+          className={`absolute inset-4 rounded-2xl opacity-25 blur-2xl ${platformGlow}`}
         />
         <img
           src={imgSrc}
@@ -113,12 +129,17 @@ function GameDetail() {
       <div className="flex flex-1 flex-col gap-6">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" className={`border text-xs ${platformBadgeClass}`}>
+            <Badge
+              variant="secondary"
+              className={`border text-xs ${platformBadgeClass}`}
+            >
               {PLATFORM_LABEL[game.platform]}
             </Badge>
             {game.phase === "pre_order" && <PreOrderBadge />}
+            {game.discount && <DiscountBadge percent={game.discount} />}
           </div>
-          <h1 className="text-2xl font-bold leading-snug">{game.name}</h1>
+          <h1 className="text-2xl leading-snug font-bold">{game.name}</h1>
+          <GameTags tags={game.tags} />
         </div>
 
         <GameNotices game={game} />
@@ -129,7 +150,7 @@ function GameDetail() {
           <ClosingSoonNotice game={game} />
         ) : game.prices.length > 0 ? (
           <div className="space-y-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               قیمت
             </p>
             {platforms.map((pl) => {
@@ -167,7 +188,7 @@ function GameDetail() {
 
         {game.links.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               لینک‌ها
             </p>
             <div className="flex flex-wrap gap-2">
@@ -209,17 +230,30 @@ function PriceTile({
   const { items, addItem } = useCart()
   const inCart =
     items.find(
-      (i) => i.gameId === game.id && i.platform === platform && i.zarfiat === zarfiat,
+      (i) =>
+        i.gameId === game.id && i.platform === platform && i.zarfiat === zarfiat
     )?.quantity ?? 0
 
+  const finalPrice = discountedPrice(price, game) ?? price
+  const hasDiscount = finalPrice < price
+
   return (
-    <div className="rounded-xl border border-border/60 bg-background/60 p-3 backdrop-blur-sm space-y-2">
+    <div className="space-y-2 rounded-xl border border-border/60 bg-background/60 p-3 backdrop-blur-sm">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-bold text-primary">{formatToman(price)}</p>
+      <div className="space-y-0.5">
+        {hasDiscount && (
+          <p className="text-xs text-muted-foreground tabular-nums line-through">
+            {formatToman(price)}
+          </p>
+        )}
+        <p className="text-sm font-bold text-primary tabular-nums">
+          {formatToman(finalPrice)}
+        </p>
+      </div>
       <Button
         size="sm"
         variant={inCart > 0 ? "secondary" : "outline"}
-        className="w-full h-8 text-xs gap-1.5"
+        className="h-8 w-full gap-1.5 text-xs"
         disabled={inCart >= 10}
         onClick={() =>
           addItem({
@@ -241,7 +275,7 @@ function PriceTile({
 function GameDetailSkeleton() {
   return (
     <div className="flex flex-col gap-10 sm:flex-row sm:gap-12">
-      <Skeleton className="aspect-3/4 w-44 self-center rounded-2xl sm:self-auto sm:w-56" />
+      <Skeleton className="aspect-3/4 w-44 self-center rounded-2xl sm:w-56 sm:self-auto" />
       <div className="flex flex-1 flex-col gap-5">
         <Skeleton className="h-5 w-16 rounded-full" />
         <Skeleton className="h-8 w-3/4" />

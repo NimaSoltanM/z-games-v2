@@ -1,4 +1,4 @@
-import { calcPrice } from "@/features/games"
+import { calcPrice, discountedPrice } from "@/features/games"
 import type { ExchangeRate, Game } from "@/features/games"
 import type { CartItem } from "./types"
 
@@ -27,9 +27,15 @@ export function cartTotal(
       (p) => p.platform === item.platform && p.zarfiat === item.zarfiat
     )
     if (!hasEntry) continue
-    const price = calcPrice(data.game, item.platform, item.zarfiat, data.exchange_rate)
+    const price = calcPrice(
+      data.game,
+      item.platform,
+      item.zarfiat,
+      data.exchange_rate
+    )
     if (price === null) continue
-    total += price * item.quantity
+    // Charge the discounted price when one is live, matching the backend checkout.
+    total += (discountedPrice(price, data.game) ?? price) * item.quantity
   }
   return total
 }

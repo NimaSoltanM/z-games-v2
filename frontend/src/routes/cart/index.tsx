@@ -1,4 +1,9 @@
-import { createFileRoute, ErrorComponent, Link, useNavigate } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  ErrorComponent,
+  Link,
+  useNavigate,
+} from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import {
   useSuspenseQuery,
@@ -7,7 +12,14 @@ import {
 } from "@tanstack/react-query"
 import { Suspense, useEffect, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { Minus, Plus, Trash2, ShoppingCart, AlertTriangle, Loader2 } from "lucide-react"
+import {
+  Minus,
+  Plus,
+  Trash2,
+  ShoppingCart,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react"
 
 import type { ConsolePlatform, Zarfiat } from "@/features/games"
 import { checkoutOrder } from "@/features/orders/api"
@@ -20,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   gameQueryOptions,
   calcPrice,
+  discountedPrice,
   formatToman,
   PLATFORM_LABEL,
   PLATFORM_BADGE_CLASS,
@@ -40,8 +53,17 @@ export const Route = createFileRoute("/cart/")({
   errorComponent: CartError,
 })
 
-type SetQty = (gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat, quantity: number) => void
-type Remove = (gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat) => void
+type SetQty = (
+  gameId: string,
+  platform: ConsolePlatform,
+  zarfiat: Zarfiat,
+  quantity: number
+) => void
+type Remove = (
+  gameId: string,
+  platform: ConsolePlatform,
+  zarfiat: Zarfiat
+) => void
 
 function CartPage() {
   const { reset } = useQueryErrorResetBoundary()
@@ -70,9 +92,20 @@ function CartPage() {
         </div>
         <div className="space-y-1">
           <p className="text-base font-semibold">سبد خرید خالی است</p>
-          <p className="text-sm text-muted-foreground">بازی مورد نظرت رو انتخاب کن</p>
+          <p className="text-sm text-muted-foreground">
+            بازی مورد نظرت رو انتخاب کن
+          </p>
         </div>
-        <Link to="/games" search={{ page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" }}>
+        <Link
+          to="/games"
+          search={{
+            page: 1,
+            platform: "",
+            zarfiat: "",
+            search: "",
+            sort: "-created_at",
+          }}
+        >
           <Button>مشاهده بازی‌ها</Button>
         </Link>
       </div>
@@ -94,23 +127,31 @@ function CartPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Items list — extra bottom padding on mobile so items aren't hidden behind sticky bar */}
-          <div className="space-y-3 pb-24 lg:pb-0 lg:col-span-2">
+          <div className="space-y-3 pb-24 lg:col-span-2 lg:pb-0">
             {items.map((item) => (
               <ErrorBoundary
                 key={`${item.gameId}:${item.platform}:${item.zarfiat}`}
                 onReset={reset}
                 fallbackRender={({ resetErrorBoundary }) => (
                   <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-                    <p className="text-sm text-destructive">خطا در بارگذاری این بازی</p>
+                    <p className="text-sm text-destructive">
+                      خطا در بارگذاری این بازی
+                    </p>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={resetErrorBoundary}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetErrorBoundary}
+                      >
                         تلاش مجدد
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => removeItem(item.gameId, item.platform, item.zarfiat)}
+                        onClick={() =>
+                          removeItem(item.gameId, item.platform, item.zarfiat)
+                        }
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -119,14 +160,18 @@ function CartPage() {
                 )}
               >
                 <Suspense fallback={<CartItemSkeleton />}>
-                  <CartItemRow item={item} onSetQty={setItemQty} onRemove={removeItem} />
+                  <CartItemRow
+                    item={item}
+                    onSetQty={setItemQty}
+                    onRemove={removeItem}
+                  />
                 </Suspense>
               </ErrorBoundary>
             ))}
           </div>
 
           {/* Summary sidebar — desktop only */}
-          <div className="hidden lg:block lg:col-span-1">
+          <div className="hidden lg:col-span-1 lg:block">
             <CartSummary items={items} />
           </div>
         </div>
@@ -151,7 +196,7 @@ function CartItemRow({
   const { game, exchange_rate } = data
 
   const priceEntry = game.prices.find(
-    (p) => p.platform === item.platform && p.zarfiat === item.zarfiat,
+    (p) => p.platform === item.platform && p.zarfiat === item.zarfiat
   )
   // A pre-order in its closing window is active + priced but NOT purchasable, and
   // checkout would reject it — so flag it unavailable here, exactly like an
@@ -167,7 +212,7 @@ function CartItemRow({
 
   return (
     <div
-      className={`rounded-xl border border-border/60 border-r-2 bg-card/75 backdrop-blur-sm p-4 transition-colors ${
+      className={`rounded-xl border border-r-2 border-border/60 bg-card/75 p-4 backdrop-blur-sm transition-colors ${
         isValid ? accentClass : "border-r-destructive/50 bg-destructive/5"
       }`}
     >
@@ -200,11 +245,32 @@ function CartItemRow({
             >
               {PLATFORM_LABEL[item.platform]}
             </Badge>
-            <span className="text-xs text-muted-foreground">{ZARFIAT_LABEL[item.zarfiat]}</span>
+            <span className="text-xs text-muted-foreground">
+              {ZARFIAT_LABEL[item.zarfiat]}
+            </span>
             {isValid && game.phase === "pre_order" && <PreOrderBadge />}
           </div>
           {isValid && currentPrice !== null && (
-            <p className="text-sm font-semibold text-primary">{formatToman(currentPrice)}</p>
+            <div className="flex items-center gap-2">
+              {(() => {
+                const final =
+                  discountedPrice(currentPrice, game) ?? currentPrice
+                return final < currentPrice ? (
+                  <>
+                    <span className="text-xs text-muted-foreground tabular-nums line-through">
+                      {formatToman(currentPrice)}
+                    </span>
+                    <span className="text-sm font-semibold text-primary tabular-nums">
+                      {formatToman(final)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-sm font-semibold text-primary tabular-nums">
+                    {formatToman(currentPrice)}
+                  </span>
+                )
+              })()}
+            </div>
           )}
         </div>
 
@@ -216,12 +282,17 @@ function CartItemRow({
                 size="icon"
                 className="h-8 w-8"
                 onClick={() =>
-                  onSetQty(item.gameId, item.platform, item.zarfiat, item.quantity - 1)
+                  onSetQty(
+                    item.gameId,
+                    item.platform,
+                    item.zarfiat,
+                    item.quantity - 1
+                  )
                 }
               >
                 <Minus className="size-3" />
               </Button>
-              <span className="w-6 text-center text-sm tabular-nums font-medium">
+              <span className="w-6 text-center text-sm font-medium tabular-nums">
                 {item.quantity}
               </span>
               <Button
@@ -230,7 +301,12 @@ function CartItemRow({
                 className="h-8 w-8"
                 disabled={item.quantity >= 10}
                 onClick={() =>
-                  onSetQty(item.gameId, item.platform, item.zarfiat, item.quantity + 1)
+                  onSetQty(
+                    item.gameId,
+                    item.platform,
+                    item.zarfiat,
+                    item.quantity + 1
+                  )
                 }
               >
                 <Plus className="size-3" />
@@ -266,10 +342,17 @@ function useCartTotal(items: CartItem[]) {
   const pricingByGame = new Map<string, GamePricing>()
   items.forEach((item, i) => {
     const data = results[i].data
-    pricingByGame.set(item.gameId, { game: data.game, exchange_rate: data.exchange_rate })
+    pricingByGame.set(item.gameId, {
+      game: data.game,
+      exchange_rate: data.exchange_rate,
+    })
   })
 
-  return { total: cartTotal(items, pricingByGame), allKnown: true, totalQuantity }
+  return {
+    total: cartTotal(items, pricingByGame),
+    allKnown: true,
+    totalQuantity,
+  }
 }
 
 // Shared checkout action: gate on auth, then create the order and hand off to
@@ -288,7 +371,9 @@ function useCheckout() {
     }
     setPending(true)
     try {
-      const { payment_url } = await checkoutOrder({ referral_code: getReferral() })
+      const { payment_url } = await checkoutOrder({
+        referral_code: getReferral(),
+      })
       window.location.href = payment_url
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در شروع پرداخت")
@@ -310,7 +395,7 @@ function CartSummary({ items }: { items: CartItem[] }) {
   }, [])
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-5 space-y-5 lg:sticky lg:top-24">
+    <div className="space-y-5 rounded-2xl border border-border/60 bg-card/75 p-5 backdrop-blur-sm lg:sticky lg:top-24">
       <p className="text-sm font-semibold">خلاصه سفارش</p>
       <Separator />
       <div className="space-y-3 text-sm">
@@ -338,11 +423,15 @@ function CartSummary({ items }: { items: CartItem[] }) {
             setReferral(e.target.value)
           }}
           placeholder="کد معرف را وارد کنید"
-          className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+          className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/50 focus:outline-none"
         />
       </div>
 
-      <Button className="w-full gap-1.5" disabled={!allKnown || pending} onClick={checkout}>
+      <Button
+        className="w-full gap-1.5"
+        disabled={!allKnown || pending}
+        onClick={checkout}
+      >
         {pending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
@@ -355,7 +444,13 @@ function CartSummary({ items }: { items: CartItem[] }) {
       {error && <p className="text-center text-xs text-destructive">{error}</p>}
       <Link
         to="/games"
-        search={{ page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" }}
+        search={{
+          page: 1,
+          platform: "",
+          zarfiat: "",
+          search: "",
+          sort: "-created_at",
+        }}
         className="block text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
       >
         ادامه خرید ←
@@ -369,14 +464,14 @@ function CartMobileBar({ items }: { items: CartItem[] }) {
   const { checkout, pending, error } = useCheckout()
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur-md px-4 py-3 flex items-center gap-4">
-      <div className="flex-1 min-w-0">
+    <div className="fixed right-0 bottom-0 left-0 z-20 flex items-center gap-4 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-md lg:hidden">
+      <div className="min-w-0 flex-1">
         {error ? (
-          <p className="text-xs text-destructive truncate">{error}</p>
+          <p className="truncate text-xs text-destructive">{error}</p>
         ) : (
           <p className="text-xs text-muted-foreground">{totalQuantity} کالا</p>
         )}
-        <p className="text-sm font-bold text-primary truncate">
+        <p className="truncate text-sm font-bold text-primary">
           {allKnown ? formatToman(total) : "در حال محاسبه..."}
         </p>
       </div>
@@ -394,7 +489,7 @@ function CartMobileBar({ items }: { items: CartItem[] }) {
 
 function CartItemSkeleton() {
   return (
-    <div className="rounded-xl border border-border/60 border-r-2 border-r-border p-4">
+    <div className="rounded-xl border border-r-2 border-border/60 border-r-border p-4">
       <div className="flex items-center gap-4">
         <Skeleton className="h-16 w-12 shrink-0 rounded-lg" />
         <div className="flex-1 space-y-2">

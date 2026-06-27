@@ -24,7 +24,7 @@ func seedAdmin(t *testing.T, ctx context.Context, db *pgxpool.Pool, id string) {
 
 func seedGame(t *testing.T, ctx context.Context, db *pgxpool.Pool, id string) {
 	mustExec(t, ctx, db,
-		"INSERT INTO games (id, name, platform, price_mode, active) VALUES ($1, 'Test Game', 'ps5', 'dynamic', true)",
+		"INSERT INTO games (id, name, slug, platform, price_mode, active) VALUES ($1, 'Test Game', $1, 'ps5', 'dynamic', true)",
 		id)
 }
 

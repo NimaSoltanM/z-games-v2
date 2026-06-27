@@ -19,6 +19,10 @@ import (
 // game (game_links.url is globally unique).
 var ErrDuplicateLink = errors.New("DUPLICATE_LINK")
 
+// ErrDuplicateSlug is returned when a slug already belongs to another game
+// (games.slug is globally unique).
+var ErrDuplicateSlug = errors.New("DUPLICATE_SLUG")
+
 // releaseStatusOrDefault guards a write against an empty status (e.g. a directly
 // constructed input), falling back to the released default the DB also uses.
 func releaseStatusOrDefault(s string) string {
@@ -32,6 +36,31 @@ func releaseStatusOrDefault(s string) string {
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+// isSlugViolation reports whether err is the games.slug unique-index conflict, so
+// it can be told apart from a link-URL conflict (both are 23505).
+func isSlugViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "games_slug_key"
+}
+
+// resolveSlug returns the explicit slug, or a derived collision-resistant one when
+// empty (defensive: the admin flow always sends a slug, validated upstream).
+func resolveSlug(in normalizedGame) (string, error) {
+	if in.Slug != "" {
+		return in.Slug, nil
+	}
+	return fallbackSlug(in.Name)
+}
+
+// tagsOrEmpty coalesces a nil tag slice to an empty one so it satisfies the NOT
+// NULL games.tags column (pgx encodes a nil slice as SQL NULL).
+func tagsOrEmpty(tags []string) []string {
+	if tags == nil {
+		return []string{}
+	}
+	return tags
 }
 
 // insertChildren writes a game's prices and links inside an open transaction.
@@ -80,6 +109,10 @@ func createGame(ctx context.Context, db *pgxpool.Pool, adminID string, in normal
 	if err != nil {
 		return "", fmt.Errorf("createGame id: %w", err)
 	}
+	slug, err := resolveSlug(in)
+	if err != nil {
+		return "", fmt.Errorf("createGame slug: %w", err)
+	}
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -88,12 +121,15 @@ func createGame(ctx context.Context, db *pgxpool.Pool, adminID string, in normal
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO games (id, name, cover_image, platform, price_mode, active,
+		INSERT INTO games (id, slug, name, cover_image, platform, price_mode, active, featured, tags,
 		                   release_status, release_date, alert_message, alert_variant, profit_margin_pct)
-		VALUES ($1, $2, $3, $4::platform, $5::price_mode, $6, $7, $8, $9, $10, $11)
-	`, id, in.Name, in.CoverImage, in.Platform, in.PriceMode, in.Active,
+		VALUES ($1, $2, $3, $4, $5::platform, $6::price_mode, $7, $8, $9, $10, $11, $12, $13, $14)
+	`, id, slug, in.Name, in.CoverImage, in.Platform, in.PriceMode, in.Active, in.Featured, tagsOrEmpty(in.Tags),
 		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant,
 		in.ProfitMarginPct); err != nil {
+		if isSlugViolation(err) {
+			return "", ErrDuplicateSlug
+		}
 		return "", fmt.Errorf("createGame insert: %w", err)
 	}
 
@@ -106,7 +142,7 @@ func createGame(ctx context.Context, db *pgxpool.Pool, adminID string, in normal
 		Action:     audit.ActionGameCreate,
 		TargetType: "game",
 		TargetID:   id,
-		Metadata:   map[string]any{"name": in.Name, "prices": len(in.Prices), "links": len(in.Links)},
+		Metadata:   map[string]any{"name": in.Name, "active": in.Active, "prices": len(in.Prices), "links": len(in.Links)},
 	}); err != nil {
 		return "", fmt.Errorf("createGame: %w", err)
 	}
@@ -120,31 +156,45 @@ func createGame(ctx context.Context, db *pgxpool.Pool, adminID string, in normal
 // transaction. If the cover image changed, the old uploaded file is removed
 // (best-effort) after commit. Audited. Returns ErrGameNotFound / ErrDuplicateLink.
 func updateGame(ctx context.Context, db *pgxpool.Pool, adminID, id string, in normalizedGame) error {
+	slug, err := resolveSlug(in)
+	if err != nil {
+		return fmt.Errorf("updateGame slug: %w", err)
+	}
+
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("updateGame begin: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	// Lock the row and grab the current cover so we can clean it up if it changes.
-	var oldCover *string
-	err = tx.QueryRow(ctx, "SELECT cover_image FROM games WHERE id = $1 FOR UPDATE", id).Scan(&oldCover)
+	// Lock the row and snapshot its current state so we can clean up a replaced
+	// cover and record a field-level diff in the audit log.
+	old, err := loadOldGameState(ctx, tx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrGameNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("updateGame load: %w", err)
 	}
+	oldCover := old.CoverImage
+
+	oldFixed, oldBase, err := loadOldPrices(ctx, tx, id)
+	if err != nil {
+		return fmt.Errorf("updateGame load prices: %w", err)
+	}
 
 	if _, err := tx.Exec(ctx, `
 		UPDATE games SET name = $2, cover_image = $3, platform = $4::platform,
 		       price_mode = $5::price_mode, active = $6, release_status = $7,
 		       release_date = $8, alert_message = $9, alert_variant = $10,
-		       profit_margin_pct = $11, updated_at = NOW()
+		       profit_margin_pct = $11, slug = $12, featured = $13, tags = $14, updated_at = NOW()
 		WHERE id = $1
 	`, id, in.Name, in.CoverImage, in.Platform, in.PriceMode, in.Active,
 		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant,
-		in.ProfitMarginPct); err != nil {
+		in.ProfitMarginPct, slug, in.Featured, tagsOrEmpty(in.Tags)); err != nil {
+		if isSlugViolation(err) {
+			return ErrDuplicateSlug
+		}
 		return fmt.Errorf("updateGame update: %w", err)
 	}
 
@@ -167,7 +217,7 @@ func updateGame(ctx context.Context, db *pgxpool.Pool, adminID, id string, in no
 		Action:     audit.ActionGameUpdate,
 		TargetType: "game",
 		TargetID:   id,
-		Metadata:   map[string]any{"prices": len(in.Prices), "links": len(in.Links)},
+		Metadata:   buildUpdateMetadata(old, in, oldFixed, oldBase),
 	}); err != nil {
 		return fmt.Errorf("updateGame: %w", err)
 	}
@@ -190,7 +240,8 @@ func deleteGame(ctx context.Context, db *pgxpool.Pool, adminID, id string) error
 	defer tx.Rollback(ctx)
 
 	var cover *string
-	err = tx.QueryRow(ctx, "SELECT cover_image FROM games WHERE id = $1", id).Scan(&cover)
+	var name string
+	err = tx.QueryRow(ctx, "SELECT name, cover_image FROM games WHERE id = $1", id).Scan(&name, &cover)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrGameNotFound
 	}
@@ -206,6 +257,7 @@ func deleteGame(ctx context.Context, db *pgxpool.Pool, adminID, id string) error
 		Action:     audit.ActionGameDelete,
 		TargetType: "game",
 		TargetID:   id,
+		Metadata:   map[string]any{"name": name},
 	}); err != nil {
 		return fmt.Errorf("deleteGame: %w", err)
 	}

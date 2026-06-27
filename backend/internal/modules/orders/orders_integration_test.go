@@ -23,7 +23,7 @@ func seedUser(t *testing.T, ctx context.Context, db *pgxpool.Pool, id, phone str
 
 func seedGame(t *testing.T, ctx context.Context, db *pgxpool.Pool, id, mode string, active bool) {
 	mustExec(t, ctx, db,
-		"INSERT INTO games (id, name, platform, price_mode, active) VALUES ($1, 'Test Game', 'ps5', $2::price_mode, $3)",
+		"INSERT INTO games (id, name, slug, platform, price_mode, active) VALUES ($1, 'Test Game', $1, 'ps5', $2::price_mode, $3)",
 		id, mode, active)
 }
 

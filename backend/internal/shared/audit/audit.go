@@ -20,6 +20,7 @@ const (
 	ActionGameCreate   = "game.create"
 	ActionGameUpdate   = "game.update"
 	ActionGameDelete   = "game.delete"
+	ActionGameDiscount = "game.discount"
 	ActionExchangeRate = "exchange_rate.set"
 )
 

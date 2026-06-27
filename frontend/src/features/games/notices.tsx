@@ -1,4 +1,11 @@
-import { Bookmark, CalendarClock, Clock, Info, TriangleAlert } from "lucide-react"
+import {
+  Bookmark,
+  CalendarClock,
+  Clock,
+  Info,
+  Percent,
+  TriangleAlert,
+} from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +22,49 @@ export function PreOrderBadge({ className }: { className?: string }) {
       <Bookmark className="size-3" />
       پیش‌خرید
     </Badge>
+  )
+}
+
+// A "٪X تخفیف" badge for cards/headers when a discount is active. `percent` is the
+// active discount (game.discount); render only when it is truthy.
+export function DiscountBadge({
+  percent,
+  className,
+}: {
+  percent: number
+  className?: string
+}) {
+  return (
+    <Badge
+      variant="secondary"
+      className={`border border-rose-500/30 bg-rose-500/10 text-rose-600 tabular-nums dark:text-rose-400 ${className ?? ""}`}
+    >
+      <Percent className="size-3" />
+      {percent.toLocaleString("fa-IR")}٪ تخفیف
+    </Badge>
+  )
+}
+
+// Tag/genre chips for a game. Renders nothing when there are no tags.
+export function GameTags({
+  tags,
+  className,
+}: {
+  tags: string[]
+  className?: string
+}) {
+  if (tags.length === 0) return null
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${className ?? ""}`}>
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className="rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-xs text-muted-foreground"
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
   )
 }
 
@@ -46,22 +96,24 @@ export function GameNotices({ game }: { game: Game }) {
           <AlertTitle className="flex flex-wrap items-center gap-2">
             این بازی در مرحله‌ی پیش‌خرید است
             {days !== null && days > 0 && (
-              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium tabular-nums text-sky-700 dark:text-sky-300">
+              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700 tabular-nums dark:text-sky-300">
                 {days.toLocaleString("fa-IR")} روز تا انتشار
               </span>
             )}
           </AlertTitle>
           <AlertDescription>
             <p>
-              نسخه‌ی پیش‌خرید بازی را برای شما تهیه می‌کنیم تا تمام پاداش‌ها و امتیازهای ویژه‌ی
-              پیش‌خرید ناشر به شما تعلق بگیرد.
+              نسخه‌ی پیش‌خرید بازی را برای شما تهیه می‌کنیم تا تمام پاداش‌ها و
+              امتیازهای ویژه‌ی پیش‌خرید ناشر به شما تعلق بگیرد.
             </p>
             <p>
-              اطلاعات حساب (ایمیل، رمز عبور و PSN-pass) پس از انتشار رسمی بازی در اختیار شما قرار
-              می‌گیرد.
+              اطلاعات حساب (ایمیل، رمز عبور و PSN-pass) پس از انتشار رسمی بازی
+              در اختیار شما قرار می‌گیرد.
             </p>
             {releaseDate && (
-              <p className="text-current/70">تاریخ انتشار تخمینی: {releaseDate}</p>
+              <p className="text-current/70">
+                تاریخ انتشار تخمینی: {releaseDate}
+              </p>
             )}
           </AlertDescription>
         </Alert>
@@ -81,7 +133,8 @@ export function ClosingSoonNotice({ game }: { game: Game }) {
       <AlertTitle>به‌زودی منتشر می‌شود</AlertTitle>
       <AlertDescription>
         <p>
-          پیش‌خرید این بازی بسته شده است و فروش پس از انتشار رسمی از سر گرفته می‌شود.
+          پیش‌خرید این بازی بسته شده است و فروش پس از انتشار رسمی از سر گرفته
+          می‌شود.
           {releaseDate ? ` انتشار حدوداً ${releaseDate}.` : ""}
         </p>
         <p className="text-current/70">لطفاً کمی بعد دوباره سر بزنید.</p>

@@ -42,7 +42,8 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 	rows, err := db.Query(ctx, `
 		SELECT ci.game_id, g.name, ci.platform, ci.zarfiat, ci.quantity,
 		       g.active, g.price_mode::text, gp.price_toman, gbp.base_usd::float8,
-		       g.profit_margin_pct, g.release_status, g.release_date
+		       g.profit_margin_pct, g.release_status, g.release_date,
+		       g.discount_pct, g.discount_starts_at, g.discount_ends_at
 		FROM cart_items ci
 		JOIN games g ON g.id = ci.game_id
 		LEFT JOIN game_prices gp
@@ -70,9 +71,13 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 			marginPct     *int
 			releaseStatus string
 			releaseDate   *time.Time
+			discountPct   *int
+			discountStart *time.Time
+			discountEnd   *time.Time
 		)
 		if err := rows.Scan(&it.GameID, &it.GameName, &it.Platform, &it.Zarfiat, &it.Quantity,
-			&active, &priceMode, &priceTmn, &baseUSD, &marginPct, &releaseStatus, &releaseDate); err != nil {
+			&active, &priceMode, &priceTmn, &baseUSD, &marginPct, &releaseStatus, &releaseDate,
+			&discountPct, &discountStart, &discountEnd); err != nil {
 			return nil, 0, fmt.Errorf("computeCart scan: %w", err)
 		}
 		// Pre-order sales close in the window just before release, so an item that
@@ -85,6 +90,12 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 		it.PreOrder = phase == release.PhasePreOrder
 		price, ok := unitPrice(active, priceMode, baseUSD, marginPct, priceTmn, rate, cfg, it.Zarfiat)
 		if !ok {
+			return nil, 0, ErrInvalidCart
+		}
+		// Charge the discounted price when a discount is live, so the amount matches
+		// what the storefront showed. Same window math as the public game response.
+		price = pricing.ApplyDiscount(price, pricing.ActiveDiscountPct(discountPct, discountStart, discountEnd, now))
+		if price <= 0 {
 			return nil, 0, ErrInvalidCart
 		}
 		total += price * it.Quantity

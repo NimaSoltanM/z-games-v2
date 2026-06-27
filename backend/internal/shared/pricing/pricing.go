@@ -8,7 +8,10 @@
 // margin can be overridden per game.
 package pricing
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 // Config is the global pricing config — the capacity split and default margin.
 type Config struct {
@@ -56,4 +59,27 @@ func (c Config) TierUSD(baseUSD float64, marginPct int, zarfiat string) float64 
 // TierToman is a tier's final Toman price for a dynamic game.
 func (c Config) TierToman(baseUSD float64, marginPct, rate int, zarfiat string) int {
 	return int(math.Round(c.TierUSD(baseUSD, marginPct, zarfiat) * float64(rate)))
+}
+
+// ActiveDiscountPct returns the discount percent in effect at `now` for a stored
+// discount window, or 0 when no discount is active. The fields are all-or-nothing
+// and the window is half-open [startsAt, endsAt), so a discount disappears exactly
+// at its deadline. This is the single source of truth for "is a discount live".
+func ActiveDiscountPct(pct *int, startsAt, endsAt *time.Time, now time.Time) int {
+	if pct == nil || startsAt == nil || endsAt == nil {
+		return 0
+	}
+	if now.Before(*startsAt) || !now.Before(*endsAt) {
+		return 0
+	}
+	return *pct
+}
+
+// ApplyDiscount reduces a Toman price by pct percent, rounded to the nearest Toman.
+// A non-positive pct leaves the price unchanged.
+func ApplyDiscount(price, pct int) int {
+	if pct <= 0 {
+		return price
+	}
+	return int(math.Round(float64(price) * (1 - float64(pct)/100)))
 }

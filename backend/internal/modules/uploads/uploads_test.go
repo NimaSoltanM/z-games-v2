@@ -389,7 +389,7 @@ func TestSweepOrphans(t *testing.T) {
 	write("orphan_new.jpg", time.Now()) // unused but fresh → spared by grace
 
 	mustExec(t, db,
-		"INSERT INTO games (id, name, platform, cover_image) VALUES ('g1', 'G', 'ps5', '/uploads/referenced.jpg')")
+		"INSERT INTO games (id, name, slug, platform, cover_image) VALUES ('g1', 'G', 'g1', 'ps5', '/uploads/referenced.jpg')")
 
 	removed, err := SweepOrphans(context.Background(), db, dir, 2*time.Hour)
 	if err != nil {

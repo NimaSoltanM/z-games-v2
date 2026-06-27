@@ -1,4 +1,4 @@
-import { useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import {
   useMutation,
@@ -6,7 +6,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { Plus, Trash2, Loader2 } from "lucide-react"
+import { Check, Loader2, Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { z } from "zod"
 
@@ -15,12 +15,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { MoneyInput } from "@/components/money-input"
 import { ImageUpload } from "@/features/uploads"
-import { createGame, updateGame } from "./api"
+import { checkSlugAvailable, createGame, updateGame } from "./api"
 import { adminPricingQueryOptions } from "./queries"
-import { PLATFORM_LABEL, ZARFIAT_LABEL, formatToman } from "./types"
+import { PLATFORM_LABEL, ZARFIAT_LABEL, formatToman, slugify } from "./types"
 import type {
   AlertVariant,
   ConsolePlatform,
@@ -52,9 +53,12 @@ type Cell = {
 }
 type FormValues = {
   name: string
+  slug: string
   platform: Platform
   price_mode: PriceMode
   cover_image: string | null
+  featured: boolean
+  tags: string[]
   margin: string
   bases: Record<ConsolePlatform, string>
   prices: Cell[]
@@ -84,9 +88,12 @@ function initialValues(game?: Game): FormValues {
   }
   return {
     name: game?.name ?? "",
+    slug: game?.slug ?? "",
     platform: game?.platform ?? "ps5",
     price_mode: game?.price_mode ?? "dynamic",
     cover_image: game?.cover_image ?? null,
+    featured: game?.featured ?? false,
+    tags: game?.tags ?? [],
     margin:
       game?.profit_margin_pct != null ? String(game.profit_margin_pct) : "",
     bases: {
@@ -109,9 +116,20 @@ const schema = z
       .trim()
       .min(1, "نام بازی الزامی است")
       .max(200, "نام بازی بیش از حد طولانی است"),
+    slug: z
+      .string()
+      .trim()
+      .min(1, "نامک الزامی است")
+      .max(120, "نامک بیش از حد طولانی است")
+      .regex(
+        /^[a-z0-9]+(-[a-z0-9]+)*$/,
+        "نامک فقط می‌تواند شامل حروف کوچک انگلیسی، عدد و خط تیره باشد"
+      ),
     platform: z.enum(["ps4", "ps5", "ps4_ps5"]),
     price_mode: z.enum(["dynamic", "fixed"]),
     cover_image: z.string().nullable(),
+    featured: z.boolean(),
+    tags: z.array(z.string()),
     margin: z.string(),
     bases: z.object({ ps4: z.string(), ps5: z.string() }),
     prices: z.array(
@@ -223,10 +241,13 @@ function toPayload(v: FormValues, active: boolean): GameFormPayload {
   const alertMessage = v.alert_message.trim()
   return {
     name: v.name.trim(),
+    slug: v.slug.trim(),
     platform: v.platform,
     price_mode: v.price_mode,
     cover_image: v.cover_image,
     active,
+    featured: v.featured,
+    tags: v.tags.map((t) => t.trim()).filter(Boolean),
     release_status: v.release_status,
     release_date:
       v.release_status === "pre_order" && v.release_date.trim() !== ""
@@ -250,12 +271,21 @@ function errText(errors: unknown[]): string {
     .join("، ")
 }
 
+type SlugStatus = "idle" | "checking" | "available" | "taken"
+
 export function GameForm({ game }: { game?: Game }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: pricing } = useSuspenseQuery(adminPricingQueryOptions())
   const published = game?.active ?? false
   const activeRef = useRef(published)
+
+  // Slug auto-suggests from the name until the admin edits it by hand (always off
+  // when editing an existing game, whose slug is already set). slugStatus drives the
+  // live availability indicator and blocks submit on a known collision.
+  const [slugAuto, setSlugAuto] = useState(!game)
+  const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle")
+  const [tagInput, setTagInput] = useState("")
 
   const mutation = useMutation({
     mutationFn: (payload: GameFormPayload) =>
@@ -278,6 +308,10 @@ export function GameForm({ game }: { game?: Game }) {
   })
 
   const submitAs = (active: boolean) => {
+    if (slugStatus === "taken") {
+      toast.error("این نامک قبلاً برای بازی دیگری ثبت شده است")
+      return
+    }
     activeRef.current = active
     form.handleSubmit()
   }
@@ -303,7 +337,7 @@ export function GameForm({ game }: { game?: Game }) {
         </Badge>
       )}
 
-      <Card>
+      <Card className="space-y-5">
         <form.Field name="name">
           {(field) => {
             const invalid =
@@ -315,7 +349,12 @@ export function GameForm({ game }: { game?: Game }) {
                   id="game-name"
                   value={field.state.value}
                   onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
+                  onChange={(e) => {
+                    field.handleChange(e.target.value)
+                    // Keep the slug mirroring the name until the admin edits it.
+                    if (slugAuto)
+                      form.setFieldValue("slug", slugify(e.target.value))
+                  }}
                   aria-invalid={invalid}
                   placeholder="مثلاً Cyberpunk 2077"
                 />
@@ -324,6 +363,158 @@ export function GameForm({ game }: { game?: Game }) {
             )
           }}
         </form.Field>
+
+        <form.Subscribe selector={(s) => s.values.slug}>
+          {(slug) => (
+            <SlugWatcher
+              slug={slug}
+              excludeId={game?.id}
+              setStatus={setSlugStatus}
+            />
+          )}
+        </form.Subscribe>
+        <form.Field name="slug">
+          {(field) => {
+            const invalid =
+              field.state.meta.isTouched && !field.state.meta.isValid
+            return (
+              <div className="space-y-1.5">
+                <Label htmlFor="game-slug">نامک (در آدرس صفحه)</Label>
+                <div className="relative">
+                  <Input
+                    id="game-slug"
+                    dir="ltr"
+                    className="pl-8"
+                    value={field.state.value}
+                    onChange={(e) => {
+                      setSlugAuto(false)
+                      field.handleChange(e.target.value)
+                    }}
+                    onBlur={() => {
+                      field.handleChange(slugify(field.state.value))
+                      field.handleBlur()
+                    }}
+                    aria-invalid={invalid || slugStatus === "taken"}
+                    placeholder="cyberpunk-2077"
+                  />
+                  <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2">
+                    {slugStatus === "checking" && (
+                      <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    )}
+                    {slugStatus === "available" && (
+                      <Check className="size-4 text-emerald-500" />
+                    )}
+                    {slugStatus === "taken" && (
+                      <X className="size-4 text-destructive" />
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground" dir="ltr">
+                  /games/{field.state.value || "…"}
+                </p>
+                {invalid && <FieldError errors={field.state.meta.errors} />}
+                {slugStatus === "taken" && (
+                  <p className="text-xs text-destructive">
+                    این نامک قبلاً برای بازی دیگری ثبت شده است
+                  </p>
+                )}
+              </div>
+            )
+          }}
+        </form.Field>
+      </Card>
+
+      <Card className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">منتخب</p>
+            <p className="text-xs text-muted-foreground">
+              در ردیف «منتخب» بالای صفحه بازی‌ها نمایش داده می‌شود.
+            </p>
+          </div>
+          <form.Field name="featured">
+            {(field) => (
+              <Switch
+                checked={field.state.value}
+                onCheckedChange={field.handleChange}
+                aria-label="منتخب"
+              />
+            )}
+          </form.Field>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>برچسب‌ها / ژانر</Label>
+          <p className="text-xs text-muted-foreground">
+            برای دسته‌بندی و نمایش روی کارت بازی (مثلاً اکشن، آنلاین).
+          </p>
+          <form.Field name="tags" mode="array">
+            {(field) => {
+              const addTag = () => {
+                const t = tagInput.trim()
+                if (!t) return
+                if (
+                  field.state.value.some(
+                    (x) => x.toLowerCase() === t.toLowerCase()
+                  )
+                ) {
+                  setTagInput("")
+                  return
+                }
+                field.pushValue(t)
+                setTagInput("")
+              }
+              return (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          addTag()
+                        }
+                      }}
+                      placeholder="مثلاً اکشن"
+                      maxLength={40}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 gap-1.5"
+                      onClick={addTag}
+                    >
+                      <Plus className="size-3.5" />
+                      افزودن
+                    </Button>
+                  </div>
+                  {field.state.value.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {field.state.value.map((tag, i) => (
+                        <span
+                          key={`${tag}-${i}`}
+                          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-xs"
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => field.removeValue(i)}
+                            className="text-muted-foreground hover:text-destructive"
+                            aria-label="حذف برچسب"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }}
+          </form.Field>
+        </div>
       </Card>
 
       <Card className="grid gap-5 sm:grid-cols-2">
@@ -724,12 +915,13 @@ export function GameForm({ game }: { game?: Game }) {
         >
           {([canSubmit, isSubmitting]) => {
             const busy = isSubmitting || mutation.isPending
+            const blocked = !canSubmit || busy || slugStatus === "taken"
             return (
               <>
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={!canSubmit || busy}
+                  disabled={blocked}
                   onClick={() => submitAs(false)}
                 >
                   ذخیره پیش‌نویس
@@ -737,7 +929,7 @@ export function GameForm({ game }: { game?: Game }) {
                 <Button
                   type="button"
                   className="gap-1.5"
-                  disabled={!canSubmit || busy}
+                  disabled={blocked}
                   onClick={() => submitAs(true)}
                 >
                   {busy && <Loader2 className="size-4 animate-spin" />}
@@ -799,6 +991,43 @@ function DerivedPreview({
       })}
     </div>
   )
+}
+
+// SlugWatcher debounces the current slug and reports its availability to the form.
+// It renders nothing — the indicator is drawn from slugStatus in the slug field —
+// and self-cancels stale requests so a fast typist never sees an out-of-order result.
+function SlugWatcher({
+  slug,
+  excludeId,
+  setStatus,
+}: {
+  slug: string
+  excludeId?: string
+  setStatus: (s: SlugStatus) => void
+}) {
+  useEffect(() => {
+    const s = slug.trim()
+    if (!s || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)) {
+      setStatus("idle")
+      return
+    }
+    setStatus("checking")
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const r = await checkSlugAvailable(s, excludeId)
+        if (!cancelled) setStatus(r.available ? "available" : "taken")
+      } catch {
+        if (!cancelled) setStatus("idle")
+      }
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [slug, excludeId, setStatus])
+
+  return null
 }
 
 function Card({

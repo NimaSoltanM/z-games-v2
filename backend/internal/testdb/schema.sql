@@ -202,9 +202,18 @@ CREATE TABLE public.games (
     alert_message text,
     alert_variant text,
     profit_margin_pct integer,
+    slug character varying(120) NOT NULL,
+    featured boolean DEFAULT false NOT NULL,
+    view_count integer DEFAULT 0 NOT NULL,
+    tags text[] DEFAULT '{}'::text[] NOT NULL,
+    discount_pct smallint,
+    discount_starts_at timestamp without time zone,
+    discount_ends_at timestamp without time zone,
     CONSTRAINT games_release_status_check CHECK ((release_status = ANY (ARRAY['released'::text, 'pre_order'::text]))),
     CONSTRAINT games_alert_variant_check CHECK (((alert_variant IS NULL) OR (alert_variant = ANY (ARRAY['info'::text, 'warning'::text])))),
-    CONSTRAINT games_profit_margin_pct_check CHECK (((profit_margin_pct IS NULL) OR (profit_margin_pct >= 0)))
+    CONSTRAINT games_profit_margin_pct_check CHECK (((profit_margin_pct IS NULL) OR (profit_margin_pct >= 0))),
+    CONSTRAINT games_discount_pct_check CHECK (((discount_pct IS NULL) OR ((discount_pct >= 1) AND (discount_pct <= 99)))),
+    CONSTRAINT games_discount_window_check CHECK ((((discount_pct IS NULL) AND (discount_starts_at IS NULL) AND (discount_ends_at IS NULL)) OR ((discount_pct IS NOT NULL) AND (discount_starts_at IS NOT NULL) AND (discount_ends_at IS NOT NULL) AND (discount_ends_at > discount_starts_at))))
 );
 
 
@@ -377,6 +386,27 @@ ALTER TABLE ONLY public.game_prices
 
 ALTER TABLE ONLY public.games
     ADD CONSTRAINT games_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: games_slug_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX games_slug_key ON public.games USING btree (slug);
+
+
+--
+-- Name: games_featured_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX games_featured_idx ON public.games USING btree (featured) WHERE featured;
+
+
+--
+-- Name: games_tags_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX games_tags_idx ON public.games USING gin (tags);
 
 
 --

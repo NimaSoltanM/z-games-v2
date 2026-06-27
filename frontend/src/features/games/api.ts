@@ -16,12 +16,25 @@ export function getGames(params: GamesParams = {}) {
   if (params.zarfiat) q.set("zarfiat", params.zarfiat)
   if (params.search) q.set("search", params.search)
   if (params.sort) q.set("sort", params.sort)
+  if (params.featured) q.set("featured", "true")
   const qs = q.toString()
   return apiFetch<PaginatedGamesResponse>(`/games${qs ? `?${qs}` : ""}`)
 }
 
-export function getGame(id: string) {
-  return apiFetch<GameDetailResponse>(`/games/${id}`)
+// Accepts a slug or an id — the backend resolves either.
+export function getGame(idOrSlug: string) {
+  return apiFetch<GameDetailResponse>(`/games/${idOrSlug}`)
+}
+
+// Checks whether a slug is free (admin live-uniqueness check). `exclude` is the id
+// of the game being edited, so renaming a game to its own slug reads as available.
+// Returns the normalized slug the backend would store alongside availability.
+export function checkSlugAvailable(slug: string, exclude?: string) {
+  const q = new URLSearchParams({ slug })
+  if (exclude) q.set("exclude", exclude)
+  return apiFetch<{ slug: string; available: boolean }>(
+    `/games/admin/slug-available?${q.toString()}`
+  )
 }
 
 // Sets the global pricing config: the USD→Toman rate, the capacity split, and
@@ -84,6 +97,18 @@ export function setGameAlert(
   body: { message: string; variant: AlertVariant }
 ) {
   return apiFetch<{ game: Game }>(`/games/admin/${id}/alert`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+}
+
+// Starts a time-boxed percentage discount ({ percent: 1..99, days > 0 }) or stops
+// the current one early ({ percent: 0 }).
+export function setGameDiscount(
+  id: string,
+  body: { percent: number; days: number }
+) {
+  return apiFetch<{ game: Game }>(`/games/admin/${id}/discount`, {
     method: "PATCH",
     body: JSON.stringify(body),
   })
