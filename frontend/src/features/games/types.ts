@@ -255,23 +255,32 @@ export const GAMES_DEFAULT_SEARCH = {
   sort: "-created_at",
 } as const
 
-// Real PlayStation brand colors
-export const PLATFORM_BADGE_CLASS: Record<Platform, string> = {
+// Console brand colors, keyed by console code. PlayStation = blue; Xbox = green
+// (Xbox One lighter, Xbox Series X|S darker, near the real ~#107C10 brand green).
+// Keyed by string so new console codes can be added as the model becomes
+// data-driven; callers should fall back to a neutral style for unknown codes.
+export const PLATFORM_BADGE_CLASS: Record<string, string> = {
   ps4: "bg-blue-600/15 text-blue-400 border-blue-600/30",
   ps5: "bg-black/8 text-zinc-200 border-dark/15",
   ps4_ps5:
     "bg-gradient-to-r from-blue-600/15 to-white/8 text-blue-300 border-blue-400/20",
+  xbox_one: "bg-green-400/15 text-green-300 border-green-400/30",
+  xbox_series: "bg-green-700/15 text-green-500 border-green-700/30",
 }
 
 // Used for glow effects (detail page cover)
-export const PLATFORM_GLOW_CLASS: Record<Platform, string> = {
+export const PLATFORM_GLOW_CLASS: Record<string, string> = {
   ps4: "bg-blue-600",
   ps5: "bg-white",
   ps4_ps5: "bg-blue-400",
+  xbox_one: "bg-green-400",
+  xbox_series: "bg-green-700",
 }
 
 // Used for accent borders (cart items)
-export const PLATFORM_ACCENT_CLASS: Record<ConsolePlatform, string> = {
+export const PLATFORM_ACCENT_CLASS: Record<string, string> = {
   ps4: "border-r-blue-500/70",
   ps5: "border-r-white/25",
+  xbox_one: "border-r-green-400/70",
+  xbox_series: "border-r-green-600/40",
 }
