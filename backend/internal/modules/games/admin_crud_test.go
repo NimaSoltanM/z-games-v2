@@ -124,6 +124,39 @@ func TestCreateGame_Xbox(t *testing.T) {
 	}
 }
 
+func TestCreateGame_DynamicDisabledCapacity(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	// ps5 base price selling only z2 + z3 (z1 disabled).
+	id, err := createGame(ctx, db, "a1", normalizedGame{
+		Name: "Partial", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true,
+		BasePrices: []normalizedBasePrice{
+			{Platform: "ps5", BaseUSD: 50, Capacities: []string{"z2", "z3"}},
+		},
+		Links: []string{"https://store.example.com/partial"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := getGameByID(ctx, db, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Only the two enabled capacities are derived/sold.
+	if len(g.Prices) != 2 {
+		t.Fatalf("derived prices = %d, want 2 (z1 disabled)", len(g.Prices))
+	}
+	if findPrice(g.Prices, "ps5", "z1") != nil {
+		t.Fatal("z1 should be disabled but a price was derived for it")
+	}
+	if findPrice(g.Prices, "ps5", "z2") == nil ||
+		findPrice(g.Prices, "ps5", "z3") == nil {
+		t.Fatalf("z2/z3 should be sold: %+v", g.Prices)
+	}
+}
+
 func TestCreateGame_Fixed(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)

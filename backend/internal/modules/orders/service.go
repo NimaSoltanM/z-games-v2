@@ -50,6 +50,7 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 		  ON gp.game_id = ci.game_id AND gp.platform = ci.platform AND gp.zarfiat = ci.zarfiat
 		LEFT JOIN game_base_prices gbp
 		  ON gbp.game_id = ci.game_id AND gbp.platform = ci.platform
+		  AND (cardinality(gbp.capacities) = 0 OR ci.zarfiat = ANY(gbp.capacities))
 		WHERE ci.user_id = $1
 		ORDER BY ci.created_at ASC
 	`, userID)

@@ -64,6 +64,11 @@ function gameToPayload(game: Game): GameFormPayload {
     base_prices: game.base_prices.map((b) => ({
       platform: b.platform,
       base_usd: Number(b.base_usd),
+      // Preserve the enabled capacity set (the derived prices for this console) so a
+      // quick toggle doesn't silently re-enable disabled capacities.
+      capacities: game.prices
+        .filter((p) => p.platform === b.platform)
+        .map((p) => p.zarfiat),
     })),
     prices:
       game.price_mode === "fixed"

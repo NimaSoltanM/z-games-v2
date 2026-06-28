@@ -474,9 +474,10 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 		return fmt.Errorf("prices rows error: %w", err)
 	}
 
-	// Dynamic games: one base USD price per console, tiers derived from it.
+	// Dynamic games: one base USD price per console, tiers derived from it. Only the
+	// capacities listed in gbp.capacities are sold (empty list = all of them).
 	brows, err := db.Query(ctx, `
-		SELECT gbp.game_id, gbp.platform, gbp.base_usd::float8
+		SELECT gbp.game_id, gbp.platform, gbp.base_usd::float8, gbp.capacities
 		FROM game_base_prices gbp JOIN games g ON g.id = gbp.game_id
 		WHERE gbp.game_id = ANY($1) AND g.price_mode = 'dynamic'
 		ORDER BY gbp.platform
@@ -488,7 +489,8 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 	for brows.Next() {
 		var gameID, platform string
 		var baseUSD float64
-		if err := brows.Scan(&gameID, &platform, &baseUSD); err != nil {
+		var capacities []string
+		if err := brows.Scan(&gameID, &platform, &baseUSD, &capacities); err != nil {
 			return fmt.Errorf("scan base price: %w", err)
 		}
 		i, ok := idx[gameID]
@@ -503,8 +505,17 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 		if !ok {
 			continue
 		}
+		// Empty list means every capacity is sold (back-compat).
+		enabledAll := len(capacities) == 0
+		enabled := make(map[string]bool, len(capacities))
+		for _, code := range capacities {
+			enabled[code] = true
+		}
 		margin := cn.Margin(games[i].ProfitMarginPct)
 		for _, cp := range cn.Capacities {
+			if !enabledAll && !enabled[cp.Code] {
+				continue
+			}
 			usd := strconv.FormatFloat(pricing.TierUSD(baseUSD, margin, cp.SplitPct), 'f', 2, 64)
 			usdCopy := usd
 			games[i].Prices = append(games[i].Prices, gamePriceRow{

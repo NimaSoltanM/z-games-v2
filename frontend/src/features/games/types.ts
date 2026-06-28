@@ -134,6 +134,8 @@ export type GamePriceInput = {
 export type GameBasePriceInput = {
   platform: ConsolePlatform
   base_usd: number
+  // Capacities sold for this console (dynamic). Empty = all of the console's caps.
+  capacities: string[]
 }
 
 // The full game payload an admin submits from the form. `active` doubles as the

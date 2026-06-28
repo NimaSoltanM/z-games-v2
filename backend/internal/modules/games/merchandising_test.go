@@ -243,6 +243,7 @@ func TestValidateGameInput_SlugTagsFeatured(t *testing.T) {
 		Name: "Game", Slug: "  My Cool Game! ", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		Featured: true, Tags: []string{" اکشن ", "اکشن", "", "Online"},
 		BasePrices: []basePriceInput{{Platform: "ps5", BaseUSD: 10}},
+		Links:      []string{"https://store.example.com/g"},
 	}, psCatalog())
 	if !ok {
 		t.Fatalf("rejected valid input: %q", msg)
@@ -258,6 +259,7 @@ func TestValidateGameInput_SlugTagsFeatured(t *testing.T) {
 	out, _, ok = validateGameInput(gameInput{
 		Name: "Fallback Name", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []basePriceInput{{Platform: "ps5", BaseUSD: 10}},
+		Links:      []string{"https://store.example.com/g"},
 	}, psCatalog())
 	if !ok || out.Slug != "fallback-name" {
 		t.Fatalf("name fallback slug = %q, want fallback-name", out.Slug)

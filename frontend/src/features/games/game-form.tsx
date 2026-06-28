@@ -21,7 +21,7 @@ import { MoneyInput } from "@/components/money-input"
 import { ImageUpload } from "@/features/uploads"
 import { checkSlugAvailable, createGame, updateGame } from "./api"
 import { adminPricingQueryOptions } from "./queries"
-import { formatToman, slugify } from "./types"
+import { familyDotClass, formatToman, slugify } from "./types"
 import type {
   AlertVariant,
   Console,
@@ -62,6 +62,8 @@ type FormValues = {
   tags: string[]
   margin: string
   bases: Record<string, string>
+  // Per-console enabled capacity codes (dynamic mode).
+  enabledCaps: Record<string, string[]>
   prices: Cell[]
   links: { url: string }[]
   release_status: ReleaseStatus
@@ -88,9 +90,21 @@ function initialValues(catalog: Catalog, game?: Game): FormValues {
     }
   }
   const bases: Record<string, string> = {}
+  const enabledCaps: Record<string, string[]> = {}
   for (const c of catalog.consoles) {
     bases[c.code] =
       game?.base_prices.find((b) => b.platform === c.code)?.base_usd ?? ""
+    const all = c.capacities.map((cp) => cp.code)
+    if (game && game.price_mode === "dynamic") {
+      // On edit, the enabled set is whichever capacities the game currently sells
+      // for this console; default to all when the console isn't sold yet.
+      const sold = game.prices
+        .filter((p) => p.platform === c.code)
+        .map((p) => p.zarfiat)
+      enabledCaps[c.code] = sold.length > 0 ? sold : all
+    } else {
+      enabledCaps[c.code] = all
+    }
   }
   return {
     name: game?.name ?? "",
@@ -103,8 +117,10 @@ function initialValues(catalog: Catalog, game?: Game): FormValues {
     margin:
       game?.profit_margin_pct != null ? String(game.profit_margin_pct) : "",
     bases,
+    enabledCaps,
     prices: cells,
-    links: game?.links.map((l) => ({ url: l.url })) ?? [],
+    // At least one link is required; start a new game with one empty row.
+    links: game?.links.map((l) => ({ url: l.url })) ?? [{ url: "" }],
     release_status: game?.release_status ?? "released",
     release_date: game?.release_date ? game.release_date.slice(0, 10) : "",
     alert_message: game?.alert_message ?? "",
@@ -135,6 +151,7 @@ const schema = z
     tags: z.array(z.string()),
     margin: z.string(),
     bases: z.record(z.string(), z.string()),
+    enabledCaps: z.record(z.string(), z.array(z.string())),
     prices: z.array(
       z.object({
         platform: z.string(),
@@ -168,6 +185,14 @@ const schema = z
               code: "custom",
               path: ["bases", con],
               message: "قیمت پایه باید بزرگ‌تر از صفر باشد",
+            })
+          }
+          // A priced console must sell at least one capacity.
+          if ((val.enabledCaps[con] ?? []).length === 0) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["enabledCaps", con],
+              message: "حداقل یک ظرفیت برای این کنسول انتخاب کنید",
             })
           }
         }
@@ -220,6 +245,13 @@ const schema = z
         })
       }
     })
+    if (val.links.filter((l) => l.url.trim() !== "").length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["links"],
+        message: "حداقل یک لینک الزامی است",
+      })
+    }
   })
 
 function toPayload(v: FormValues, active: boolean): GameFormPayload {
@@ -231,7 +263,12 @@ function toPayload(v: FormValues, active: boolean): GameFormPayload {
   if (v.price_mode === "dynamic") {
     for (const con of consoles) {
       const b = (v.bases[con] ?? "").trim()
-      if (b !== "") basePrices.push({ platform: con, base_usd: Number(b) })
+      if (b !== "")
+        basePrices.push({
+          platform: con,
+          base_usd: Number(b),
+          capacities: v.enabledCaps[con] ?? [],
+        })
     }
     margin = v.margin.trim() === "" ? null : Number(v.margin)
   } else {
@@ -534,7 +571,7 @@ export function GameForm({ game }: { game?: Game }) {
         </div>
       </Card>
 
-      <Card className="grid gap-5 sm:grid-cols-2">
+      <Card className="space-y-5">
         <form.Field name="consoles">
           {(field) => {
             const invalid =
@@ -542,19 +579,27 @@ export function GameForm({ game }: { game?: Game }) {
             return (
               <div className="space-y-1.5">
                 <Label>کنسول‌ها</Label>
+                <p className="text-xs text-muted-foreground">
+                  می‌توانید چند کنسول را انتخاب کنید.
+                </p>
                 <ToggleGroup
+                  multiple
                   value={field.state.value}
                   onValueChange={(v: string[]) => field.handleChange(v)}
                   variant="outline"
                   size="sm"
-                  spacing={0}
+                  spacing={2}
+                  className="w-full flex-wrap"
                 >
                   {pricing.consoles.map((c) => (
                     <ToggleGroupItem
                       key={c.code}
                       value={c.code}
-                      className="px-3 text-xs"
+                      className="gap-1.5 px-3 text-xs"
                     >
+                      <span
+                        className={`size-2 rounded-full ${familyDotClass(c.family)}`}
+                      />
                       {c.label_fa}
                     </ToggleGroupItem>
                   ))}
@@ -618,8 +663,8 @@ export function GameForm({ game }: { game?: Game }) {
                           id="margin"
                           dir="ltr"
                           inputMode="numeric"
-                          className="w-32"
-                          placeholder="خالی = پیش‌فرض هر کنسول"
+                          className="w-40"
+                          placeholder="۲۰"
                           value={field.state.value}
                           onChange={(e) =>
                             field.handleChange(
@@ -628,6 +673,9 @@ export function GameForm({ game }: { game?: Game }) {
                           }
                           aria-invalid={invalid}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          خالی بگذارید تا سود پیش‌فرض هر کنسول اعمال شود.
+                        </p>
                         {invalid && (
                           <FieldError errors={field.state.meta.errors} />
                         )}
@@ -641,9 +689,10 @@ export function GameForm({ game }: { game?: Game }) {
                     consoles: s.values.consoles,
                     margin: s.values.margin,
                     bases: s.values.bases,
+                    enabledCaps: s.values.enabledCaps,
                   })}
                 >
-                  {({ consoles, margin, bases }) => (
+                  {({ consoles, margin, bases, enabledCaps }) => (
                     <div className="space-y-4">
                       {consoles.length === 0 && (
                         <p className="text-xs text-muted-foreground">
@@ -684,11 +733,54 @@ export function GameForm({ game }: { game?: Game }) {
                                 )
                               }}
                             </form.Field>
+
+                            <form.Field name={`enabledCaps.${con}`}>
+                              {(capField) => {
+                                const invalid =
+                                  capField.state.meta.isTouched &&
+                                  !capField.state.meta.isValid
+                                return (
+                                  <div className="space-y-1.5">
+                                    <Label className="text-xs text-muted-foreground">
+                                      ظرفیت‌های فروش
+                                    </Label>
+                                    <ToggleGroup
+                                      multiple
+                                      value={capField.state.value}
+                                      onValueChange={(v: string[]) =>
+                                        capField.handleChange(v)
+                                      }
+                                      variant="outline"
+                                      size="sm"
+                                      spacing={2}
+                                      className="w-full flex-wrap"
+                                    >
+                                      {cn.capacities.map((cp) => (
+                                        <ToggleGroupItem
+                                          key={cp.code}
+                                          value={cp.code}
+                                          className="px-2.5 text-xs"
+                                        >
+                                          {cp.label_fa}
+                                        </ToggleGroupItem>
+                                      ))}
+                                    </ToggleGroup>
+                                    {invalid && (
+                                      <FieldError
+                                        errors={capField.state.meta.errors}
+                                      />
+                                    )}
+                                  </div>
+                                )
+                              }}
+                            </form.Field>
+
                             <DerivedPreview
                               base={bases[con] ?? ""}
                               margin={margin}
                               console={cn}
                               rate={pricing.usd_to_toman}
+                              enabled={enabledCaps[con] ?? []}
                             />
                           </div>
                         )
@@ -888,7 +980,10 @@ export function GameForm({ game }: { game?: Game }) {
 
       {/* Links */}
       <Card>
-        <p className="mb-3 text-sm font-semibold">لینک‌ها</p>
+        <p className="text-sm font-semibold">لینک‌ها</p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          حداقل یک لینک الزامی است.
+        </p>
         <form.Field name="links" mode="array">
           {(field) => (
             <div className="space-y-2">
@@ -992,19 +1087,24 @@ function DerivedPreview({
   margin,
   console: cn,
   rate,
+  enabled,
 }: {
   base: string
   margin: string
   console: Console
   rate: number | null
+  enabled: string[]
 }) {
   const b = Number(base.trim())
   if (!base.trim() || !Number.isFinite(b) || b <= 0) return null
   const m = margin.trim() === "" ? cn.default_margin_pct : Number(margin)
+  // Only preview the capacities actually being sold.
+  const caps = cn.capacities.filter((cp) => enabled.includes(cp.code))
+  if (caps.length === 0) return null
 
   return (
     <div className="flex flex-wrap gap-2 pt-1">
-      {cn.capacities.map((cap) => {
+      {caps.map((cap) => {
         const usd = b * (1 + m / 100) * (cap.split_pct / 100)
         const toman = rate != null ? Math.round(usd * rate) : null
         return (

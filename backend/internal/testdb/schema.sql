@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict iAxaKom4NX6Ocf12LOFYm0W1otxEgfsiEORjr6bv9N7sbHhBPSLLd1ukvSctJRK
+\restrict cCpnpnYpIZWMyjU6lWSqv33kbUfbDR9YzjyxrGH33ba7dN5hzEhxCE9RcX7MTmz
 
 -- Dumped from database version 18.4
 -- Dumped by pg_dump version 18.4
@@ -176,6 +176,7 @@ CREATE TABLE public.game_base_prices (
     game_id character varying NOT NULL,
     platform text NOT NULL,
     base_usd numeric(10,2) NOT NULL,
+    capacities text[] DEFAULT '{}'::text[] NOT NULL,
     CONSTRAINT game_base_prices_base_usd_check CHECK ((base_usd > (0)::numeric))
 );
 
@@ -811,5 +812,5 @@ ALTER TABLE ONLY public.orders
 -- PostgreSQL database dump complete
 --
 
-\unrestrict iAxaKom4NX6Ocf12LOFYm0W1otxEgfsiEORjr6bv9N7sbHhBPSLLd1ukvSctJRK
+\unrestrict cCpnpnYpIZWMyjU6lWSqv33kbUfbDR9YzjyxrGH33ba7dN5hzEhxCE9RcX7MTmz
 

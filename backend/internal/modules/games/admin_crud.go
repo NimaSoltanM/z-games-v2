@@ -74,9 +74,14 @@ func insertChildren(ctx context.Context, tx pgx.Tx, gameID string, in normalized
 	}
 	if in.PriceMode == "dynamic" {
 		for _, b := range in.BasePrices {
+			// Coalesce nil -> empty (the column is NOT NULL; empty means "all caps").
+			caps := b.Capacities
+			if caps == nil {
+				caps = []string{}
+			}
 			if _, err := tx.Exec(ctx,
-				"INSERT INTO game_base_prices (game_id, platform, base_usd) VALUES ($1, $2, $3)",
-				gameID, b.Platform, b.BaseUSD); err != nil {
+				"INSERT INTO game_base_prices (game_id, platform, base_usd, capacities) VALUES ($1, $2, $3, $4)",
+				gameID, b.Platform, b.BaseUSD, caps); err != nil {
 				return fmt.Errorf("insert base price: %w", err)
 			}
 		}

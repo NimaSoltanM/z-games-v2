@@ -32,8 +32,11 @@ type gameInput struct {
 }
 
 type basePriceInput struct {
-	Platform string  `json:"platform"`
-	BaseUSD  float64 `json:"base_usd"`
+	Platform string   `json:"platform"`
+	BaseUSD  float64  `json:"base_usd"`
+	// Capacities sold for this console (dynamic mode). Empty/omitted = all of the
+	// console's catalog capacities.
+	Capacities []string `json:"capacities"`
 }
 
 type priceInput struct {
@@ -64,8 +67,9 @@ type normalizedGame struct {
 }
 
 type normalizedBasePrice struct {
-	Platform string
-	BaseUSD  float64
+	Platform   string
+	BaseUSD    float64
+	Capacities []string // capacities sold for this console (dynamic)
 }
 
 type normalizedPrice struct {
@@ -225,7 +229,33 @@ func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, s
 			if b.BaseUSD <= 0 {
 				return out, "قیمت دلاری باید بزرگ‌تر از صفر باشد", false
 			}
-			out.BasePrices = append(out.BasePrices, normalizedBasePrice{Platform: b.Platform, BaseUSD: b.BaseUSD})
+			// Which capacities are sold for this console. Empty/omitted defaults to
+			// all of the console's catalog capacities; otherwise each must be valid.
+			cn, _ := catalog.Console(b.Platform)
+			caps := make([]string, 0, len(b.Capacities))
+			if len(b.Capacities) == 0 {
+				for _, cp := range cn.Capacities {
+					caps = append(caps, cp.Code)
+				}
+			} else {
+				capSeen := map[string]bool{}
+				for _, code := range b.Capacities {
+					if _, ok := catalog.Capacity(b.Platform, code); !ok {
+						return out, "ظرفیت نامعتبر است", false
+					}
+					if capSeen[code] {
+						continue
+					}
+					capSeen[code] = true
+					caps = append(caps, code)
+				}
+			}
+			if len(caps) == 0 {
+				return out, "برای هر کنسول حداقل یک ظرفیت باید فعال باشد", false
+			}
+			out.BasePrices = append(out.BasePrices, normalizedBasePrice{
+				Platform: b.Platform, BaseUSD: b.BaseUSD, Capacities: caps,
+			})
 		}
 	} else {
 		seen := map[string]bool{}
@@ -272,6 +302,9 @@ func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, s
 		}
 		linkSeen[url] = true
 		out.Links = append(out.Links, url)
+	}
+	if len(out.Links) == 0 {
+		return out, "حداقل یک لینک الزامی است", false
 	}
 	if len(out.Links) > maxLinksCount {
 		return out, "تعداد لینک‌ها بیش از حد مجاز است", false

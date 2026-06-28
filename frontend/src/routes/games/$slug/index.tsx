@@ -137,12 +137,24 @@ function GameDetail() {
 
       {/* Info */}
       <div className="flex flex-1 flex-col gap-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <h1 className="text-2xl leading-snug font-bold">{game.name}</h1>
           <div className="flex flex-wrap items-center gap-2">
+            {game.consoles.map((c) => {
+              const fam = gameFamilies([c], exchange_rate)[0]
+              return (
+                <span
+                  key={c}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-xs"
+                >
+                  <span className={`size-2 rounded-full ${fam.glow}`} />
+                  {consoleLabel(c, exchange_rate)}
+                </span>
+              )
+            })}
             {game.phase === "pre_order" && <PreOrderBadge />}
-            <GameTags tags={game.tags} />
           </div>
+          <GameTags tags={game.tags} />
         </div>
 
         <GameNotices game={game} />
