@@ -12,7 +12,7 @@ export type OrderItem = {
   pre_order: boolean
   email: string | null
   password: string | null
-  psn_pass: string | null
+  passcode: string | null
 }
 
 export type Order = {

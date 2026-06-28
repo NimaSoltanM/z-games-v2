@@ -23,12 +23,12 @@ import { Pagination } from "@/components/pagination"
 import {
   adminGamesQueryOptions,
   gameCoverSrc,
-  PLATFORM_LABEL,
-  PLATFORM_BADGE_CLASS,
+  consoleLabel,
+  platformBadgeClass,
   PreOrderBadge,
   DiscountBadge,
 } from "@/features/games"
-import type { ExchangeRate, Game, Platform } from "@/features/games"
+import type { ExchangeRate, Game } from "@/features/games"
 import { setPricingConfig } from "@/features/games/api"
 import {
   ActiveToggle,
@@ -48,13 +48,6 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "draft", label: "پیش‌نویس" },
   { value: "pre_order", label: "پیش‌خرید" },
 ]
-const PLATFORM_FILTERS: { value: "all" | Platform; label: string }[] = [
-  { value: "all", label: "همه" },
-  { value: "ps4", label: "PS4" },
-  { value: "ps5", label: "PS5" },
-  { value: "ps4_ps5", label: "هردو" },
-]
-
 function AdminGamesError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
 }
@@ -107,7 +100,7 @@ function AdminGamesPage() {
 function AdminGamesContent() {
   const { data } = useSuspenseQuery(adminGamesQueryOptions())
   const [search, setSearch] = useState("")
-  const [platform, setPlatform] = useState<"all" | Platform>("all")
+  const [platform, setPlatform] = useState<string>("all")
   const [status, setStatus] = useState<StatusFilter>("all")
   const [page, setPage] = useState(1)
 
@@ -116,7 +109,7 @@ function AdminGamesContent() {
     setSearch(v)
     setPage(1)
   }
-  const onPlatform = (v: "all" | Platform) => {
+  const onPlatform = (v: string) => {
     setPlatform(v)
     setPage(1)
   }
@@ -125,10 +118,19 @@ function AdminGamesContent() {
     setPage(1)
   }
 
+  // Console filter options come from the live catalog ("all" + each console).
+  const consoleFilters = [
+    { value: "all", label: "همه" },
+    ...(data.exchange_rate?.consoles ?? []).map((c) => ({
+      value: c.code,
+      label: c.label_fa,
+    })),
+  ]
+
   const q = search.trim().toLowerCase()
   const filtered = data.games.filter((g) => {
     if (q && !g.name.toLowerCase().includes(q)) return false
-    if (platform !== "all" && g.platform !== platform) return false
+    if (platform !== "all" && !g.consoles.includes(platform)) return false
     if (status === "published" && !g.active) return false
     if (status === "draft" && g.active) return false
     if (status === "pre_order" && g.release_status !== "pre_order") return false
@@ -159,12 +161,12 @@ function AdminGamesContent() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <ToggleGroup
             value={[platform]}
-            onValueChange={(v) => v[0] && onPlatform(v[0] as "all" | Platform)}
+            onValueChange={(v) => v[0] && onPlatform(v[0])}
             variant="outline"
             size="sm"
             spacing={0}
           >
-            {PLATFORM_FILTERS.map((f) => (
+            {consoleFilters.map((f) => (
               <ToggleGroupItem
                 key={f.value}
                 value={f.value}
@@ -244,12 +246,15 @@ function GameRow({ game }: { game: Game }) {
           {game.discount && <DiscountBadge percent={game.discount} />}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <Badge
-            variant="secondary"
-            className={`border text-[10px] ${PLATFORM_BADGE_CLASS[game.platform]}`}
-          >
-            {PLATFORM_LABEL[game.platform]}
-          </Badge>
+          {game.consoles.map((c) => (
+            <Badge
+              key={c}
+              variant="secondary"
+              className={`border text-[10px] ${platformBadgeClass(c)}`}
+            >
+              {consoleLabel(c)}
+            </Badge>
+          ))}
           <span>
             {game.price_mode === "dynamic" ? "قیمت دلاری" : "قیمت تومانی"}
           </span>
@@ -305,27 +310,68 @@ function PctField({
   )
 }
 
+type ConsoleDraft = {
+  code: string
+  label: string
+  margin: string
+  capacities: { code: string; label: string; split: string }[]
+}
+
 function PricingPanel({ config }: { config: ExchangeRate }) {
   const queryClient = useQueryClient()
   const [rate, setRate] = useState(
     config?.usd_to_toman != null ? String(config.usd_to_toman) : ""
   )
-  const [z1, setZ1] = useState(String(config?.z1_pct ?? 15))
-  const [z2, setZ2] = useState(String(config?.z2_pct ?? 60))
-  const [z3, setZ3] = useState(String(config?.z3_pct ?? 25))
-  const [margin, setMargin] = useState(String(config?.default_margin_pct ?? 10))
+  // One editable draft per console: its default margin + each capacity's split.
+  const [consoles, setConsoles] = useState<ConsoleDraft[]>(() =>
+    (config?.consoles ?? []).map((c) => ({
+      code: c.code,
+      label: c.label_fa,
+      margin: String(c.default_margin_pct),
+      capacities: c.capacities.map((cp) => ({
+        code: cp.code,
+        label: cp.label_fa,
+        split: String(cp.split_pct),
+      })),
+    }))
+  )
 
-  const splitSum = Number(z1 || 0) + Number(z2 || 0) + Number(z3 || 0)
-  const valid = Number(rate) > 0 && splitSum === 100 && margin !== ""
+  const setMargin = (code: string, v: string) =>
+    setConsoles((cs) =>
+      cs.map((c) => (c.code === code ? { ...c, margin: v } : c))
+    )
+  const setSplit = (code: string, capCode: string, v: string) =>
+    setConsoles((cs) =>
+      cs.map((c) =>
+        c.code === code
+          ? {
+              ...c,
+              capacities: c.capacities.map((cp) =>
+                cp.code === capCode ? { ...cp, split: v } : cp
+              ),
+            }
+          : c
+      )
+    )
+
+  const splitSum = (c: ConsoleDraft) =>
+    c.capacities.reduce((s, cp) => s + Number(cp.split || 0), 0)
+  const valid =
+    Number(rate) > 0 &&
+    consoles.every((c) => c.margin !== "" && splitSum(c) === 100)
 
   const m = useMutation({
     mutationFn: () =>
       setPricingConfig({
         usd_to_toman: Number(rate),
-        z1_pct: Number(z1),
-        z2_pct: Number(z2),
-        z3_pct: Number(z3),
-        default_margin_pct: Number(margin),
+        consoles: consoles.map((c) => ({
+          code: c.code,
+          default_margin_pct: Number(c.margin),
+          capacities: c.capacities.map((cp) => ({
+            code: cp.code,
+            split_pct: Number(cp.split),
+          })),
+        })),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "games"] })
@@ -333,49 +379,73 @@ function PricingPanel({ config }: { config: ExchangeRate }) {
       queryClient.invalidateQueries({ queryKey: ["admin", "pricing"] })
       toast.success("تنظیمات قیمت‌گذاری ذخیره شد")
     },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "خطا در ذخیره"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "خطا در ذخیره"),
   })
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/60 bg-card/75 p-4 backdrop-blur-sm">
+    <div className="space-y-4 rounded-xl border border-border/60 bg-card/75 p-4 backdrop-blur-sm">
       <div>
         <p className="text-sm font-medium">تنظیمات قیمت‌گذاری</p>
         <p className="text-xs text-muted-foreground">
-          نرخ ارز، درصد سود پیش‌فرض، و سهم هر ظرفیت از قیمت کل (مجموع باید ۱۰۰
-          باشد)
+          نرخ ارز و، برای هر کنسول، درصد سود پیش‌فرض و سهم هر ظرفیت از قیمت کل
+          (مجموع هر کنسول باید ۱۰۰ باشد)
         </p>
       </div>
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">
-            نرخ ارز (دلار → تومان)
-          </Label>
-          <MoneyInput
-            value={rate}
-            onChange={setRate}
-            className="h-9 w-36"
-            placeholder="95,000"
-          />
-        </div>
-        <PctField label="سود پیش‌فرض (٪)" value={margin} onChange={setMargin} />
-        <PctField label="ظرفیت ۱ (٪)" value={z1} onChange={setZ1} />
-        <PctField label="ظرفیت ۲ (٪)" value={z2} onChange={setZ2} />
-        <PctField label="ظرفیت ۳ (٪)" value={z3} onChange={setZ3} />
-        <Button
-          size="sm"
-          disabled={!valid || m.isPending}
-          onClick={() => m.mutate()}
-        >
-          ذخیره
-        </Button>
+
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">
+          نرخ ارز (دلار → تومان)
+        </Label>
+        <MoneyInput
+          value={rate}
+          onChange={setRate}
+          className="h-9 w-36"
+          placeholder="95,000"
+        />
       </div>
-      {splitSum !== 100 && (
-        <p className="text-xs text-destructive">
-          مجموع درصد ظرفیت‌ها باید ۱۰۰ باشد (اکنون{" "}
-          {splitSum.toLocaleString("fa-IR")})
-        </p>
-      )}
+
+      <div className="space-y-3">
+        {consoles.map((c) => {
+          const sum = splitSum(c)
+          return (
+            <div
+              key={c.code}
+              className="space-y-2 rounded-lg border border-border/60 p-3"
+            >
+              <p className="text-xs font-medium">{c.label}</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <PctField
+                  label="سود پیش‌فرض (٪)"
+                  value={c.margin}
+                  onChange={(v) => setMargin(c.code, v)}
+                />
+                {c.capacities.map((cp) => (
+                  <PctField
+                    key={cp.code}
+                    label={`${cp.label} (٪)`}
+                    value={cp.split}
+                    onChange={(v) => setSplit(c.code, cp.code, v)}
+                  />
+                ))}
+              </div>
+              {sum !== 100 && (
+                <p className="text-xs text-destructive">
+                  مجموع درصد ظرفیت‌های {c.label} باید ۱۰۰ باشد (اکنون{" "}
+                  {sum.toLocaleString("fa-IR")})
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <Button
+        size="sm"
+        disabled={!valid || m.isPending}
+        onClick={() => m.mutate()}
+      >
+        ذخیره
+      </Button>
     </div>
   )
 }

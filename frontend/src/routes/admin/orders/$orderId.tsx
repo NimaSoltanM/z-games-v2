@@ -21,7 +21,7 @@ import { adminOrderQueryOptions, fulfillOrder } from "@/features/admin"
 import type { AdminOrder, FulfillItem } from "@/features/admin"
 import { formatOrderDate, formatOrderNumber } from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
-import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL, PreOrderBadge } from "@/features/games"
+import { formatToman, consoleLabel, platformBadgeClass, capacityLabel, passcodeLabel, PreOrderBadge } from "@/features/games"
 
 function AdminOrderError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -140,7 +140,7 @@ function ReviewPanel({ order }: { order: AdminOrder }) {
           <div key={i} className="flex items-center justify-between gap-3 text-sm">
             <span className="truncate font-medium">{it.game_name}</span>
             <span className="shrink-0 text-xs text-muted-foreground">
-              {PLATFORM_LABEL[it.platform]} · {ZARFIAT_LABEL[it.zarfiat]} · × {it.count}
+              {consoleLabel(it.platform)} · {capacityLabel(it.zarfiat)} · × {it.count}
             </span>
           </div>
         ))}
@@ -191,17 +191,17 @@ function FulfillForm({ order }: { order: AdminOrder }) {
   const fulfilled = order.status === "fulfilled"
 
   // One credential draft per item, prefilled with whatever is already saved.
-  const [drafts, setDrafts] = useState<Record<string, { email: string; password: string; psn_pass: string }>>(
+  const [drafts, setDrafts] = useState<Record<string, { email: string; password: string; passcode: string }>>(
     () =>
       Object.fromEntries(
         order.items.map((it) => [
           it.id,
-          { email: it.email ?? "", password: it.password ?? "", psn_pass: it.psn_pass ?? "" },
+          { email: it.email ?? "", password: it.password ?? "", passcode: it.passcode ?? "" },
         ])
       )
   )
 
-  const setField = (itemId: string, field: "email" | "password" | "psn_pass", value: string) =>
+  const setField = (itemId: string, field: "email" | "password" | "passcode", value: string) =>
     setDrafts((d) => ({ ...d, [itemId]: { ...d[itemId], [field]: value } }))
 
   const labels = accountLabels(order.items)
@@ -223,7 +223,7 @@ function FulfillForm({ order }: { order: AdminOrder }) {
 
   const allComplete = order.items.every((it) => {
     const d = drafts[it.id]
-    return d.email.trim() && d.password.trim() && d.psn_pass.trim()
+    return d.email.trim() && d.password.trim() && d.passcode.trim()
   })
 
   const submit = (e: React.FormEvent) => {
@@ -232,7 +232,7 @@ function FulfillForm({ order }: { order: AdminOrder }) {
       id: it.id,
       email: drafts[it.id].email.trim(),
       password: drafts[it.id].password.trim(),
-      psn_pass: drafts[it.id].psn_pass.trim(),
+      passcode: drafts[it.id].passcode.trim(),
     }))
     mutation.mutate(items)
   }
@@ -286,15 +286,15 @@ function FulfillForm({ order }: { order: AdminOrder }) {
             <span className="font-semibold">{labels.get(it.id)}</span>
             <Badge
               variant="secondary"
-              className={`border text-xs ${PLATFORM_BADGE_CLASS[it.platform]}`}
+              className={`border text-xs ${platformBadgeClass(it.platform)}`}
             >
-              {PLATFORM_LABEL[it.platform]}
+              {consoleLabel(it.platform)}
             </Badge>
-            <span className="text-xs text-muted-foreground">{ZARFIAT_LABEL[it.zarfiat]}</span>
+            <span className="text-xs text-muted-foreground">{capacityLabel(it.zarfiat)}</span>
             {it.pre_order && <PreOrderBadge />}
           </div>
 
-          {it.pre_order && !it.email && !it.password && !it.psn_pass && (
+          {it.pre_order && !it.email && !it.password && !it.passcode && (
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
               این آیتم به‌صورت پیش‌خرید ثبت شده است. اطلاعات اکانت را تنها پس از انتشار رسمی بازی وارد کنید.
             </p>
@@ -324,13 +324,13 @@ function FulfillForm({ order }: { order: AdminOrder }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor={`psn-${it.id}`}>PSN-pass</Label>
+              <Label htmlFor={`passcode-${it.id}`}>{passcodeLabel(it.platform)}</Label>
               <Input
-                id={`psn-${it.id}`}
+                id={`passcode-${it.id}`}
                 dir="ltr"
                 autoComplete="off"
-                value={drafts[it.id].psn_pass}
-                onChange={(e) => setField(it.id, "psn_pass", e.target.value)}
+                value={drafts[it.id].passcode}
+                onChange={(e) => setField(it.id, "passcode", e.target.value)}
                 disabled={mutation.isPending}
               />
             </div>

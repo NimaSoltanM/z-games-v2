@@ -17,7 +17,7 @@ import {
   PRE_ORDER_CREDENTIALS_NOTE,
 } from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
-import { formatToman, PLATFORM_LABEL, PLATFORM_BADGE_CLASS, ZARFIAT_LABEL, PreOrderBadge } from "@/features/games"
+import { formatToman, consoleLabel, platformBadgeClass, capacityLabel, passcodeLabel, PreOrderBadge } from "@/features/games"
 import { cn } from "@/lib/utils"
 
 function OrderError({ error }: ErrorComponentProps) {
@@ -108,12 +108,12 @@ function OrderDetail() {
                 <span className="truncate font-medium">{it.game_name}</span>
                 <Badge
                   variant="secondary"
-                  className={`shrink-0 border text-xs ${PLATFORM_BADGE_CLASS[it.platform]}`}
+                  className={`shrink-0 border text-xs ${platformBadgeClass(it.platform)}`}
                 >
-                  {PLATFORM_LABEL[it.platform]}
+                  {consoleLabel(it.platform)}
                 </Badge>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {ZARFIAT_LABEL[it.zarfiat]}
+                  {capacityLabel(it.zarfiat)}
                 </span>
                 {it.pre_order && <PreOrderBadge className="shrink-0" />}
               </div>
@@ -141,7 +141,7 @@ function OrderDetail() {
           <p className="text-sm font-semibold">اطلاعات اکانت</p>
         </div>
 
-        {order.items.some((it) => it.email || it.password || it.psn_pass) ? (
+        {order.items.some((it) => it.email || it.password || it.passcode) ? (
           <div className="mt-5 space-y-5">
             {accountLabels(order.items).map(({ item, label }, i) => (
               <ItemCredentials key={i} item={item} label={label} />
@@ -202,7 +202,7 @@ function accountLabels(items: OrderItem[]): { item: OrderItem; label: string }[]
 }
 
 function ItemCredentials({ item, label }: { item: OrderItem; label: string }) {
-  if (!item.email && !item.password && !item.psn_pass) {
+  if (!item.email && !item.password && !item.passcode) {
     return (
       <div className="rounded-xl border border-border/60 bg-background/40 p-4">
         <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -222,7 +222,9 @@ function ItemCredentials({ item, label }: { item: OrderItem; label: string }) {
       <div className="space-y-2.5">
         {item.email && <CredField label="ایمیل" value={item.email} />}
         {item.password && <CredField label="رمز عبور" value={item.password} />}
-        {item.psn_pass && <CredField label="PSN-pass" value={item.psn_pass} />}
+        {item.passcode && (
+          <CredField label={passcodeLabel(item.platform)} value={item.passcode} />
+        )}
       </div>
     </div>
   )

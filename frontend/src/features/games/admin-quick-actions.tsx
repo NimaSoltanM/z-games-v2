@@ -50,7 +50,7 @@ function gameToPayload(game: Game): GameFormPayload {
   return {
     name: game.name,
     slug: game.slug,
-    platform: game.platform,
+    consoles: game.consoles,
     price_mode: game.price_mode,
     cover_image: game.cover_image,
     active: game.active,

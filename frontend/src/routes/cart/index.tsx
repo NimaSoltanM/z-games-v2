@@ -34,10 +34,10 @@ import {
   calcPrice,
   discountedPrice,
   formatToman,
-  PLATFORM_LABEL,
-  PLATFORM_BADGE_CLASS,
-  PLATFORM_ACCENT_CLASS,
-  ZARFIAT_LABEL,
+  consoleLabel,
+  capacityLabel,
+  platformBadgeClass,
+  platformAccentClass,
   gameCoverSrc,
   PreOrderBadge,
 } from "@/features/games"
@@ -208,7 +208,7 @@ function CartItemRow({
 
   const imgSrc = gameCoverSrc(game.cover_image, game.id)
 
-  const accentClass = PLATFORM_ACCENT_CLASS[item.platform]
+  const accentClass = platformAccentClass(item.platform)
 
   return (
     <div
@@ -241,12 +241,12 @@ function CartItemRow({
           <div className="flex items-center gap-2">
             <Badge
               variant="secondary"
-              className={`border text-xs ${PLATFORM_BADGE_CLASS[item.platform]}`}
+              className={`border text-xs ${platformBadgeClass(item.platform)}`}
             >
-              {PLATFORM_LABEL[item.platform]}
+              {consoleLabel(item.platform, exchange_rate)}
             </Badge>
             <span className="text-xs text-muted-foreground">
-              {ZARFIAT_LABEL[item.zarfiat]}
+              {capacityLabel(item.zarfiat, exchange_rate)}
             </span>
             {isValid && game.phase === "pre_order" && <PreOrderBadge />}
           </div>

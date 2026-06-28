@@ -22,5 +22,5 @@ export type FulfillItem = {
   id: string
   email: string
   password: string
-  psn_pass: string
+  passcode: string
 }

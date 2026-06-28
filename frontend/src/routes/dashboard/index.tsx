@@ -15,9 +15,9 @@ import { ordersQueryOptions, ORDER_STATUS_META, formatOrderDate, formatOrderNumb
 import type { Order, OrderItem } from "@/features/orders"
 import {
   formatToman,
-  PLATFORM_LABEL,
-  PLATFORM_BADGE_CLASS,
-  ZARFIAT_LABEL,
+  consoleLabel,
+  platformBadgeClass,
+  capacityLabel,
   GAMES_DEFAULT_SEARCH,
   PreOrderBadge,
 } from "@/features/games"
@@ -178,12 +178,12 @@ function OrderCard({ order }: { order: Order }) {
               <span className="truncate font-medium">{it.game_name}</span>
               <Badge
                 variant="secondary"
-                className={`shrink-0 border text-xs ${PLATFORM_BADGE_CLASS[it.platform]}`}
+                className={`shrink-0 border text-xs ${platformBadgeClass(it.platform)}`}
               >
-                {PLATFORM_LABEL[it.platform]}
+                {consoleLabel(it.platform)}
               </Badge>
               <span className="shrink-0 text-xs text-muted-foreground">
-                {ZARFIAT_LABEL[it.zarfiat]}
+                {capacityLabel(it.zarfiat)}
               </span>
               {it.pre_order && <PreOrderBadge className="shrink-0" />}
             </div>

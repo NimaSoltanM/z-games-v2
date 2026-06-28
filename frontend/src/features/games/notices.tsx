@@ -9,8 +9,36 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { daysUntilRelease, formatReleaseDate } from "./types"
-import type { Game } from "./types"
+import { daysUntilRelease, formatReleaseDate, gameFamilies } from "./types"
+import type { ExchangeRate, Game } from "./types"
+
+// Small brand dots marking which console families a game is on (blue = PlayStation,
+// green = Xbox). Console identity is shown as an accent, not a filled pill — one dot
+// per family, ringed for legibility over cover art.
+export function ConsoleDots({
+  consoles,
+  rate,
+  className,
+}: {
+  consoles: string[]
+  rate?: ExchangeRate
+  className?: string
+}) {
+  const families = gameFamilies(consoles, rate)
+  if (families.length === 0) return null
+  return (
+    <div className={`flex items-center gap-1 ${className ?? ""}`}>
+      {families.map((f) => (
+        <span
+          key={f.family}
+          title={f.label}
+          aria-label={f.label}
+          className={`size-2.5 rounded-full ring-2 ring-background/70 ${f.glow}`}
+        />
+      ))}
+    </div>
+  )
+}
 
 // A small "پیش‌خرید" badge for cards/headers when a game is taking pre-orders.
 export function PreOrderBadge({ className }: { className?: string }) {
