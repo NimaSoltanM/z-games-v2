@@ -10,8 +10,8 @@ import (
 	"io"
 )
 
-// credCipher encrypts delivered PlayStation account credentials (email/password/
-// psn_pass) at rest with AES-256-GCM. These are the product we sell, so a DB
+// credCipher encrypts delivered account credentials (email/password/passcode) at
+// rest with AES-256-GCM. These are the product we sell, so a DB
 // dump must never expose them in cleartext. The key comes from CREDENTIALS_KEY
 // (base64-encoded, 32 bytes) and must be stored outside the database and its
 // backups — otherwise the encryption protects nothing.

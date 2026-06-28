@@ -4,16 +4,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
 	"github.com/soltanmohammdi/z-games/internal/shared/release"
 )
 
-// gameInput is the raw create/update payload from an admin. Dynamic games carry
-// base_prices (one USD price per console) + an optional margin override; fixed
-// games carry per-tier Toman prices.
+// gameInput is the raw create/update payload from an admin. Consoles lists the
+// devices the game is sold on; every price/base price must target one of them.
+// Dynamic games carry base_prices (one USD price per console) + an optional margin
+// override; fixed games carry per-capacity Toman prices.
 type gameInput struct {
 	Name            string           `json:"name"`
 	Slug            string           `json:"slug"`
-	Platform        string           `json:"platform"`
+	Consoles        []string         `json:"consoles"`
 	PriceMode       string           `json:"price_mode"`
 	CoverImage      *string          `json:"cover_image"`
 	Active          bool             `json:"active"`
@@ -45,7 +47,7 @@ type priceInput struct {
 type normalizedGame struct {
 	Name            string
 	Slug            string
-	Platform        string
+	Consoles        []string
 	PriceMode       string
 	CoverImage      *string
 	Active          bool
@@ -84,26 +86,11 @@ const (
 	maxTagLen     = 40
 )
 
-var validZarfiats = map[string]bool{"z1": true, "z2": true, "z3": true}
-
-// consolesFor returns the physical consoles a game's platform can be priced on.
-func consolesFor(platform string) []string {
-	switch platform {
-	case "ps4":
-		return []string{"ps4"}
-	case "ps5":
-		return []string{"ps5"}
-	case "ps4_ps5":
-		return []string{"ps4", "ps5"}
-	default:
-		return nil
-	}
-}
-
-// validateGameInput cleans and validates an admin payload. On failure it returns
-// a Persian, user-facing message; ok is false then. The backend is the
-// authoritative validator — the frontend mirrors these rules only for UX.
-func validateGameInput(in gameInput) (normalizedGame, string, bool) {
+// validateGameInput cleans and validates an admin payload against the live console/
+// capacity catalog. On failure it returns a Persian, user-facing message; ok is
+// false then. The backend is the authoritative validator — the frontend mirrors
+// these rules only for UX.
+func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, string, bool) {
 	var out normalizedGame
 
 	out.Name = strings.TrimSpace(in.Name)
@@ -149,14 +136,22 @@ func validateGameInput(in gameInput) (normalizedGame, string, bool) {
 		return out, "تعداد برچسب‌ها بیش از حد مجاز است", false
 	}
 
-	consoles := consolesFor(in.Platform)
-	if consoles == nil {
-		return out, "کنسول نامعتبر است", false
-	}
-	out.Platform = in.Platform
+	// Consoles the game is sold on. Each must exist in the catalog; every price and
+	// base price below must target one of these.
 	allowedConsole := map[string]bool{}
-	for _, c := range consoles {
-		allowedConsole[c] = true
+	out.Consoles = make([]string, 0, len(in.Consoles))
+	for _, code := range in.Consoles {
+		if _, ok := catalog.Console(code); !ok {
+			return out, "کنسول نامعتبر است", false
+		}
+		if allowedConsole[code] {
+			continue
+		}
+		allowedConsole[code] = true
+		out.Consoles = append(out.Consoles, code)
+	}
+	if len(out.Consoles) == 0 {
+		return out, "حداقل یک کنسول باید انتخاب شود", false
 	}
 
 	if in.PriceMode != "dynamic" && in.PriceMode != "fixed" {
@@ -221,7 +216,7 @@ func validateGameInput(in gameInput) (normalizedGame, string, bool) {
 		out.BasePrices = make([]normalizedBasePrice, 0, len(in.BasePrices))
 		for _, b := range in.BasePrices {
 			if !allowedConsole[b.Platform] {
-				return out, "کنسول قیمت با پلتفرم بازی همخوانی ندارد", false
+				return out, "کنسول قیمت با کنسول‌های بازی همخوانی ندارد", false
 			}
 			if seen[b.Platform] {
 				return out, "برای هر کنسول فقط یک قیمت پایه مجاز است", false
@@ -237,9 +232,9 @@ func validateGameInput(in gameInput) (normalizedGame, string, bool) {
 		out.Prices = make([]normalizedPrice, 0, len(in.Prices))
 		for _, p := range in.Prices {
 			if !allowedConsole[p.Platform] {
-				return out, "کنسول قیمت با پلتفرم بازی همخوانی ندارد", false
+				return out, "کنسول قیمت با کنسول‌های بازی همخوانی ندارد", false
 			}
-			if !validZarfiats[p.Zarfiat] {
+			if _, ok := catalog.Capacity(p.Platform, p.Zarfiat); !ok {
 				return out, "ظرفیت نامعتبر است", false
 			}
 			key := p.Platform + "_" + p.Zarfiat

@@ -34,7 +34,7 @@ type orderItem struct {
 // items and the Toman total. Errors if the cart is empty or any item is no longer
 // purchasable (inactive game, missing price, or closing pre-order window).
 func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderItem, int, error) {
-	rate, cfg, err := loadPricing(ctx, db)
+	rate, catalog, err := loadPricing(ctx, db)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -88,7 +88,7 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 			return nil, 0, ErrInvalidCart
 		}
 		it.PreOrder = phase == release.PhasePreOrder
-		price, ok := unitPrice(active, priceMode, baseUSD, marginPct, priceTmn, rate, cfg, it.Zarfiat)
+		price, ok := unitPrice(active, priceMode, baseUSD, marginPct, priceTmn, rate, catalog, it.Platform, it.Zarfiat)
 		if !ok {
 			return nil, 0, ErrInvalidCart
 		}
@@ -114,24 +114,21 @@ func computeCart(ctx context.Context, db *pgxpool.Pool, userID string) ([]orderI
 	return items, total, nil
 }
 
-// loadPricing reads the exchange rate + global pricing config; the rate is 0 and
-// the config is defaults if none has been saved yet.
-func loadPricing(ctx context.Context, db *pgxpool.Pool) (int, pricing.Config, error) {
-	rate := 0
-	cfg := pricing.DefaultConfig
-	err := db.QueryRow(ctx,
-		"SELECT usd_to_toman, z1_pct, z2_pct, z3_pct, default_margin_pct FROM exchange_rate WHERE id = 1",
-	).Scan(&rate, &cfg.Z1Pct, &cfg.Z2Pct, &cfg.Z3Pct, &cfg.DefaultMarginPct)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, pricing.DefaultConfig, nil
-	}
+// loadPricing reads the exchange rate + the console/capacity catalog; the rate is 0
+// (and the catalog whatever is seeded) if none has been saved yet.
+func loadPricing(ctx context.Context, db *pgxpool.Pool) (int, pricing.Catalog, error) {
+	rate, err := pricing.LoadRate(ctx, db)
 	if err != nil {
-		return 0, pricing.Config{}, fmt.Errorf("loadPricing: %w", err)
+		return 0, pricing.Catalog{}, fmt.Errorf("loadPricing rate: %w", err)
 	}
-	return rate, cfg, nil
+	catalog, err := pricing.LoadCatalog(ctx, db)
+	if err != nil {
+		return 0, pricing.Catalog{}, fmt.Errorf("loadPricing catalog: %w", err)
+	}
+	return rate, catalog, nil
 }
 
-func unitPrice(active bool, priceMode string, baseUSD *float64, marginOverride *int, priceTmn *int, rate int, cfg pricing.Config, zarfiat string) (int, bool) {
+func unitPrice(active bool, priceMode string, baseUSD *float64, marginOverride *int, priceTmn *int, rate int, catalog pricing.Catalog, console, capacity string) (int, bool) {
 	if !active {
 		return 0, false
 	}
@@ -141,11 +138,20 @@ func unitPrice(active bool, priceMode string, baseUSD *float64, marginOverride *
 		}
 		return *priceTmn, true
 	}
-	// Dynamic: derive the tier price from the game's base USD price.
+	// Dynamic: derive the capacity price from the game's base USD price, using the
+	// console's margin and the capacity's split from the catalog.
 	if baseUSD == nil || rate <= 0 {
 		return 0, false
 	}
-	p := cfg.TierToman(*baseUSD, cfg.Margin(marginOverride), rate, zarfiat)
+	cn, ok := catalog.Console(console)
+	if !ok {
+		return 0, false
+	}
+	cp, ok := catalog.Capacity(console, capacity)
+	if !ok {
+		return 0, false
+	}
+	p := pricing.TierToman(*baseUSD, cn.Margin(marginOverride), cp.SplitPct, rate)
 	if p <= 0 {
 		return 0, false
 	}
@@ -261,7 +267,7 @@ type OrderItemView struct {
 	PreOrder bool    `json:"pre_order"`
 	Email    *string `json:"email"`
 	Password *string `json:"password"`
-	PsnPass  *string `json:"psn_pass"`
+	Passcode *string `json:"passcode"`
 }
 
 type OrderView struct {
@@ -491,7 +497,7 @@ type credInput struct {
 	ItemID   string
 	Email    string
 	Password string
-	PsnPass  string
+	Passcode string
 }
 
 // fulfillOrder writes credentials onto the given items (scoped to the order) and
@@ -526,15 +532,15 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, admin
 		if err != nil {
 			return fmt.Errorf("fulfillOrder encrypt password: %w", err)
 		}
-		psnPass, err := cred.encryptNullable(it.PsnPass)
+		passcode, err := cred.encryptNullable(it.Passcode)
 		if err != nil {
-			return fmt.Errorf("fulfillOrder encrypt psn_pass: %w", err)
+			return fmt.Errorf("fulfillOrder encrypt passcode: %w", err)
 		}
 
 		tag, err := tx.Exec(ctx, `
-			UPDATE order_items SET email = $1, password = $2, psn_pass = $3
+			UPDATE order_items SET email = $1, password = $2, passcode = $3
 			WHERE id = $4 AND order_id = $5
-		`, email, password, psnPass, it.ItemID, orderID)
+		`, email, password, passcode, it.ItemID, orderID)
 		if err != nil {
 			return fmt.Errorf("fulfillOrder update item: %w", err)
 		}
@@ -546,7 +552,7 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, admin
 	var incomplete int
 	if err := tx.QueryRow(ctx, `
 		SELECT COUNT(*) FROM order_items
-		WHERE order_id = $1 AND (email IS NULL OR password IS NULL OR psn_pass IS NULL)
+		WHERE order_id = $1 AND (email IS NULL OR password IS NULL OR passcode IS NULL)
 	`, orderID).Scan(&incomplete); err != nil {
 		return fmt.Errorf("fulfillOrder completeness: %w", err)
 	}
@@ -577,7 +583,7 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credCipher, admin
 
 func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credCipher, orderIDs []string, add func(orderID string, it OrderItemView)) error {
 	rows, err := db.Query(ctx, `
-		SELECT order_id, id, game_id, game_name, platform, zarfiat, quantity, pre_order, email, password, psn_pass
+		SELECT order_id, id, game_id, game_name, platform, zarfiat, quantity, pre_order, email, password, passcode
 		FROM order_items
 		WHERE order_id = ANY($1)
 		ORDER BY game_name
@@ -590,7 +596,7 @@ func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credCipher, o
 		var orderID string
 		var it OrderItemView
 		if err := rows.Scan(&orderID, &it.ID, &it.GameID, &it.GameName, &it.Platform, &it.Zarfiat, &it.Quantity,
-			&it.PreOrder, &it.Email, &it.Password, &it.PsnPass); err != nil {
+			&it.PreOrder, &it.Email, &it.Password, &it.Passcode); err != nil {
 			return fmt.Errorf("attachOrderItems scan: %w", err)
 		}
 
@@ -601,8 +607,8 @@ func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credCipher, o
 		if it.Password, err = cred.decryptPtr(it.Password); err != nil {
 			return fmt.Errorf("attachOrderItems decrypt password: %w", err)
 		}
-		if it.PsnPass, err = cred.decryptPtr(it.PsnPass); err != nil {
-			return fmt.Errorf("attachOrderItems decrypt psn_pass: %w", err)
+		if it.Passcode, err = cred.decryptPtr(it.Passcode); err != nil {
+			return fmt.Errorf("attachOrderItems decrypt passcode: %w", err)
 		}
 
 		add(orderID, it)

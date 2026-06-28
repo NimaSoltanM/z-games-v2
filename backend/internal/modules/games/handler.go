@@ -19,7 +19,6 @@ import (
 var sortColMap = map[string]string{
 	"name":       "name",
 	"created_at": "created_at",
-	"platform":   "platform",
 }
 
 type handler struct {
@@ -260,7 +259,11 @@ func (h *handler) adminCreateGame(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&in); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
-	norm, msg, ok := validateGameInput(in)
+	catalog, err := pricing.LoadCatalog(c.Context(), h.db)
+	if err != nil {
+		return fmt.Errorf("adminCreateGame catalog: %w", err)
+	}
+	norm, msg, ok := validateGameInput(in, catalog)
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": msg})
 	}
@@ -291,12 +294,16 @@ func (h *handler) adminUpdateGame(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&in); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
-	norm, msg, ok := validateGameInput(in)
+	catalog, err := pricing.LoadCatalog(c.Context(), h.db)
+	if err != nil {
+		return fmt.Errorf("adminUpdateGame catalog: %w", err)
+	}
+	norm, msg, ok := validateGameInput(in, catalog)
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": msg})
 	}
 
-	err := updateGame(c.Context(), h.db, adminID, id, norm)
+	err = updateGame(c.Context(), h.db, adminID, id, norm)
 	switch {
 	case errors.Is(err, ErrGameNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
@@ -359,22 +366,39 @@ func (h *handler) adminGetExchangeRate(c fiber.Ctx) error {
 func (h *handler) adminSetExchangeRate(c fiber.Ctx) error {
 	adminID := c.Locals(middleware.LocalUserID).(string)
 	var body struct {
-		USDToToman       int `json:"usd_to_toman"`
-		Z1Pct            int `json:"z1_pct"`
-		Z2Pct            int `json:"z2_pct"`
-		Z3Pct            int `json:"z3_pct"`
-		DefaultMarginPct int `json:"default_margin_pct"`
+		USDToToman int `json:"usd_to_toman"`
+		Consoles   []struct {
+			Code             string `json:"code"`
+			DefaultMarginPct int    `json:"default_margin_pct"`
+			Capacities       []struct {
+				Code     string `json:"code"`
+				SplitPct int    `json:"split_pct"`
+			} `json:"capacities"`
+		} `json:"consoles"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
-	cfg := pricing.Config{Z1Pct: body.Z1Pct, Z2Pct: body.Z2Pct, Z3Pct: body.Z3Pct, DefaultMarginPct: body.DefaultMarginPct}
-	if err := setExchangeRate(c.Context(), h.db, adminID, body.USDToToman, cfg); err != nil {
+
+	consoles := make([]consoleConfigInput, 0, len(body.Consoles))
+	for _, cn := range body.Consoles {
+		caps := make([]capacityConfigInput, 0, len(cn.Capacities))
+		for _, cp := range cn.Capacities {
+			caps = append(caps, capacityConfigInput{Code: cp.Code, SplitPct: cp.SplitPct})
+		}
+		consoles = append(consoles, consoleConfigInput{
+			Code:             cn.Code,
+			DefaultMarginPct: cn.DefaultMarginPct,
+			Capacities:       caps,
+		})
+	}
+
+	if err := setPricingConfig(c.Context(), h.db, adminID, body.USDToToman, consoles); err != nil {
 		switch {
 		case errors.Is(err, ErrRateInvalid):
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "نرخ ارز باید بزرگ‌تر از صفر باشد"})
 		case errors.Is(err, ErrSplitInvalid):
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "مجموع درصد ظرفیت‌ها باید ۱۰۰ باشد"})
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "مجموع درصد ظرفیت‌های هر کنسول باید ۱۰۰ باشد"})
 		case errors.Is(err, ErrInvalidInput):
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "مقادیر نامعتبر است"})
 		default:

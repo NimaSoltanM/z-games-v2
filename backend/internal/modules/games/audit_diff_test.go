@@ -43,7 +43,7 @@ func TestUpdateGame_AuditRecordsDiff(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "GTA V", Platform: "ps5", PriceMode: "dynamic", Active: true,
+		Name: "GTA V", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true,
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 5}},
 	})
 	if err != nil {
@@ -52,7 +52,7 @@ func TestUpdateGame_AuditRecordsDiff(t *testing.T) {
 
 	// Disable it, rename it, and drop the base price 5 -> 4 in one edit.
 	if err := updateGame(ctx, db, "a1", id, normalizedGame{
-		Name: "GTA 5", Platform: "ps5", PriceMode: "dynamic", Active: false,
+		Name: "GTA 5", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: false,
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 4}},
 	}); err != nil {
 		t.Fatal(err)
@@ -96,7 +96,7 @@ func TestUpdateGame_AuditNoChange(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	in := normalizedGame{
-		Name: "Stable", Platform: "ps5", PriceMode: "dynamic", Active: true,
+		Name: "Stable", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true,
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 5}},
 	}
 	id, err := createGame(ctx, db, "a1", in)

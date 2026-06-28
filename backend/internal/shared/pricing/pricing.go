@@ -1,11 +1,12 @@
 // Package pricing is the single source of truth for how a dynamic game's per-tier
 // prices derive from its base USD price. A dynamic game stores one base USD price
-// per console; each capacity tier's price is:
+// per console; each capacity's price is:
 //
 //	tier_toman = base_usd * usd_to_toman * (1 + margin%) * split%
 //
-// The capacity split (z1/z2/z3) and the default margin are global config; the
-// margin can be overridden per game.
+// The capacity split and the default margin are per-console config (the catalog);
+// the margin can be overridden per game. The catalog is loaded from the DB (see
+// load.go) so adding a console or capacity is data, not code.
 package pricing
 
 import (
@@ -13,52 +14,73 @@ import (
 	"time"
 )
 
-// Config is the global pricing config — the capacity split and default margin.
-type Config struct {
-	Z1Pct            int `json:"z1_pct"`
-	Z2Pct            int `json:"z2_pct"`
-	Z3Pct            int `json:"z3_pct"`
-	DefaultMarginPct int `json:"default_margin_pct"`
+// Capacity is one sellable slot for a console (e.g. z2, home), carrying the share
+// of the full price it costs.
+type Capacity struct {
+	Code      string `json:"code"`
+	LabelFA   string `json:"label_fa"`
+	SplitPct  int    `json:"split_pct"`
+	SortOrder int    `json:"sort_order"`
 }
 
-// DefaultConfig is used before any config has been saved.
-var DefaultConfig = Config{Z1Pct: 15, Z2Pct: 60, Z3Pct: 25, DefaultMarginPct: 10}
-
-// Zarfiats are the capacity tiers a dynamic base price derives prices for.
-var Zarfiats = []string{"z1", "z2", "z3"}
-
-// SplitPct returns the share of the full price a tier costs (0 for unknown).
-func (c Config) SplitPct(zarfiat string) int {
-	switch zarfiat {
-	case "z1":
-		return c.Z1Pct
-	case "z2":
-		return c.Z2Pct
-	case "z3":
-		return c.Z3Pct
-	default:
-		return 0
-	}
+// Console is one device the store sells on, with its own default profit margin and
+// capacity set. A game's per-tier prices derive from a base USD price per console.
+type Console struct {
+	Code             string     `json:"code"`
+	Family           string     `json:"family"`
+	LabelFA          string     `json:"label_fa"`
+	DefaultMarginPct int        `json:"default_margin_pct"`
+	Capacities       []Capacity `json:"capacities"`
 }
 
-// Margin resolves the effective margin: a per-game override, else the default.
-func (c Config) Margin(override *int) int {
+// Margin resolves the effective margin for a console: a per-game override, else the
+// console's default.
+func (cn Console) Margin(override *int) int {
 	if override != nil {
 		return *override
 	}
-	return c.DefaultMarginPct
+	return cn.DefaultMarginPct
 }
 
-// TierUSD is a tier's derived USD price (base scaled by margin + split). Multiply
-// by the exchange rate to get Toman; kept separate so responses can expose the
-// same per-tier `price_usd` shape the storefront already understands.
-func (c Config) TierUSD(baseUSD float64, marginPct int, zarfiat string) float64 {
-	return baseUSD * (1 + float64(marginPct)/100) * (float64(c.SplitPct(zarfiat)) / 100)
+// Catalog is the full console + capacity pricing catalog.
+type Catalog struct {
+	Consoles []Console `json:"consoles"`
 }
 
-// TierToman is a tier's final Toman price for a dynamic game.
-func (c Config) TierToman(baseUSD float64, marginPct, rate int, zarfiat string) int {
-	return int(math.Round(c.TierUSD(baseUSD, marginPct, zarfiat) * float64(rate)))
+// Console returns the console with the given code.
+func (cat Catalog) Console(code string) (Console, bool) {
+	for _, cn := range cat.Consoles {
+		if cn.Code == code {
+			return cn, true
+		}
+	}
+	return Console{}, false
+}
+
+// Capacity returns a console's capacity by code.
+func (cat Catalog) Capacity(console, capacity string) (Capacity, bool) {
+	cn, ok := cat.Console(console)
+	if !ok {
+		return Capacity{}, false
+	}
+	for _, cp := range cn.Capacities {
+		if cp.Code == capacity {
+			return cp, true
+		}
+	}
+	return Capacity{}, false
+}
+
+// TierUSD is a capacity's derived USD price: the base scaled by margin and the
+// capacity split. Multiply by the exchange rate to get Toman; kept separate so
+// responses can expose the same per-tier `price_usd` shape the storefront uses.
+func TierUSD(baseUSD float64, marginPct, splitPct int) float64 {
+	return baseUSD * (1 + float64(marginPct)/100) * (float64(splitPct) / 100)
+}
+
+// TierToman is a capacity's final Toman price for a dynamic game.
+func TierToman(baseUSD float64, marginPct, splitPct, rate int) int {
+	return int(math.Round(TierUSD(baseUSD, marginPct, splitPct) * float64(rate)))
 }
 
 // ActiveDiscountPct returns the discount percent in effect at `now` for a stored

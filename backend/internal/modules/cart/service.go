@@ -101,14 +101,15 @@ type mergeItem struct {
 }
 
 // isDataConstraintError returns true for DB errors that mean "this item is invalid data"
-// (game deleted, bad platform/zarfiat) — these should be skipped silently during merge.
-// Infrastructure errors (DB down, network) are NOT data constraint errors and must propagate.
+// (game deleted, invalid console/capacity) — these should be skipped silently during
+// merge. Infrastructure errors (DB down, network) are NOT data constraint errors and
+// must propagate.
 func isDataConstraintError(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
-		case "23503", // foreign_key_violation: game doesn't exist
-			"23514": // check_violation: invalid platform/zarfiat
+		case "23503", // foreign_key_violation: game, or console/capacity, doesn't exist
+			"23514": // check_violation: quantity out of range
 			return true
 		}
 	}
