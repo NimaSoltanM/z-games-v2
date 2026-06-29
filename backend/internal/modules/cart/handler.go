@@ -11,9 +11,6 @@ import (
 
 const maxMergeItems = 50
 
-var validPlatforms = map[string]bool{"ps4": true, "ps5": true}
-var validZarfiats = map[string]bool{"z1": true, "z2": true, "z3": true}
-
 type handler struct {
 	db *pgxpool.Pool
 }
@@ -22,9 +19,14 @@ func cartDBError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
-		case "23503": // foreign_key_violation — game_id doesn't exist
+		case "23503": // foreign_key_violation
+			// The console/capacity FK and the game_id FK both surface here; tell them
+			// apart by the constraint name so the message is accurate.
+			if pgErr.ConstraintName == "cart_items_capacity_fkey" {
+				return fiber.NewError(fiber.StatusBadRequest, "کنسول یا ظرفیت انتخابی نامعتبر است")
+			}
 			return fiber.NewError(fiber.StatusBadRequest, "بازی مورد نظر یافت نشد")
-		case "23514": // check_violation — invalid platform/zarfiat or qty out of range
+		case "23514": // check_violation — quantity out of range
 			return fiber.NewError(fiber.StatusBadRequest, "اطلاعات ورودی نامعتبر است")
 		}
 	}
@@ -77,7 +79,7 @@ func (h *handler) addItem(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
-	if body.GameID == "" || !validPlatforms[body.Platform] || !validZarfiats[body.Zarfiat] {
+	if body.GameID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
 	if body.Quantity <= 0 {
@@ -111,7 +113,7 @@ func (h *handler) updateItem(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
-	if body.GameID == "" || !validPlatforms[body.Platform] || !validZarfiats[body.Zarfiat] {
+	if body.GameID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
 	if body.Quantity > 10 {
@@ -136,7 +138,7 @@ func (h *handler) removeItem(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
-	if body.GameID == "" || !validPlatforms[body.Platform] || !validZarfiats[body.Zarfiat] {
+	if body.GameID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
 

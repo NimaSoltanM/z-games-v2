@@ -193,11 +193,14 @@ type gameRow struct {
 	Slug       string         `json:"slug"`
 	Name       string         `json:"name"`
 	CoverImage *string        `json:"cover_image"`
-	Platform   string         `json:"platform"`
 	PriceMode  string         `json:"price_mode"`
 	Prices     []gamePriceRow `json:"prices"`
 	Active     bool           `json:"active"`
 	Links      []gameLinkRow  `json:"links"`
+	// Consoles the game is sold on (ps5, xbox_series, …), ordered for display.
+	// Replaces the old single `platform` enum; availability is the set of consoles
+	// here, and every price/base price must target one of them.
+	Consoles []string `json:"consoles"`
 	// Merchandising. Featured is a manual editorial flag; Tags double as genres.
 	// ViewCount is incremented on each public detail view.
 	Featured  bool     `json:"featured"`
@@ -259,15 +262,9 @@ type gameLinkRow struct {
 	URL string `json:"url"`
 }
 
-type exchangeRateRow struct {
-	ID         int       `json:"id"`
-	USDToToman int       `json:"usd_to_toman"`
-	UpdatedAt  time.Time `json:"updated_at"`
-}
-
 type listFilter struct {
-	platform     string
-	zarfiat      string // "z1", "z2", or "z3" — games that have any price entry for this zarfiat
+	platform     string // a console code (ps5, xbox_series, …) the game must list on
+	zarfiat      string // a capacity code — games that have any price entry for it
 	search       string
 	onlyActive   bool
 	onlyFeatured bool
@@ -275,7 +272,7 @@ type listFilter struct {
 
 // gameColumns is the shared SELECT list for a game row, kept in one place so the
 // list and single-game reads (and their Scan order in scanGameRow) never drift.
-const gameColumns = `id, slug, name, cover_image, platform::text, price_mode::text, active,
+const gameColumns = `id, slug, name, cover_image, price_mode::text, active,
 	release_status, release_date, alert_message, alert_variant, profit_margin_pct,
 	featured, view_count, tags, discount_pct, discount_starts_at, discount_ends_at,
 	created_at, updated_at`
@@ -283,7 +280,7 @@ const gameColumns = `id, slug, name, cover_image, platform::text, price_mode::te
 // scanGameRow scans one row selected with gameColumns (in that exact order).
 func scanGameRow(row pgx.Row, g *gameRow) error {
 	return row.Scan(
-		&g.ID, &g.Slug, &g.Name, &g.CoverImage, &g.Platform, &g.PriceMode, &g.Active,
+		&g.ID, &g.Slug, &g.Name, &g.CoverImage, &g.PriceMode, &g.Active,
 		&g.ReleaseStatus, &g.ReleaseDate, &g.AlertMessage, &g.AlertVariant, &g.ProfitMarginPct,
 		&g.Featured, &g.ViewCount, &g.Tags, &g.DiscountPct, &g.DiscountStartsAt, &g.DiscountEndsAt,
 		&g.CreatedAt, &g.UpdatedAt,
@@ -302,7 +299,9 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 		conds = append(conds, "featured = true")
 	}
 	if filter.platform != "" {
-		conds = append(conds, fmt.Sprintf("platform::text = $%d", n))
+		conds = append(conds, fmt.Sprintf(
+			"EXISTS (SELECT 1 FROM game_consoles WHERE game_id = games.id AND console_code = $%d)", n,
+		))
 		args = append(args, filter.platform)
 		n++
 	}
@@ -352,6 +351,7 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 		}
 		g.Prices = []gamePriceRow{}
 		g.Links = []gameLinkRow{}
+		g.Consoles = []string{}
 		g.derivePhase(now)
 		result = append(result, g)
 	}
@@ -359,6 +359,9 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
 
+	if err := attachConsoles(ctx, db, result); err != nil {
+		return nil, 0, err
+	}
 	if err := attachPrices(ctx, db, result); err != nil {
 		return nil, 0, err
 	}
@@ -403,9 +406,13 @@ func getGame(ctx context.Context, db *pgxpool.Pool, cond, arg string, onlyActive
 	now := time.Now().UTC()
 	g.Prices = []gamePriceRow{}
 	g.Links = []gameLinkRow{}
+	g.Consoles = []string{}
 	g.derivePhase(now)
 
 	games := []gameRow{g}
+	if err := attachConsoles(ctx, db, games); err != nil {
+		return nil, err
+	}
 	if err := attachPrices(ctx, db, games); err != nil {
 		return nil, err
 	}
@@ -427,7 +434,7 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 		return nil
 	}
 
-	cfg, err := getPricingConfig(ctx, db)
+	catalog, err := pricing.LoadCatalog(ctx, db)
 	if err != nil {
 		return err
 	}
@@ -467,9 +474,10 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 		return fmt.Errorf("prices rows error: %w", err)
 	}
 
-	// Dynamic games: one base USD price per console, tiers derived from it.
+	// Dynamic games: one base USD price per console, tiers derived from it. Only the
+	// capacities listed in gbp.capacities are sold (empty list = all of them).
 	brows, err := db.Query(ctx, `
-		SELECT gbp.game_id, gbp.platform, gbp.base_usd::float8
+		SELECT gbp.game_id, gbp.platform, gbp.base_usd::float8, gbp.capacities
 		FROM game_base_prices gbp JOIN games g ON g.id = gbp.game_id
 		WHERE gbp.game_id = ANY($1) AND g.price_mode = 'dynamic'
 		ORDER BY gbp.platform
@@ -481,7 +489,8 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 	for brows.Next() {
 		var gameID, platform string
 		var baseUSD float64
-		if err := brows.Scan(&gameID, &platform, &baseUSD); err != nil {
+		var capacities []string
+		if err := brows.Scan(&gameID, &platform, &baseUSD, &capacities); err != nil {
 			return fmt.Errorf("scan base price: %w", err)
 		}
 		i, ok := idx[gameID]
@@ -492,13 +501,26 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 			Platform: platform,
 			BaseUSD:  strconv.FormatFloat(baseUSD, 'f', -1, 64),
 		})
-		margin := cfg.Margin(games[i].ProfitMarginPct)
-		for _, z := range pricing.Zarfiats {
-			usd := strconv.FormatFloat(cfg.TierUSD(baseUSD, margin, z), 'f', 2, 64)
+		cn, ok := catalog.Console(platform)
+		if !ok {
+			continue
+		}
+		// Empty list means every capacity is sold (back-compat).
+		enabledAll := len(capacities) == 0
+		enabled := make(map[string]bool, len(capacities))
+		for _, code := range capacities {
+			enabled[code] = true
+		}
+		margin := cn.Margin(games[i].ProfitMarginPct)
+		for _, cp := range cn.Capacities {
+			if !enabledAll && !enabled[cp.Code] {
+				continue
+			}
+			usd := strconv.FormatFloat(pricing.TierUSD(baseUSD, margin, cp.SplitPct), 'f', 2, 64)
 			usdCopy := usd
 			games[i].Prices = append(games[i].Prices, gamePriceRow{
 				Platform: platform,
-				Zarfiat:  z,
+				Zarfiat:  cp.Code,
 				PriceUSD: &usdCopy,
 			})
 		}
@@ -506,42 +528,68 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 	return brows.Err()
 }
 
-// getPricingConfig loads the global capacity split + default margin, falling back
-// to defaults before any config has been saved.
-func getPricingConfig(ctx context.Context, db *pgxpool.Pool) (pricing.Config, error) {
-	var c pricing.Config
-	err := db.QueryRow(ctx,
-		"SELECT z1_pct, z2_pct, z3_pct, default_margin_pct FROM exchange_rate WHERE id = 1",
-	).Scan(&c.Z1Pct, &c.Z2Pct, &c.Z3Pct, &c.DefaultMarginPct)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return pricing.DefaultConfig, nil
-	}
-	if err != nil {
-		return pricing.Config{}, fmt.Errorf("get pricing config: %w", err)
-	}
-	return c, nil
-}
-
-// pricingResponse is the public "exchange_rate" object: the rate (null until set)
-// plus the global pricing config.
+// pricingResponse is the public "exchange_rate" object: the USD→Toman rate (null
+// until set) plus the console/capacity catalog (labels + split/margin) the
+// storefront and admin screens render from.
 type pricingResponse struct {
-	USDToToman *int `json:"usd_to_toman"`
-	pricing.Config
+	USDToToman *int              `json:"usd_to_toman"`
+	Consoles   []pricing.Console `json:"consoles"`
 }
 
 func getPricingResponse(ctx context.Context, db *pgxpool.Pool) (pricingResponse, error) {
-	var rate int
-	var c pricing.Config
-	err := db.QueryRow(ctx,
-		"SELECT usd_to_toman, z1_pct, z2_pct, z3_pct, default_margin_pct FROM exchange_rate WHERE id = 1",
-	).Scan(&rate, &c.Z1Pct, &c.Z2Pct, &c.Z3Pct, &c.DefaultMarginPct)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return pricingResponse{Config: pricing.DefaultConfig}, nil
-	}
+	rate, err := pricing.LoadRate(ctx, db)
 	if err != nil {
-		return pricingResponse{}, fmt.Errorf("get pricing response: %w", err)
+		return pricingResponse{}, fmt.Errorf("get pricing response rate: %w", err)
 	}
-	return pricingResponse{USDToToman: &rate, Config: c}, nil
+	catalog, err := pricing.LoadCatalog(ctx, db)
+	if err != nil {
+		return pricingResponse{}, fmt.Errorf("get pricing response catalog: %w", err)
+	}
+	// A valid rate is always > 0; 0 means "not set yet" → expose as null, matching
+	// the previous behaviour when no exchange_rate row existed.
+	var usd *int
+	if rate > 0 {
+		usd = &rate
+	}
+	return pricingResponse{USDToToman: usd, Consoles: catalog.Consoles}, nil
+}
+
+// attachConsoles fills each game's Consoles list from game_consoles, ordered by the
+// console catalog's sort order so the storefront shows them consistently.
+func attachConsoles(ctx context.Context, db *pgxpool.Pool, games []gameRow) error {
+	if len(games) == 0 {
+		return nil
+	}
+
+	ids := make([]string, len(games))
+	idx := make(map[string]int, len(games))
+	for i := range games {
+		ids[i] = games[i].ID
+		idx[games[i].ID] = i
+		games[i].Consoles = []string{}
+	}
+
+	rows, err := db.Query(ctx, `
+		SELECT gc.game_id, gc.console_code
+		FROM game_consoles gc
+		JOIN consoles c ON c.code = gc.console_code
+		WHERE gc.game_id = ANY($1)
+		ORDER BY c.sort_order, c.code
+	`, ids)
+	if err != nil {
+		return fmt.Errorf("get game consoles: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var gameID, console string
+		if err := rows.Scan(&gameID, &console); err != nil {
+			return fmt.Errorf("scan game console: %w", err)
+		}
+		if i, ok := idx[gameID]; ok {
+			games[i].Consoles = append(games[i].Consoles, console)
+		}
+	}
+	return rows.Err()
 }
 
 func attachLinks(ctx context.Context, db *pgxpool.Pool, games []gameRow) error {

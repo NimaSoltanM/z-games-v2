@@ -23,6 +23,24 @@ func findPrice(prices []gamePriceRow, platform, zarfiat string) *gamePriceRow {
 	return nil
 }
 
+func hasConsole(consoles []string, code string) bool {
+	for _, c := range consoles {
+		if c == code {
+			return true
+		}
+	}
+	return false
+}
+
+// psCatalog is a literal PS4/PS5 catalog for pure (no-DB) validation tests.
+func psCatalog() pricing.Catalog {
+	caps := []pricing.Capacity{{Code: "z1"}, {Code: "z2"}, {Code: "z3"}}
+	return pricing.Catalog{Consoles: []pricing.Console{
+		{Code: "ps4", Capacities: caps},
+		{Code: "ps5", Capacities: caps},
+	}}
+}
+
 func TestCreateGame_Dynamic(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)
@@ -30,7 +48,7 @@ func TestCreateGame_Dynamic(t *testing.T) {
 
 	margin := 20
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "New Game", Platform: "ps4_ps5", PriceMode: "dynamic", Active: true,
+		Name: "New Game", Consoles: []string{"ps4", "ps5"}, PriceMode: "dynamic", Active: true,
 		CoverImage:      sptr("/uploads/cover.jpg"),
 		ProfitMarginPct: &margin,
 		BasePrices: []normalizedBasePrice{
@@ -49,6 +67,9 @@ func TestCreateGame_Dynamic(t *testing.T) {
 	}
 	if g.ProfitMarginPct == nil || *g.ProfitMarginPct != 20 {
 		t.Fatalf("margin = %v, want 20", g.ProfitMarginPct)
+	}
+	if len(g.Consoles) != 2 || !hasConsole(g.Consoles, "ps4") || !hasConsole(g.Consoles, "ps5") {
+		t.Fatalf("consoles = %v, want [ps4 ps5]", g.Consoles)
 	}
 	if len(g.BasePrices) != 2 {
 		t.Fatalf("base prices = %d, want 2", len(g.BasePrices))
@@ -69,13 +90,80 @@ func TestCreateGame_Dynamic(t *testing.T) {
 	}
 }
 
+func TestCreateGame_Xbox(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	// A game on both PS5 (3 capacities) and Xbox Series (2 capacities) at once.
+	id, err := createGame(ctx, db, "a1", normalizedGame{
+		Name: "Cross Gen", Consoles: []string{"ps5", "xbox_series"}, PriceMode: "dynamic", Active: true,
+		BasePrices: []normalizedBasePrice{
+			{Platform: "ps5", BaseUSD: 60},
+			{Platform: "xbox_series", BaseUSD: 60},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := getGameByID(ctx, db, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// ps5: z1/z2/z3 (3) + xbox_series: home/switch (2) = 5 derived prices.
+	if len(g.Prices) != 5 {
+		t.Fatalf("derived prices = %d, want 5", len(g.Prices))
+	}
+	// xbox_series home = 60 * (1+20%) * 60% = 43.20 (default xbox margin 20%).
+	if p := findPrice(g.Prices, "xbox_series", "home"); p == nil || p.PriceUSD == nil || *p.PriceUSD != "43.20" {
+		t.Fatalf("xbox_series home derived price = %v, want 43.20", p)
+	}
+	// switch split 40%: 60 * 1.20 * 40% = 28.80.
+	if p := findPrice(g.Prices, "xbox_series", "switch"); p == nil || p.PriceUSD == nil || *p.PriceUSD != "28.80" {
+		t.Fatalf("xbox_series switch derived price = %v, want 28.80", p)
+	}
+}
+
+func TestCreateGame_DynamicDisabledCapacity(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	// ps5 base price selling only z2 + z3 (z1 disabled).
+	id, err := createGame(ctx, db, "a1", normalizedGame{
+		Name: "Partial", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true,
+		BasePrices: []normalizedBasePrice{
+			{Platform: "ps5", BaseUSD: 50, Capacities: []string{"z2", "z3"}},
+		},
+		Links: []string{"https://store.example.com/partial"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := getGameByID(ctx, db, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Only the two enabled capacities are derived/sold.
+	if len(g.Prices) != 2 {
+		t.Fatalf("derived prices = %d, want 2 (z1 disabled)", len(g.Prices))
+	}
+	if findPrice(g.Prices, "ps5", "z1") != nil {
+		t.Fatal("z1 should be disabled but a price was derived for it")
+	}
+	if findPrice(g.Prices, "ps5", "z2") == nil ||
+		findPrice(g.Prices, "ps5", "z3") == nil {
+		t.Fatalf("z2/z3 should be sold: %+v", g.Prices)
+	}
+}
+
 func TestCreateGame_Fixed(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)
 	seedAdmin(t, ctx, db, "a1")
 
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Fixed Game", Platform: "ps5", PriceMode: "fixed", Active: true,
+		Name: "Fixed Game", Consoles: []string{"ps5"}, PriceMode: "fixed", Active: true,
 		Prices: []normalizedPrice{{Platform: "ps5", Zarfiat: "z2", PriceToman: 1500000, Slots: iptr(2)}},
 	})
 	if err != nil {
@@ -99,13 +187,13 @@ func TestListGames(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	if _, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Dyn", Platform: "ps5", PriceMode: "dynamic", Active: true,
+		Name: "Dyn", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true,
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Fix", Platform: "ps5", PriceMode: "fixed", Active: true,
+		Name: "Fix", Consoles: []string{"ps5"}, PriceMode: "fixed", Active: true,
 		Prices: []normalizedPrice{{Platform: "ps5", Zarfiat: "z2", PriceToman: 100000}},
 	}); err != nil {
 		t.Fatal(err)
@@ -125,12 +213,39 @@ func TestListGames(t *testing.T) {
 	}
 }
 
+func TestListGames_FilterByConsole(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	if _, err := createGame(ctx, db, "a1", normalizedGame{
+		Name: "PS only", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true,
+		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := createGame(ctx, db, "a1", normalizedGame{
+		Name: "Xbox only", Consoles: []string{"xbox_series"}, PriceMode: "dynamic", Active: true,
+		BasePrices: []normalizedBasePrice{{Platform: "xbox_series", BaseUSD: 50}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	games, total, err := listGames(ctx, db, listFilter{platform: "xbox_series"}, "created_at DESC", 50, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 1 || len(games) != 1 || games[0].Name != "Xbox only" {
+		t.Fatalf("xbox filter = %d games (total %d), want just 'Xbox only'", len(games), total)
+	}
+}
+
 func TestCreateGame_DuplicateLink(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)
 	seedAdmin(t, ctx, db, "a1")
 
-	base := normalizedGame{Name: "G", Platform: "ps5", PriceMode: "dynamic",
+	base := normalizedGame{Name: "G", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 10}},
 		Links:      []string{"https://dup.example.com/x"}}
 	if _, err := createGame(ctx, db, "a1", base); err != nil {
@@ -147,7 +262,7 @@ func TestUpdateGame_SwitchModeAndSetReleaseAlert(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Original", Platform: "ps4_ps5", PriceMode: "dynamic", Active: true,
+		Name: "Original", Consoles: []string{"ps4", "ps5"}, PriceMode: "dynamic", Active: true,
 		BasePrices: []normalizedBasePrice{{Platform: "ps4", BaseUSD: 20}, {Platform: "ps5", BaseUSD: 25}},
 		Links:      []string{"https://a.example.com"},
 	})
@@ -158,7 +273,7 @@ func TestUpdateGame_SwitchModeAndSetReleaseAlert(t *testing.T) {
 	// Switch to a fixed-price PS5 game, set pre-order + alert.
 	releaseDate := time.Now().UTC().Add(10 * 24 * time.Hour).Truncate(time.Second)
 	err = updateGame(ctx, db, "a1", id, normalizedGame{
-		Name: "Renamed", Platform: "ps5", PriceMode: "fixed", Active: false,
+		Name: "Renamed", Consoles: []string{"ps5"}, PriceMode: "fixed", Active: false,
 		ReleaseStatus: release.StatusPreOrder, ReleaseDate: &releaseDate,
 		AlertMessage: sptr("نگه‌داری"), AlertVariant: sptr("warning"),
 		Prices: []normalizedPrice{{Platform: "ps5", Zarfiat: "z3", PriceToman: 1500000}},
@@ -172,7 +287,7 @@ func TestUpdateGame_SwitchModeAndSetReleaseAlert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g.Name != "Renamed" || g.Platform != "ps5" || g.PriceMode != "fixed" || g.Active {
+	if g.Name != "Renamed" || len(g.Consoles) != 1 || g.Consoles[0] != "ps5" || g.PriceMode != "fixed" || g.Active {
 		t.Fatalf("core not updated: %+v", g)
 	}
 	// Base prices cleared when switching to fixed; one fixed tier + two links.
@@ -194,7 +309,7 @@ func TestUpdateGame_NotFound(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)
 	seedAdmin(t, ctx, db, "a1")
-	err := updateGame(ctx, db, "a1", "missing", normalizedGame{Name: "X", Platform: "ps5", PriceMode: "dynamic"})
+	err := updateGame(ctx, db, "a1", "missing", normalizedGame{Name: "X", Consoles: []string{"ps5"}, PriceMode: "dynamic"})
 	if !errors.Is(err, ErrGameNotFound) {
 		t.Fatalf("got %v, want ErrGameNotFound", err)
 	}
@@ -206,7 +321,7 @@ func TestDeleteGame(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Doomed", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Doomed", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 10}},
 		Links:      []string{"https://d.example.com"},
 	})
@@ -225,11 +340,12 @@ func TestDeleteGame(t *testing.T) {
 		t.Fatal("game still exists after delete")
 	}
 
-	var bases, links int
+	var bases, links, consoles int
 	db.QueryRow(ctx, "SELECT COUNT(*) FROM game_base_prices WHERE game_id = $1", id).Scan(&bases)
 	db.QueryRow(ctx, "SELECT COUNT(*) FROM game_links WHERE game_id = $1", id).Scan(&links)
-	if bases != 0 || links != 0 {
-		t.Fatalf("children not cascaded: bases=%d links=%d", bases, links)
+	db.QueryRow(ctx, "SELECT COUNT(*) FROM game_consoles WHERE game_id = $1", id).Scan(&consoles)
+	if bases != 0 || links != 0 || consoles != 0 {
+		t.Fatalf("children not cascaded: bases=%d links=%d consoles=%d", bases, links, consoles)
 	}
 
 	if err := deleteGame(ctx, db, "a1", id); !errors.Is(err, ErrGameNotFound) {
@@ -237,81 +353,89 @@ func TestDeleteGame(t *testing.T) {
 	}
 }
 
-func TestSetExchangeRate(t *testing.T) {
+func TestSetPricingConfig(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)
 	seedAdmin(t, ctx, db, "a1")
-	cfg := pricing.Config{Z1Pct: 15, Z2Pct: 60, Z3Pct: 25, DefaultMarginPct: 10}
 
-	if err := setExchangeRate(ctx, db, "a1", 90000, cfg); err != nil {
+	// The seeded catalog has ps5 with z1/z2/z3. Set the rate and tweak ps5's margin.
+	ps5 := []consoleConfigInput{{
+		Code: "ps5", DefaultMarginPct: 12,
+		Capacities: []capacityConfigInput{
+			{Code: "z1", SplitPct: 15}, {Code: "z2", SplitPct: 60}, {Code: "z3", SplitPct: 25},
+		},
+	}}
+	if err := setPricingConfig(ctx, db, "a1", 90000, ps5); err != nil {
 		t.Fatal(err)
 	}
-	var rate int
-	db.QueryRow(ctx, "SELECT usd_to_toman FROM exchange_rate WHERE id = 1").Scan(&rate)
-	if rate != 90000 {
-		t.Fatalf("rate = %d, want 90000", rate)
-	}
-	got, err := getPricingConfig(ctx, db)
-	if err != nil || got != cfg {
-		t.Fatalf("config = %+v err=%v, want %+v", got, err, cfg)
-	}
 
-	// Upsert to a new rate + margin.
-	cfg.DefaultMarginPct = 15
-	if err := setExchangeRate(ctx, db, "a1", 95000, cfg); err != nil {
+	rate, err := pricing.LoadRate(ctx, db)
+	if err != nil || rate != 90000 {
+		t.Fatalf("rate = %d err=%v, want 90000", rate, err)
+	}
+	cat, err := pricing.LoadCatalog(ctx, db)
+	if err != nil {
 		t.Fatal(err)
 	}
-	got, _ = getPricingConfig(ctx, db)
-	if got.DefaultMarginPct != 15 {
-		t.Fatalf("default margin = %d, want 15", got.DefaultMarginPct)
+	cn, ok := cat.Console("ps5")
+	if !ok || cn.DefaultMarginPct != 12 {
+		t.Fatalf("ps5 margin = %d ok=%v, want 12", cn.DefaultMarginPct, ok)
 	}
 
-	if err := setExchangeRate(ctx, db, "a1", 0, cfg); !errors.Is(err, ErrRateInvalid) {
+	if err := setPricingConfig(ctx, db, "a1", 0, ps5); !errors.Is(err, ErrRateInvalid) {
 		t.Fatalf("zero rate: got %v, want ErrRateInvalid", err)
 	}
-	bad := pricing.Config{Z1Pct: 10, Z2Pct: 60, Z3Pct: 25, DefaultMarginPct: 10} // sums 95
-	if err := setExchangeRate(ctx, db, "a1", 90000, bad); !errors.Is(err, ErrSplitInvalid) {
+
+	bad := []consoleConfigInput{{Code: "ps5", DefaultMarginPct: 10,
+		Capacities: []capacityConfigInput{
+			{Code: "z1", SplitPct: 10}, {Code: "z2", SplitPct: 60}, {Code: "z3", SplitPct: 25}, // sums 95
+		}}}
+	if err := setPricingConfig(ctx, db, "a1", 90000, bad); !errors.Is(err, ErrSplitInvalid) {
 		t.Fatalf("bad split: got %v, want ErrSplitInvalid", err)
 	}
 }
 
 func TestValidateGameInput(t *testing.T) {
+	// A literal catalog keeps this a pure unit test (no DB).
+	catalog := psCatalog()
+
 	good := gameInput{
-		Name: "Valid", Platform: "ps4_ps5", PriceMode: "dynamic", Active: true,
+		Name: "Valid", Consoles: []string{"ps4", "ps5"}, PriceMode: "dynamic", Active: true,
 		BasePrices: []basePriceInput{{Platform: "ps4", BaseUSD: 10}, {Platform: "ps5", BaseUSD: 12}},
 		Links:      []string{"https://ok.example.com", " https://ok.example.com ", ""},
 	}
-	out, msg, ok := validateGameInput(good)
+	out, msg, ok := validateGameInput(good, catalog)
 	if !ok {
 		t.Fatalf("valid input rejected: %q", msg)
 	}
-	if len(out.Links) != 1 || len(out.BasePrices) != 2 {
-		t.Fatalf("not normalized: links=%+v bases=%+v", out.Links, out.BasePrices)
+	if len(out.Links) != 1 || len(out.BasePrices) != 2 || len(out.Consoles) != 2 {
+		t.Fatalf("not normalized: links=%+v bases=%+v consoles=%+v", out.Links, out.BasePrices, out.Consoles)
 	}
 
 	cases := []struct {
 		name string
 		in   gameInput
 	}{
-		{"empty name", gameInput{Name: "  ", Platform: "ps5", PriceMode: "dynamic"}},
-		{"bad platform", gameInput{Name: "X", Platform: "switch", PriceMode: "dynamic"}},
-		{"bad mode", gameInput{Name: "X", Platform: "ps5", PriceMode: "barter"}},
-		{"dynamic console mismatch", gameInput{Name: "X", Platform: "ps5", PriceMode: "dynamic",
+		{"empty name", gameInput{Name: "  ", Consoles: []string{"ps5"}, PriceMode: "dynamic"}},
+		{"no consoles", gameInput{Name: "X", Consoles: nil, PriceMode: "dynamic"}},
+		{"bad console", gameInput{Name: "X", Consoles: []string{"switch"}, PriceMode: "dynamic"}},
+		{"bad mode", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "barter"}},
+		{"dynamic console mismatch", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 			BasePrices: []basePriceInput{{Platform: "ps4", BaseUSD: 10}}}},
-		{"dynamic zero base", gameInput{Name: "X", Platform: "ps5", PriceMode: "dynamic",
+		{"dynamic zero base", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 			BasePrices: []basePriceInput{{Platform: "ps5", BaseUSD: 0}}}},
-		{"dynamic dup console", gameInput{Name: "X", Platform: "ps5", PriceMode: "dynamic",
+		{"dynamic dup console", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 			BasePrices: []basePriceInput{{Platform: "ps5", BaseUSD: 10}, {Platform: "ps5", BaseUSD: 11}}}},
-		{"fixed missing toman", gameInput{Name: "X", Platform: "ps5", PriceMode: "fixed",
+		{"fixed missing toman", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "fixed",
 			Prices: []priceInput{{Platform: "ps5", Zarfiat: "z2", PriceToman: nil}}}},
-		{"fixed bad zarfiat", gameInput{Name: "X", Platform: "ps5", PriceMode: "fixed",
+		{"fixed bad zarfiat", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "fixed",
 			Prices: []priceInput{{Platform: "ps5", Zarfiat: "z9", PriceToman: iptr(100)}}}},
-		{"bad link", gameInput{Name: "X", Platform: "ps5", PriceMode: "dynamic",
+		{"bad link", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 			Links: []string{"ftp://nope"}}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if _, msg, ok := validateGameInput(c.in); ok {
+			if _, msg, ok := validateGameInput(c.in, catalog); ok {
 				t.Fatalf("expected rejection, got ok (msg=%q)", msg)
 			}
 		})

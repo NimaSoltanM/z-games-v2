@@ -153,7 +153,7 @@ func (h *handler) adminFulfill(c fiber.Ctx) error {
 			ID       string `json:"id"`
 			Email    string `json:"email"`
 			Password string `json:"password"`
-			PsnPass  string `json:"psn_pass"`
+			Passcode string `json:"passcode"`
 		} `json:"items"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
@@ -169,7 +169,7 @@ func (h *handler) adminFulfill(c fiber.Ctx) error {
 			ItemID:   it.ID,
 			Email:    strings.TrimSpace(it.Email),
 			Password: strings.TrimSpace(it.Password),
-			PsnPass:  strings.TrimSpace(it.PsnPass),
+			Passcode: strings.TrimSpace(it.Passcode),
 		}
 	}
 

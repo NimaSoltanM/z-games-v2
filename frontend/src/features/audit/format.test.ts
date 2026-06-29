@@ -46,6 +46,20 @@ describe("describeAction", () => {
     expect(d.details).toContain("قیمت پایه PS5: $5 ← $4")
   })
 
+  it("describes a console set change", () => {
+    const d = describeAction(
+      row("game.update", {
+        name: "X",
+        changes: {
+          // consoles diff carries string arrays, not scalars
+          consoles: { from: ["ps5"], to: ["ps5", "xbox_series"] } as never,
+        },
+      })
+    )
+    expect(d.details.some((l) => l.includes("کنسول‌ها"))).toBe(true)
+    expect(d.details.some((l) => l.includes("Xbox Series"))).toBe(true)
+  })
+
   it("renders a fixed (toman) price change with currency", () => {
     const d = describeAction(
       row("game.update", {

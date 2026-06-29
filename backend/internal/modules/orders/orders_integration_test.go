@@ -23,8 +23,9 @@ func seedUser(t *testing.T, ctx context.Context, db *pgxpool.Pool, id, phone str
 
 func seedGame(t *testing.T, ctx context.Context, db *pgxpool.Pool, id, mode string, active bool) {
 	mustExec(t, ctx, db,
-		"INSERT INTO games (id, name, slug, platform, price_mode, active) VALUES ($1, 'Test Game', $1, 'ps5', $2::price_mode, $3)",
+		"INSERT INTO games (id, name, slug, price_mode, active) VALUES ($1, 'Test Game', $1, $2::price_mode, $3)",
 		id, mode, active)
+	mustExec(t, ctx, db, "INSERT INTO game_consoles (game_id, console_code) VALUES ($1, 'ps5')", id)
 }
 
 // seedDynamicPrice gives a dynamic game a base USD price per console; the z2
@@ -162,7 +163,7 @@ func TestFulfillOrder_EncryptsAtRestAndCompletes(t *testing.T) {
 	assertStatus(t, ctx, db, orderID, "paid")
 
 	// Complete credentials → order becomes fulfilled.
-	if err := fulfillOrder(ctx, db, cred, "u1", orderID, []credInput{{ItemID: itemID, Email: "a@psn.com", Password: "pw", PsnPass: "psn"}}); err != nil {
+	if err := fulfillOrder(ctx, db, cred, "u1", orderID, []credInput{{ItemID: itemID, Email: "a@psn.com", Password: "pw", Passcode: "psn"}}); err != nil {
 		t.Fatal(err)
 	}
 	assertStatus(t, ctx, db, orderID, "fulfilled")

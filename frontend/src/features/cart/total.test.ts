@@ -13,10 +13,7 @@ import type { CartItem } from "./types"
 
 const RATE: ExchangeRate = {
   usd_to_toman: 100_000,
-  z1_pct: 15,
-  z2_pct: 60,
-  z3_pct: 25,
-  default_margin_pct: 10,
+  consoles: [],
 }
 
 function priceEntry(
@@ -40,7 +37,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     slug: "g1",
     name: "Test Game",
     cover_image: null,
-    platform: "ps5",
+    consoles: ["ps5"],
     price_mode: "dynamic",
     prices: [],
     base_prices: [],

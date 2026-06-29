@@ -3,33 +3,27 @@ import type { ErrorComponentProps } from "@tanstack/react-router"
 import {
   useSuspenseQuery,
   useQueryErrorResetBoundary,
-  useMutation,
-  useQueryClient,
 } from "@tanstack/react-query"
 import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { Plus, Search, Pencil, Gamepad2 } from "lucide-react"
-import { toast } from "sonner"
+import { Plus, Search, Pencil, Gamepad2, Coins } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { DashboardHeader } from "@/components/dashboard-shell"
-import { MoneyInput } from "@/components/money-input"
 import { Pagination } from "@/components/pagination"
 import {
   adminGamesQueryOptions,
   gameCoverSrc,
-  PLATFORM_LABEL,
-  PLATFORM_BADGE_CLASS,
+  consoleLabel,
+  platformBadgeClass,
   PreOrderBadge,
   DiscountBadge,
 } from "@/features/games"
-import type { ExchangeRate, Game, Platform } from "@/features/games"
-import { setPricingConfig } from "@/features/games/api"
+import type { Game } from "@/features/games"
 import {
   ActiveToggle,
   AlertPopover,
@@ -48,13 +42,6 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "draft", label: "پیش‌نویس" },
   { value: "pre_order", label: "پیش‌خرید" },
 ]
-const PLATFORM_FILTERS: { value: "all" | Platform; label: string }[] = [
-  { value: "all", label: "همه" },
-  { value: "ps4", label: "PS4" },
-  { value: "ps5", label: "PS5" },
-  { value: "ps4_ps5", label: "هردو" },
-]
-
 function AdminGamesError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
 }
@@ -74,12 +61,20 @@ function AdminGamesPage() {
       <DashboardHeader
         title="مدیریت بازی‌ها"
         action={
-          <Link to="/admin/games/new">
-            <Button className="gap-1.5">
-              <Plus className="size-4" />
-              بازی جدید
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/admin/games/pricing">
+              <Button variant="outline" className="gap-1.5">
+                <Coins className="size-4" />
+                <span className="hidden sm:inline">قیمت‌گذاری</span>
+              </Button>
+            </Link>
+            <Link to="/admin/games/new">
+              <Button className="gap-1.5">
+                <Plus className="size-4" />
+                بازی جدید
+              </Button>
+            </Link>
+          </div>
         }
       />
 
@@ -107,7 +102,7 @@ function AdminGamesPage() {
 function AdminGamesContent() {
   const { data } = useSuspenseQuery(adminGamesQueryOptions())
   const [search, setSearch] = useState("")
-  const [platform, setPlatform] = useState<"all" | Platform>("all")
+  const [platform, setPlatform] = useState<string>("all")
   const [status, setStatus] = useState<StatusFilter>("all")
   const [page, setPage] = useState(1)
 
@@ -116,7 +111,7 @@ function AdminGamesContent() {
     setSearch(v)
     setPage(1)
   }
-  const onPlatform = (v: "all" | Platform) => {
+  const onPlatform = (v: string) => {
     setPlatform(v)
     setPage(1)
   }
@@ -125,10 +120,19 @@ function AdminGamesContent() {
     setPage(1)
   }
 
+  // Console filter options come from the live catalog ("all" + each console).
+  const consoleFilters = [
+    { value: "all", label: "همه" },
+    ...(data.exchange_rate?.consoles ?? []).map((c) => ({
+      value: c.code,
+      label: c.label_fa,
+    })),
+  ]
+
   const q = search.trim().toLowerCase()
   const filtered = data.games.filter((g) => {
     if (q && !g.name.toLowerCase().includes(q)) return false
-    if (platform !== "all" && g.platform !== platform) return false
+    if (platform !== "all" && !g.consoles.includes(platform)) return false
     if (status === "published" && !g.active) return false
     if (status === "draft" && g.active) return false
     if (status === "pre_order" && g.release_status !== "pre_order") return false
@@ -144,8 +148,6 @@ function AdminGamesContent() {
 
   return (
     <div className="space-y-5">
-      <PricingPanel config={data.exchange_rate} />
-
       <div className="space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -156,19 +158,19 @@ function AdminGamesContent() {
             className="pr-9"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex scrollbar-none items-center gap-3 overflow-x-auto pb-1">
           <ToggleGroup
             value={[platform]}
-            onValueChange={(v) => v[0] && onPlatform(v[0] as "all" | Platform)}
+            onValueChange={(v) => v[0] && onPlatform(v[0])}
             variant="outline"
             size="sm"
             spacing={0}
           >
-            {PLATFORM_FILTERS.map((f) => (
+            {consoleFilters.map((f) => (
               <ToggleGroupItem
                 key={f.value}
                 value={f.value}
-                className="px-3 text-xs"
+                className="shrink-0 px-3 text-xs"
               >
                 {f.label}
               </ToggleGroupItem>
@@ -185,7 +187,7 @@ function AdminGamesContent() {
               <ToggleGroupItem
                 key={f.value}
                 value={f.value}
-                className="px-3 text-xs"
+                className="shrink-0 px-3 text-xs"
               >
                 {f.label}
               </ToggleGroupItem>
@@ -244,12 +246,15 @@ function GameRow({ game }: { game: Game }) {
           {game.discount && <DiscountBadge percent={game.discount} />}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <Badge
-            variant="secondary"
-            className={`border text-[10px] ${PLATFORM_BADGE_CLASS[game.platform]}`}
-          >
-            {PLATFORM_LABEL[game.platform]}
-          </Badge>
+          {game.consoles.map((c) => (
+            <Badge
+              key={c}
+              variant="secondary"
+              className={`border text-[10px] ${platformBadgeClass(c)}`}
+            >
+              {consoleLabel(c)}
+            </Badge>
+          ))}
           <span>
             {game.price_mode === "dynamic" ? "قیمت دلاری" : "قیمت تومانی"}
           </span>
@@ -278,104 +283,6 @@ function GameRow({ game }: { game: Game }) {
         </Link>
         <DeleteGameButton game={game} />
       </div>
-    </div>
-  )
-}
-
-function PctField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <Input
-        dir="ltr"
-        inputMode="numeric"
-        className="h-9 w-20"
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
-      />
-    </div>
-  )
-}
-
-function PricingPanel({ config }: { config: ExchangeRate }) {
-  const queryClient = useQueryClient()
-  const [rate, setRate] = useState(
-    config?.usd_to_toman != null ? String(config.usd_to_toman) : ""
-  )
-  const [z1, setZ1] = useState(String(config?.z1_pct ?? 15))
-  const [z2, setZ2] = useState(String(config?.z2_pct ?? 60))
-  const [z3, setZ3] = useState(String(config?.z3_pct ?? 25))
-  const [margin, setMargin] = useState(String(config?.default_margin_pct ?? 10))
-
-  const splitSum = Number(z1 || 0) + Number(z2 || 0) + Number(z3 || 0)
-  const valid = Number(rate) > 0 && splitSum === 100 && margin !== ""
-
-  const m = useMutation({
-    mutationFn: () =>
-      setPricingConfig({
-        usd_to_toman: Number(rate),
-        z1_pct: Number(z1),
-        z2_pct: Number(z2),
-        z3_pct: Number(z3),
-        default_margin_pct: Number(margin),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "games"] })
-      queryClient.invalidateQueries({ queryKey: ["games"] })
-      queryClient.invalidateQueries({ queryKey: ["admin", "pricing"] })
-      toast.success("تنظیمات قیمت‌گذاری ذخیره شد")
-    },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "خطا در ذخیره"),
-  })
-
-  return (
-    <div className="space-y-3 rounded-xl border border-border/60 bg-card/75 p-4 backdrop-blur-sm">
-      <div>
-        <p className="text-sm font-medium">تنظیمات قیمت‌گذاری</p>
-        <p className="text-xs text-muted-foreground">
-          نرخ ارز، درصد سود پیش‌فرض، و سهم هر ظرفیت از قیمت کل (مجموع باید ۱۰۰
-          باشد)
-        </p>
-      </div>
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">
-            نرخ ارز (دلار → تومان)
-          </Label>
-          <MoneyInput
-            value={rate}
-            onChange={setRate}
-            className="h-9 w-36"
-            placeholder="95,000"
-          />
-        </div>
-        <PctField label="سود پیش‌فرض (٪)" value={margin} onChange={setMargin} />
-        <PctField label="ظرفیت ۱ (٪)" value={z1} onChange={setZ1} />
-        <PctField label="ظرفیت ۲ (٪)" value={z2} onChange={setZ2} />
-        <PctField label="ظرفیت ۳ (٪)" value={z3} onChange={setZ3} />
-        <Button
-          size="sm"
-          disabled={!valid || m.isPending}
-          onClick={() => m.mutate()}
-        >
-          ذخیره
-        </Button>
-      </div>
-      {splitSum !== 100 && (
-        <p className="text-xs text-destructive">
-          مجموع درصد ظرفیت‌ها باید ۱۰۰ باشد (اکنون{" "}
-          {splitSum.toLocaleString("fa-IR")})
-        </p>
-      )}
     </div>
   )
 }

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict unpm3OVFUmjCQQMOjfC4QXE8fNTuyhk07rnLqSAlGwHwdRCvDcAKMtNGx6tbBFe
+\restrict cCpnpnYpIZWMyjU6lWSqv33kbUfbDR9YzjyxrGH33ba7dN5hzEhxCE9RcX7MTmz
 
 -- Dumped from database version 18.4
 -- Dumped by pg_dump version 18.4
@@ -27,14 +27,17 @@ CREATE SCHEMA drizzle;
 
 
 --
--- Name: platform; Type: TYPE; Schema: public; Owner: -
+-- Name: public; Type: SCHEMA; Schema: -; Owner: -
 --
 
-CREATE TYPE public.platform AS ENUM (
-    'ps4',
-    'ps5',
-    'ps4_ps5'
-);
+-- *not* creating schema, since initdb creates it
+
+
+--
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON SCHEMA public IS '';
 
 
 --
@@ -109,6 +112,20 @@ CREATE TABLE public.admin_actions (
 
 
 --
+-- Name: capacities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacities (
+    console_code text NOT NULL,
+    code text NOT NULL,
+    label_fa text NOT NULL,
+    split_pct integer NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    CONSTRAINT capacities_split_pct_check CHECK ((split_pct >= 0))
+);
+
+
+--
 -- Name: cart_items; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -120,9 +137,22 @@ CREATE TABLE public.cart_items (
     zarfiat text NOT NULL,
     quantity integer DEFAULT 1 NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT cart_items_platform_check CHECK ((platform = ANY (ARRAY['ps4'::text, 'ps5'::text]))),
-    CONSTRAINT cart_items_quantity_check CHECK (((quantity >= 1) AND (quantity <= 10))),
-    CONSTRAINT cart_items_zarfiat_check CHECK ((zarfiat = ANY (ARRAY['z1'::text, 'z2'::text, 'z3'::text])))
+    CONSTRAINT cart_items_quantity_check CHECK (((quantity >= 1) AND (quantity <= 10)))
+);
+
+
+--
+-- Name: consoles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.consoles (
+    code text NOT NULL,
+    family text NOT NULL,
+    label_fa text NOT NULL,
+    default_margin_pct integer DEFAULT 10 NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    CONSTRAINT consoles_default_margin_pct_check CHECK ((default_margin_pct >= 0))
 );
 
 
@@ -133,11 +163,7 @@ CREATE TABLE public.cart_items (
 CREATE TABLE public.exchange_rate (
     id integer DEFAULT 1 NOT NULL,
     usd_to_toman integer NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    z1_pct integer DEFAULT 15 NOT NULL,
-    z2_pct integer DEFAULT 60 NOT NULL,
-    z3_pct integer DEFAULT 25 NOT NULL,
-    default_margin_pct integer DEFAULT 10 NOT NULL
+    updated_at timestamp without time zone DEFAULT now() NOT NULL
 );
 
 
@@ -148,10 +174,20 @@ CREATE TABLE public.exchange_rate (
 CREATE TABLE public.game_base_prices (
     id character varying(36) DEFAULT (gen_random_uuid())::text NOT NULL,
     game_id character varying NOT NULL,
-    platform character varying(4) NOT NULL,
+    platform text NOT NULL,
     base_usd numeric(10,2) NOT NULL,
-    CONSTRAINT game_base_prices_base_usd_check CHECK ((base_usd > (0)::numeric)),
-    CONSTRAINT game_base_prices_platform_check CHECK (((platform)::text = ANY ((ARRAY['ps4'::character varying, 'ps5'::character varying])::text[])))
+    capacities text[] DEFAULT '{}'::text[] NOT NULL,
+    CONSTRAINT game_base_prices_base_usd_check CHECK ((base_usd > (0)::numeric))
+);
+
+
+--
+-- Name: game_consoles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.game_consoles (
+    game_id character varying NOT NULL,
+    console_code text NOT NULL
 );
 
 
@@ -174,13 +210,11 @@ CREATE TABLE public.game_links (
 CREATE TABLE public.game_prices (
     id character varying(36) DEFAULT (gen_random_uuid())::text NOT NULL,
     game_id character varying NOT NULL,
-    platform character varying(4) NOT NULL,
-    zarfiat character varying(2) NOT NULL,
+    platform text NOT NULL,
+    zarfiat text NOT NULL,
     price_usd numeric(10,2),
     price_toman integer,
-    slots integer,
-    CONSTRAINT game_prices_platform_check CHECK (((platform)::text = ANY ((ARRAY['ps4'::character varying, 'ps5'::character varying])::text[]))),
-    CONSTRAINT game_prices_zarfiat_check CHECK (((zarfiat)::text = ANY ((ARRAY['z1'::character varying, 'z2'::character varying, 'z3'::character varying])::text[])))
+    slots integer
 );
 
 
@@ -192,7 +226,6 @@ CREATE TABLE public.games (
     id character varying NOT NULL,
     name character varying(200) NOT NULL,
     cover_image character varying(500),
-    platform public.platform NOT NULL,
     price_mode public.price_mode DEFAULT 'dynamic'::public.price_mode NOT NULL,
     active boolean DEFAULT false NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
@@ -209,11 +242,11 @@ CREATE TABLE public.games (
     discount_pct smallint,
     discount_starts_at timestamp without time zone,
     discount_ends_at timestamp without time zone,
-    CONSTRAINT games_release_status_check CHECK ((release_status = ANY (ARRAY['released'::text, 'pre_order'::text]))),
     CONSTRAINT games_alert_variant_check CHECK (((alert_variant IS NULL) OR (alert_variant = ANY (ARRAY['info'::text, 'warning'::text])))),
-    CONSTRAINT games_profit_margin_pct_check CHECK (((profit_margin_pct IS NULL) OR (profit_margin_pct >= 0))),
     CONSTRAINT games_discount_pct_check CHECK (((discount_pct IS NULL) OR ((discount_pct >= 1) AND (discount_pct <= 99)))),
-    CONSTRAINT games_discount_window_check CHECK ((((discount_pct IS NULL) AND (discount_starts_at IS NULL) AND (discount_ends_at IS NULL)) OR ((discount_pct IS NOT NULL) AND (discount_starts_at IS NOT NULL) AND (discount_ends_at IS NOT NULL) AND (discount_ends_at > discount_starts_at))))
+    CONSTRAINT games_discount_window_check CHECK ((((discount_pct IS NULL) AND (discount_starts_at IS NULL) AND (discount_ends_at IS NULL)) OR ((discount_pct IS NOT NULL) AND (discount_starts_at IS NOT NULL) AND (discount_ends_at IS NOT NULL) AND (discount_ends_at > discount_starts_at)))),
+    CONSTRAINT games_profit_margin_pct_check CHECK (((profit_margin_pct IS NULL) OR (profit_margin_pct >= 0))),
+    CONSTRAINT games_release_status_check CHECK ((release_status = ANY (ARRAY['released'::text, 'pre_order'::text])))
 );
 
 
@@ -231,11 +264,9 @@ CREATE TABLE public.order_items (
     quantity integer NOT NULL,
     email text,
     password text,
-    psn_pass text,
+    passcode text,
     pre_order boolean DEFAULT false NOT NULL,
-    CONSTRAINT order_items_platform_check CHECK ((platform = ANY (ARRAY['ps4'::text, 'ps5'::text]))),
-    CONSTRAINT order_items_quantity_check CHECK (((quantity >= 1) AND (quantity <= 10))),
-    CONSTRAINT order_items_zarfiat_check CHECK ((zarfiat = ANY (ARRAY['z1'::text, 'z2'::text, 'z3'::text])))
+    CONSTRAINT order_items_quantity_check CHECK (((quantity >= 1) AND (quantity <= 10)))
 );
 
 
@@ -309,6 +340,124 @@ ALTER TABLE ONLY drizzle.__drizzle_migrations ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Data for Name: __drizzle_migrations; Type: TABLE DATA; Schema: drizzle; Owner: -
+--
+
+
+
+--
+-- Data for Name: admin_actions; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: capacities; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.capacities VALUES ('ps4', 'z1', 'ظرفیت ۱', 15, 1);
+INSERT INTO public.capacities VALUES ('ps4', 'z2', 'ظرفیت ۲', 60, 2);
+INSERT INTO public.capacities VALUES ('ps4', 'z3', 'ظرفیت ۳', 25, 3);
+INSERT INTO public.capacities VALUES ('ps5', 'z1', 'ظرفیت ۱', 15, 1);
+INSERT INTO public.capacities VALUES ('ps5', 'z2', 'ظرفیت ۲', 60, 2);
+INSERT INTO public.capacities VALUES ('ps5', 'z3', 'ظرفیت ۳', 25, 3);
+INSERT INTO public.capacities VALUES ('xbox_one', 'home', 'Home', 60, 1);
+INSERT INTO public.capacities VALUES ('xbox_one', 'switch', 'Switch', 40, 2);
+INSERT INTO public.capacities VALUES ('xbox_series', 'home', 'Home', 60, 1);
+INSERT INTO public.capacities VALUES ('xbox_series', 'switch', 'Switch', 40, 2);
+
+
+--
+-- Data for Name: cart_items; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: consoles; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.consoles VALUES ('ps4', 'playstation', 'پلی‌استیشن ۴', 10, true, 1);
+INSERT INTO public.consoles VALUES ('ps5', 'playstation', 'پلی‌استیشن ۵', 10, true, 2);
+INSERT INTO public.consoles VALUES ('xbox_one', 'xbox', 'ایکس‌باکس وان', 20, true, 3);
+INSERT INTO public.consoles VALUES ('xbox_series', 'xbox', 'ایکس‌باکس سری X|S', 20, true, 4);
+
+
+--
+-- Data for Name: exchange_rate; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: game_base_prices; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: game_consoles; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: game_links; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: game_prices; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: games; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: order_items; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: orders; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: otp_codes; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Name: __drizzle_migrations_id_seq; Type: SEQUENCE SET; Schema: drizzle; Owner: -
+--
+
+SELECT pg_catalog.setval('drizzle.__drizzle_migrations_id_seq', 1, false);
+
+
+--
+-- Name: orders_order_number_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.orders_order_number_seq', 100000, false);
+
+
+--
 -- Name: __drizzle_migrations __drizzle_migrations_pkey; Type: CONSTRAINT; Schema: drizzle; Owner: -
 --
 
@@ -322,6 +471,14 @@ ALTER TABLE ONLY drizzle.__drizzle_migrations
 
 ALTER TABLE ONLY public.admin_actions
     ADD CONSTRAINT admin_actions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacities capacities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacities
+    ADD CONSTRAINT capacities_pkey PRIMARY KEY (console_code, code);
 
 
 --
@@ -341,11 +498,43 @@ ALTER TABLE ONLY public.cart_items
 
 
 --
+-- Name: consoles consoles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.consoles
+    ADD CONSTRAINT consoles_pkey PRIMARY KEY (code);
+
+
+--
 -- Name: exchange_rate exchange_rate_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.exchange_rate
     ADD CONSTRAINT exchange_rate_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: game_base_prices game_base_prices_game_id_platform_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_base_prices
+    ADD CONSTRAINT game_base_prices_game_id_platform_key UNIQUE (game_id, platform);
+
+
+--
+-- Name: game_base_prices game_base_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_base_prices
+    ADD CONSTRAINT game_base_prices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: game_consoles game_consoles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_consoles
+    ADD CONSTRAINT game_consoles_pkey PRIMARY KEY (game_id, console_code);
 
 
 --
@@ -386,51 +575,6 @@ ALTER TABLE ONLY public.game_prices
 
 ALTER TABLE ONLY public.games
     ADD CONSTRAINT games_pkey PRIMARY KEY (id);
-
-
---
--- Name: games_slug_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX games_slug_key ON public.games USING btree (slug);
-
-
---
--- Name: games_featured_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX games_featured_idx ON public.games USING btree (featured) WHERE featured;
-
-
---
--- Name: games_tags_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX games_tags_idx ON public.games USING gin (tags);
-
-
---
--- Name: game_base_prices game_base_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.game_base_prices
-    ADD CONSTRAINT game_base_prices_pkey PRIMARY KEY (id);
-
-
---
--- Name: game_base_prices game_base_prices_game_id_platform_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.game_base_prices
-    ADD CONSTRAINT game_base_prices_game_id_platform_key UNIQUE (game_id, platform);
-
-
---
--- Name: game_base_prices game_base_prices_game_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.game_base_prices
-    ADD CONSTRAINT game_base_prices_game_id_fkey FOREIGN KEY (game_id) REFERENCES public.games(id) ON DELETE CASCADE;
 
 
 --
@@ -511,6 +655,27 @@ CREATE INDEX admin_actions_target_idx ON public.admin_actions USING btree (targe
 
 
 --
+-- Name: games_featured_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX games_featured_idx ON public.games USING btree (featured) WHERE featured;
+
+
+--
+-- Name: games_slug_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX games_slug_key ON public.games USING btree (slug);
+
+
+--
+-- Name: games_tags_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX games_tags_idx ON public.games USING gin (tags);
+
+
+--
 -- Name: order_items_order_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -540,6 +705,22 @@ ALTER TABLE ONLY public.admin_actions
 
 
 --
+-- Name: capacities capacities_console_code_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacities
+    ADD CONSTRAINT capacities_console_code_fkey FOREIGN KEY (console_code) REFERENCES public.consoles(code) ON DELETE CASCADE;
+
+
+--
+-- Name: cart_items cart_items_capacity_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cart_items
+    ADD CONSTRAINT cart_items_capacity_fkey FOREIGN KEY (platform, zarfiat) REFERENCES public.capacities(console_code, code);
+
+
+--
 -- Name: cart_items cart_items_game_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -556,11 +737,51 @@ ALTER TABLE ONLY public.cart_items
 
 
 --
+-- Name: game_base_prices game_base_prices_console_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_base_prices
+    ADD CONSTRAINT game_base_prices_console_fkey FOREIGN KEY (platform) REFERENCES public.consoles(code);
+
+
+--
+-- Name: game_base_prices game_base_prices_game_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_base_prices
+    ADD CONSTRAINT game_base_prices_game_id_fkey FOREIGN KEY (game_id) REFERENCES public.games(id) ON DELETE CASCADE;
+
+
+--
+-- Name: game_consoles game_consoles_console_code_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_consoles
+    ADD CONSTRAINT game_consoles_console_code_fkey FOREIGN KEY (console_code) REFERENCES public.consoles(code);
+
+
+--
+-- Name: game_consoles game_consoles_game_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_consoles
+    ADD CONSTRAINT game_consoles_game_id_fkey FOREIGN KEY (game_id) REFERENCES public.games(id) ON DELETE CASCADE;
+
+
+--
 -- Name: game_links game_links_game_id_games_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.game_links
     ADD CONSTRAINT game_links_game_id_games_id_fk FOREIGN KEY (game_id) REFERENCES public.games(id) ON DELETE CASCADE;
+
+
+--
+-- Name: game_prices game_prices_capacity_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_prices
+    ADD CONSTRAINT game_prices_capacity_fkey FOREIGN KEY (platform, zarfiat) REFERENCES public.capacities(console_code, code);
 
 
 --
@@ -591,5 +812,5 @@ ALTER TABLE ONLY public.orders
 -- PostgreSQL database dump complete
 --
 
-\unrestrict unpm3OVFUmjCQQMOjfC4QXE8fNTuyhk07rnLqSAlGwHwdRCvDcAKMtNGx6tbBFe
+\unrestrict cCpnpnYpIZWMyjU6lWSqv33kbUfbDR9YzjyxrGH33ba7dN5hzEhxCE9RcX7MTmz
 

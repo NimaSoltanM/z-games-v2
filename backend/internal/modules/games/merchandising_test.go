@@ -15,7 +15,7 @@ func TestCreateGame_SlugLookupAndUniqueness(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Cyberpunk 2077", Slug: "cyberpunk-2077", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Cyberpunk 2077", Slug: "cyberpunk-2077", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		Active: true, Featured: true, Tags: []string{"اکشن", "آنلاین"},
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 60}},
 	})
@@ -38,7 +38,7 @@ func TestCreateGame_SlugLookupAndUniqueness(t *testing.T) {
 
 	// A second game claiming the same slug is rejected.
 	_, err = createGame(ctx, db, "a1", normalizedGame{
-		Name: "Other", Slug: "cyberpunk-2077", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Other", Slug: "cyberpunk-2077", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 10}},
 	})
 	if !errors.Is(err, ErrDuplicateSlug) {
@@ -53,7 +53,7 @@ func TestUpdateGame_DuplicateSlug(t *testing.T) {
 
 	mk := func(name, slug string) string {
 		id, err := createGame(ctx, db, "a1", normalizedGame{
-			Name: name, Slug: slug, Platform: "ps5", PriceMode: "dynamic",
+			Name: name, Slug: slug, Consoles: []string{"ps5"}, PriceMode: "dynamic",
 			BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 10}},
 		})
 		if err != nil {
@@ -66,7 +66,7 @@ func TestUpdateGame_DuplicateSlug(t *testing.T) {
 
 	// Renaming the second game onto the first's slug must fail.
 	err := updateGame(ctx, db, "a1", second, normalizedGame{
-		Name: "Second", Slug: "first", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Second", Slug: "first", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 10}},
 	})
 	if !errors.Is(err, ErrDuplicateSlug) {
@@ -80,7 +80,7 @@ func TestSetGameDiscount(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Deal", Slug: "deal", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Deal", Slug: "deal", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}},
 	})
 	if err != nil {
@@ -154,7 +154,7 @@ func TestTrendingScore(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Hot", Slug: "hot", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Hot", Slug: "hot", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}},
 	})
 	if err != nil {
@@ -199,7 +199,7 @@ func TestBumpViewCountAndSlugTaken(t *testing.T) {
 	seedAdmin(t, ctx, db, "a1")
 
 	id, err := createGame(ctx, db, "a1", normalizedGame{
-		Name: "Viewed", Slug: "viewed", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Viewed", Slug: "viewed", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}},
 	})
 	if err != nil {
@@ -240,10 +240,11 @@ func TestBumpViewCountAndSlugTaken(t *testing.T) {
 func TestValidateGameInput_SlugTagsFeatured(t *testing.T) {
 	// Slug is normalized from a messy admin value; tags are trimmed + deduped.
 	out, msg, ok := validateGameInput(gameInput{
-		Name: "Game", Slug: "  My Cool Game! ", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Game", Slug: "  My Cool Game! ", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		Featured: true, Tags: []string{" اکشن ", "اکشن", "", "Online"},
 		BasePrices: []basePriceInput{{Platform: "ps5", BaseUSD: 10}},
-	})
+		Links:      []string{"https://store.example.com/g"},
+	}, psCatalog())
 	if !ok {
 		t.Fatalf("rejected valid input: %q", msg)
 	}
@@ -256,18 +257,19 @@ func TestValidateGameInput_SlugTagsFeatured(t *testing.T) {
 
 	// Blank slug falls back to the name.
 	out, _, ok = validateGameInput(gameInput{
-		Name: "Fallback Name", Platform: "ps5", PriceMode: "dynamic",
+		Name: "Fallback Name", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []basePriceInput{{Platform: "ps5", BaseUSD: 10}},
-	})
+		Links:      []string{"https://store.example.com/g"},
+	}, psCatalog())
 	if !ok || out.Slug != "fallback-name" {
 		t.Fatalf("name fallback slug = %q, want fallback-name", out.Slug)
 	}
 
 	// A name with no latin characters and no explicit slug is rejected.
 	if _, _, ok := validateGameInput(gameInput{
-		Name: "بازی", Platform: "ps5", PriceMode: "dynamic",
+		Name: "بازی", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 		BasePrices: []basePriceInput{{Platform: "ps5", BaseUSD: 10}},
-	}); ok {
+	}, psCatalog()); ok {
 		t.Fatal("expected rejection when no slug can be derived")
 	}
 }

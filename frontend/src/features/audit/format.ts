@@ -1,4 +1,4 @@
-import { PLATFORM_LABEL, ZARFIAT_LABEL } from "@/features/games"
+import { consoleLabel, capacityLabel } from "@/features/games"
 import type { AuditRow, ChangeEntry, PriceChange } from "./types"
 
 // Persian label for each known action key (used for the filter chips).
@@ -28,11 +28,17 @@ function faNum(n: number): string {
 }
 
 function platformLabel(p: string): string {
-  return (PLATFORM_LABEL as Record<string, string | undefined>)[p] ?? p
+  return consoleLabel(p)
 }
 
 function zarfiatLabel(z: string): string {
-  return (ZARFIAT_LABEL as Record<string, string | undefined>)[z] ?? z
+  return capacityLabel(z)
+}
+
+// Audit change values are usually scalars, but the `consoles` diff carries string
+// arrays; read them defensively.
+function asStringArray(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []
 }
 
 // The game name from metadata, or a fallback to the target id.
@@ -85,8 +91,10 @@ function updateDetails(
     const to = PRICE_MODE_LABEL[asString(changes.price_mode.to)] ?? asString(changes.price_mode.to)
     out.push(`حالت قیمت: ${from} ← ${to}`)
   }
-  if (changes.platform) {
-    out.push(`پلتفرم: ${platformLabel(asString(changes.platform.from))} ← ${platformLabel(asString(changes.platform.to))}`)
+  if (changes.consoles) {
+    const fmtList = (v: unknown) =>
+      asStringArray(v).map(platformLabel).join("، ") || "—"
+    out.push(`کنسول‌ها: ${fmtList(changes.consoles.from)} ← ${fmtList(changes.consoles.to)}`)
   }
   if (changes.release_status) {
     const from = RELEASE_LABEL[asString(changes.release_status.from)] ?? asString(changes.release_status.from)

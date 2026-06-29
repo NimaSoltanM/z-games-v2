@@ -1,7 +1,11 @@
-export type Platform = "ps4" | "ps5" | "ps4_ps5"
 export type PriceMode = "dynamic" | "fixed"
-export type Zarfiat = "z1" | "z2" | "z3"
-export type ConsolePlatform = "ps4" | "ps5"
+
+// Console + capacity codes are arbitrary catalog strings now (ps5, xbox_series,
+// z2, home, …), not a fixed enum. These aliases are kept (as `string`) so existing
+// imports keep resolving; new code can just use `string`.
+export type ConsolePlatform = string
+export type Zarfiat = string
+export type Platform = string
 
 // Stored release status vs. the phase the backend derives from it + the release
 // date. The frontend reads `phase`/`purchasable`; it never re-derives the dates.
@@ -33,7 +37,9 @@ export type Game = {
   slug: string
   name: string
   cover_image: string | null
-  platform: Platform
+  // Consoles the game is sold on (ps5, xbox_series, …), ordered for display.
+  // Availability is this set; the old single `platform` enum is gone.
+  consoles: string[]
   price_mode: PriceMode
   prices: GamePrice[]
   base_prices: GameBasePrice[]
@@ -61,20 +67,30 @@ export type Game = {
   updated_at: string
 }
 
-// Global pricing config (capacity split + default margin), returned alongside the
-// USD→Toman rate. The whole object is always present; usd_to_toman may be null.
-export type PricingConfig = {
-  z1_pct: number
-  z2_pct: number
-  z3_pct: number
-  default_margin_pct: number
+// A capacity (sellable slot) within a console, with its split percentage.
+export type Capacity = {
+  code: string
+  label_fa: string
+  split_pct: number
+  sort_order: number
 }
 
-export type ExchangeRate =
-  | ({
-      usd_to_toman: number | null
-    } & PricingConfig)
-  | null
+// A console the store sells on, with its default margin and capacity catalog.
+export type Console = {
+  code: string
+  family: string
+  label_fa: string
+  default_margin_pct: number
+  capacities: Capacity[]
+}
+
+// The "exchange_rate" object: the USD→Toman rate (null until set) plus the live
+// console/capacity catalog the storefront + admin screens read labels and pricing
+// from. The catalog is always present.
+export type ExchangeRate = {
+  usd_to_toman: number | null
+  consoles: Console[]
+} | null
 
 export type GamesParams = {
   page?: number
@@ -118,6 +134,8 @@ export type GamePriceInput = {
 export type GameBasePriceInput = {
   platform: ConsolePlatform
   base_usd: number
+  // Capacities sold for this console (dynamic). Empty = all of the console's caps.
+  capacities: string[]
 }
 
 // The full game payload an admin submits from the form. `active` doubles as the
@@ -126,7 +144,7 @@ export type GameBasePriceInput = {
 export type GameFormPayload = {
   name: string
   slug: string
-  platform: Platform
+  consoles: string[]
   price_mode: PriceMode
   cover_image: string | null
   active: boolean
@@ -230,20 +248,76 @@ export function formatReleaseDate(iso: string | null): string | null {
   })
 }
 
-export const PLATFORM_LABEL: Record<Platform, string> = {
+// Static fallback labels for known codes, used on pages that don't load the
+// catalog (e.g. order/dashboard views). The API catalog (label_fa) is the source
+// of truth where available — see consoleLabel/capacityLabel below.
+const CONSOLE_LABEL_FALLBACK: Record<string, string | undefined> = {
   ps4: "PS4",
   ps5: "PS5",
-  ps4_ps5: "PS4 & PS5",
+  xbox_one: "Xbox One",
+  xbox_series: "Xbox Series X|S",
 }
 
-export const ZARFIAT_LABEL: Record<Zarfiat, string> = {
+const CAPACITY_LABEL_FALLBACK: Record<string, string | undefined> = {
   z1: "ظرفیت ۱",
   z2: "ظرفیت ۲",
   z3: "ظرفیت ۳",
+  home: "Home",
+  switch: "Switch",
 }
 
-export const ZARFIATS: Zarfiat[] = ["z1", "z2", "z3"]
-export const CONSOLE_PLATFORMS: ConsolePlatform[] = ["ps4", "ps5"]
+// consoleLabel/capacityLabel resolve a display label, preferring the live catalog
+// (label_fa) and falling back to a known static label, then the raw code. Pass the
+// exchange_rate when you have it (lists/detail/cart); omit it where you don't.
+export function consoleLabel(code: string, rate?: ExchangeRate): string {
+  return (
+    rate?.consoles.find((c) => c.code === code)?.label_fa ??
+    CONSOLE_LABEL_FALLBACK[code] ??
+    code
+  )
+}
+
+export function capacityLabel(code: string, rate?: ExchangeRate): string {
+  if (rate) {
+    for (const cn of rate.consoles) {
+      const cp = cn.capacities.find((c) => c.code === code)
+      if (cp) return cp.label_fa
+    }
+  }
+  return CAPACITY_LABEL_FALLBACK[code] ?? code
+}
+
+// Short, customer-facing explanation of what each capacity tier means, shown in
+// the buy area so a shopper knows what they're choosing. TODO(copy): owner should
+// review/tune this wording — especially the Xbox Home/Switch lines.
+const CAPACITY_DESC: Record<string, string | undefined> = {
+  z1: "تزریق مستقیم بازی؛ بدون گارانتی.",
+  z2: "نصب دائمی روی کنسول شما؛ بازی همیشه — حتی آفلاین — در دسترس است.",
+  z3: "اجرا روی اکانت ارائه‌شده؛ برای بازی باید آنلاین بمانید.",
+  home: "اکانت اصلی روی کنسول شما؛ دسترسی دائمی.",
+  switch: "اجرا با ورود به اکانت ارائه‌شده؛ برای بازی باید آنلاین بمانید.",
+}
+
+export function capacityDesc(code: string): string {
+  return CAPACITY_DESC[code] ?? ""
+}
+
+// Label for the third delivered credential, which differs per console family:
+// the PSN pass for PlayStation, the two-step verification code for Xbox. Falls
+// back to a neutral term for any other console. Used on order/fulfillment views.
+export function passcodeLabel(consoleCode: string): string {
+  if (consoleCode.startsWith("xbox")) return "کد تأیید دومرحله‌ای"
+  if (consoleCode.startsWith("ps")) return "رمز PSN"
+  return "کد امنیتی"
+}
+
+// Capacities offered for a console in the catalog, ordered for display.
+export function consoleCapacities(
+  rate: ExchangeRate,
+  consoleCode: string
+): Capacity[] {
+  return rate?.consoles.find((c) => c.code === consoleCode)?.capacities ?? []
+}
 
 // Default search params for the games list — used by every "browse games" link
 // so they all land on the same unfiltered, newest-first view.
@@ -255,23 +329,120 @@ export const GAMES_DEFAULT_SEARCH = {
   sort: "-created_at",
 } as const
 
-// Real PlayStation brand colors
-export const PLATFORM_BADGE_CLASS: Record<Platform, string> = {
+// Console brand colors, keyed by console code. PlayStation = blue; Xbox = green
+// (Xbox One lighter, Xbox Series X|S darker, near the real ~#107C10 brand green).
+// Keyed by string so new console codes can be added as the model becomes
+// data-driven; callers should fall back to a neutral style for unknown codes.
+const PLATFORM_BADGE_CLASS: Record<string, string | undefined> = {
   ps4: "bg-blue-600/15 text-blue-400 border-blue-600/30",
   ps5: "bg-black/8 text-zinc-200 border-dark/15",
-  ps4_ps5:
-    "bg-gradient-to-r from-blue-600/15 to-white/8 text-blue-300 border-blue-400/20",
+  xbox_one: "bg-green-400/15 text-green-300 border-green-400/30",
+  xbox_series: "bg-green-700/15 text-green-500 border-green-700/30",
 }
 
 // Used for glow effects (detail page cover)
-export const PLATFORM_GLOW_CLASS: Record<Platform, string> = {
+const PLATFORM_GLOW_CLASS: Record<string, string | undefined> = {
   ps4: "bg-blue-600",
   ps5: "bg-white",
-  ps4_ps5: "bg-blue-400",
+  xbox_one: "bg-green-400",
+  xbox_series: "bg-green-700",
 }
 
 // Used for accent borders (cart items)
-export const PLATFORM_ACCENT_CLASS: Record<ConsolePlatform, string> = {
+const PLATFORM_ACCENT_CLASS: Record<string, string | undefined> = {
   ps4: "border-r-blue-500/70",
   ps5: "border-r-white/25",
+  xbox_one: "border-r-green-400/70",
+  xbox_series: "border-r-green-600/40",
+}
+
+// Color accessors keyed by console code, with neutral fallbacks so an unknown
+// console (e.g. a freshly added one) still renders cleanly.
+export function platformBadgeClass(code: string): string {
+  return PLATFORM_BADGE_CLASS[code] ?? "bg-muted text-muted-foreground border-border"
+}
+
+export function platformGlowClass(code: string): string {
+  return PLATFORM_GLOW_CLASS[code] ?? "bg-muted-foreground"
+}
+
+export function platformAccentClass(code: string): string {
+  return PLATFORM_ACCENT_CLASS[code] ?? "border-r-border"
+}
+
+// A game can list on up to four consoles; rather than render four badges, we group
+// them into one badge per console family (PlayStation / Xbox) with a brand gradient.
+const FAMILY_LABEL: Record<string, string | undefined> = {
+  playstation: "PlayStation",
+  xbox: "Xbox",
+}
+
+const FAMILY_BADGE_CLASS: Record<string, string | undefined> = {
+  playstation:
+    "bg-gradient-to-r from-blue-600/15 to-white/10 text-blue-300 border-blue-400/25",
+  xbox: "bg-gradient-to-r from-green-400/15 to-green-700/20 text-green-400 border-green-600/30",
+}
+
+// Solid brand color per family — used for the cover glow halo (one per family).
+const FAMILY_GLOW_CLASS: Record<string, string | undefined> = {
+  playstation: "bg-blue-500",
+  xbox: "bg-green-500",
+}
+
+// Brand text color per family — used for filter group headers / accents.
+const FAMILY_TEXT_CLASS: Record<string, string | undefined> = {
+  playstation: "text-blue-400",
+  xbox: "text-green-400",
+}
+
+function familyFromCode(code: string): string {
+  if (code.startsWith("xbox")) return "xbox"
+  if (code.startsWith("ps")) return "playstation"
+  return code
+}
+
+export function familyLabel(family: string): string {
+  return FAMILY_LABEL[family] ?? family
+}
+
+export function familyTextClass(family: string): string {
+  return FAMILY_TEXT_CLASS[family] ?? "text-muted-foreground"
+}
+
+// Brand dot color per family — a small filled circle used as a quiet console cue.
+export function familyDotClass(family: string): string {
+  return FAMILY_GLOW_CLASS[family] ?? "bg-muted-foreground"
+}
+
+export type FamilyBadge = {
+  family: string
+  label: string
+  className: string
+  glow: string
+}
+
+// gameFamilies maps a game's console list to its distinct families (in first-seen
+// order), each with a display label, a brand gradient (badge) and a solid glow
+// color. Prefers the catalog for the family, falling back to the code prefix.
+export function gameFamilies(
+  consoles: string[],
+  rate?: ExchangeRate
+): FamilyBadge[] {
+  const order: string[] = []
+  const seen = new Set<string>()
+  for (const code of consoles) {
+    const fam =
+      rate?.consoles.find((c) => c.code === code)?.family ?? familyFromCode(code)
+    if (!seen.has(fam)) {
+      seen.add(fam)
+      order.push(fam)
+    }
+  }
+  return order.map((fam) => ({
+    family: fam,
+    label: FAMILY_LABEL[fam] ?? fam,
+    className:
+      FAMILY_BADGE_CLASS[fam] ?? "bg-muted text-muted-foreground border-border",
+    glow: FAMILY_GLOW_CLASS[fam] ?? "bg-muted-foreground",
+  }))
 }

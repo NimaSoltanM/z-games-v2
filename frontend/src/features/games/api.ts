@@ -37,14 +37,16 @@ export function checkSlugAvailable(slug: string, exclude?: string) {
   )
 }
 
-// Sets the global pricing config: the USD→Toman rate, the capacity split, and
-// the default margin that dynamic prices derive from.
+// Sets the pricing config: the USD→Toman rate plus, per console, its default
+// margin and its capacities' split percentages (each console's splits must sum to
+// 100). Dynamic prices derive from these.
 export type PricingConfigInput = {
   usd_to_toman: number
-  z1_pct: number
-  z2_pct: number
-  z3_pct: number
-  default_margin_pct: number
+  consoles: {
+    code: string
+    default_margin_pct: number
+    capacities: { code: string; split_pct: number }[]
+  }[]
 }
 
 export function setPricingConfig(body: PricingConfigInput) {

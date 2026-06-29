@@ -9,27 +9,18 @@ import {
   useSuspenseQuery,
   useQueryErrorResetBoundary,
 } from "@tanstack/react-query"
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState, useEffect, Fragment } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { SlidersHorizontal, Sparkles, X } from "lucide-react"
+import { Check, ChevronDown, Sparkles, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { BackgroundGradient } from "@/components/ui/background-gradient"
 
@@ -38,8 +29,8 @@ import {
   cheapestPrice,
   discountedPrice,
   formatToman,
-  PLATFORM_LABEL,
-  PLATFORM_BADGE_CLASS,
+  familyDotClass,
+  ConsoleDots,
   PreOrderBadge,
   DiscountBadge,
   GameTags,
@@ -57,18 +48,44 @@ const SORT_OPTIONS = [
   { value: "-name", label: "نام (Z-A)" },
 ] as const
 
-const PLATFORM_OPTIONS = [
-  { value: "", label: "همه" },
-  { value: "ps4", label: "PS4" },
-  { value: "ps5", label: "PS5" },
-  { value: "ps4_ps5", label: "PS4 & PS5" },
+// Filters are grouped by console family so a capacity like "Home" reads under its
+// console, not as a flat list shared across platforms.
+type FilterOption = { value: string; label: string }
+type FilterGroup = { family: string; options: FilterOption[] }
+
+const PLATFORM_GROUPS: FilterGroup[] = [
+  {
+    family: "playstation",
+    options: [
+      { value: "ps4", label: "PS4" },
+      { value: "ps5", label: "PS5" },
+    ],
+  },
+  {
+    family: "xbox",
+    options: [
+      { value: "xbox_one", label: "Xbox One" },
+      { value: "xbox_series", label: "Xbox Series X|S" },
+    ],
+  },
 ]
 
-const ZARFIAT_OPTIONS = [
-  { value: "", label: "همه" },
-  { value: "z1", label: "ظرفیت ۱" },
-  { value: "z2", label: "ظرفیت ۲" },
-  { value: "z3", label: "ظرفیت ۳" },
+const ZARFIAT_GROUPS: FilterGroup[] = [
+  {
+    family: "playstation",
+    options: [
+      { value: "z1", label: "ظرفیت ۱" },
+      { value: "z2", label: "ظرفیت ۲" },
+      { value: "z3", label: "ظرفیت ۳" },
+    ],
+  },
+  {
+    family: "xbox",
+    options: [
+      { value: "home", label: "Home" },
+      { value: "switch", label: "Switch" },
+    ],
+  },
 ]
 
 function GamesError({ error }: ErrorComponentProps) {
@@ -92,93 +109,92 @@ export const Route = createFileRoute("/games/")({
   errorComponent: GamesError,
 })
 
-function FilterContent() {
-  const search = Route.useSearch()
-  const navigate = useNavigate({ from: "/games/" })
+// A compact toolbar filter dropdown. Options carry a small console-family dot
+// (blue = PlayStation, green = Xbox) instead of a loud colored section header, so
+// a capacity like "Home" still reads as Xbox without shouting.
+function FilterMenu({
+  label,
+  groups,
+  value,
+  onSelect,
+}: {
+  label: string
+  groups: FilterGroup[]
+  value: string
+  onSelect: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = groups
+    .flatMap((g) => g.options)
+    .find((o) => o.value === value)
 
-  function setFilter(key: "platform" | "zarfiat", value: string) {
-    navigate({ search: (prev) => ({ ...prev, [key]: value, page: 1 }) })
+  const choose = (v: string) => {
+    onSelect(v)
+    setOpen(false)
   }
 
-  const hasActiveFilters = search.platform || search.zarfiat
-
   return (
-    <div className="space-y-1">
-      {hasActiveFilters && (
-        <div className="pb-2">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="h-7 w-full justify-start gap-1 text-xs text-muted-foreground"
-            onClick={() =>
-              navigate({
-                search: (prev) => ({
-                  ...prev,
-                  platform: "",
-                  zarfiat: "",
-                  page: 1,
-                }),
-              })
-            }
-          >
-            <X className="size-3" />
-            حذف فیلترها
-          </Button>
-        </div>
-      )}
-      <Accordion defaultValue={["platform", "zarfiat"]} multiple>
-        <AccordionItem value="platform">
-          <AccordionTrigger>کنسول</AccordionTrigger>
-          <AccordionContent>
-            <div className="flex flex-col gap-1 pt-1">
-              {PLATFORM_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setFilter("platform", opt.value)}
-                  className={`w-full rounded-md border-r-2 px-2 py-1.5 text-right text-sm transition-all ${
-                    search.platform === opt.value
-                      ? "border-primary bg-primary/8 font-semibold text-primary"
-                      : "border-transparent text-foreground hover:bg-accent"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="zarfiat">
-          <AccordionTrigger>ظرفیت</AccordionTrigger>
-          <AccordionContent>
-            <div className="flex flex-col gap-1 pt-1">
-              {ZARFIAT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setFilter("zarfiat", opt.value)}
-                  className={`w-full rounded-md border-r-2 px-2 py-1.5 text-right text-sm transition-all ${
-                    search.zarfiat === opt.value
-                      ? "border-primary bg-primary/8 font-semibold text-primary"
-                      : "border-transparent text-foreground hover:bg-accent"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-    </div>
+            className={`shrink-0 gap-1.5 ${selected ? "border-primary/60 text-primary" : ""}`}
+          />
+        }
+      >
+        {label}
+        {selected && <span className="font-semibold">: {selected.label}</span>}
+        <ChevronDown className="size-3.5 opacity-60" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-48 gap-0.5 p-1">
+        <FilterOption selected={value === ""} onClick={() => choose("")}>
+          همه
+        </FilterOption>
+        {groups.map((g, gi) => (
+          <Fragment key={g.family}>
+            {gi > 0 && <Separator className="my-1" />}
+            {g.options.map((o) => (
+              <FilterOption
+                key={o.value}
+                selected={value === o.value}
+                onClick={() => choose(o.value)}
+              >
+                <span
+                  className={`size-2 rounded-full ${familyDotClass(g.family)}`}
+                />
+                {o.label}
+              </FilterOption>
+            ))}
+          </Fragment>
+        ))}
+      </PopoverContent>
+    </Popover>
   )
 }
 
-function FilterSidebar() {
+function FilterOption({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
   return (
-    <aside className="sticky top-24 h-fit w-56 shrink-0 rounded-xl border border-border/50 bg-background/60 p-4 backdrop-blur-md">
-      <p className="pb-2 text-sm font-semibold">فیلترها</p>
-      <Separator className="mb-1" />
-      <FilterContent />
-    </aside>
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+        selected
+          ? "bg-primary/10 font-medium text-primary"
+          : "text-foreground hover:bg-accent"
+      }`}
+    >
+      {children}
+      {selected && <Check className="ms-auto size-3.5" />}
+    </button>
   )
 }
 
@@ -202,6 +218,14 @@ function GamesPage() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
+  const setFilter = (key: "platform" | "zarfiat", value: string) =>
+    navigate({ search: (prev) => ({ ...prev, [key]: value, page: 1 }) })
+  const clearFilters = () =>
+    navigate({
+      search: (prev) => ({ ...prev, platform: "", zarfiat: "", page: 1 }),
+    })
+  const hasFilters = !!(search.platform || search.zarfiat)
+
   return (
     <div className="relative min-h-screen bg-background bg-grid-lines">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -213,38 +237,42 @@ function GamesPage() {
       {/* Top bar */}
       <div className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 py-3">
-            <Sheet>
-              <SheetTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0 lg:hidden"
-                  />
-                }
-              >
-                <SlidersHorizontal className="size-4" />
-                <span className="mr-1.5 hidden sm:inline">فیلترها</span>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-72 overflow-y-auto p-4">
-                <SheetHeader>
-                  <SheetTitle>فیلترها</SheetTitle>
-                </SheetHeader>
-                <div className="mt-4">
-                  <FilterContent />
-                </div>
-              </SheetContent>
-            </Sheet>
+          <div className="py-3">
             <input
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="جستجوی بازی..."
-              className="h-9 w-full flex-1 rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/50 focus:outline-none"
+              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/50 focus:outline-none"
             />
           </div>
           <div className="flex scrollbar-none items-center gap-2 overflow-x-auto pb-3">
+            <FilterMenu
+              label="کنسول"
+              groups={PLATFORM_GROUPS}
+              value={search.platform}
+              onSelect={(v) => setFilter("platform", v)}
+            />
+            <FilterMenu
+              label="ظرفیت"
+              groups={ZARFIAT_GROUPS}
+              value={search.zarfiat}
+              onSelect={(v) => setFilter("zarfiat", v)}
+            />
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 gap-1 text-muted-foreground"
+                onClick={clearFilters}
+              >
+                <X className="size-3.5" />
+                حذف
+              </Button>
+            )}
+
+            <span className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:block" />
+
             <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
               مرتب‌سازی:
             </span>
@@ -275,34 +303,21 @@ function GamesPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex gap-6">
-          <div className="hidden lg:block">
-            <FilterSidebar />
-          </div>
-          <div className="min-w-0 flex-1">
-            <ErrorBoundary
-              onReset={reset}
-              fallbackRender={({ resetErrorBoundary }) => (
-                <div className="py-20 text-center">
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    خطایی رخ داد
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={resetErrorBoundary}
-                  >
-                    تلاش مجدد
-                  </Button>
-                </div>
-              )}
-            >
-              <Suspense fallback={<GamesGridSkeleton />}>
-                <GamesContent />
-              </Suspense>
-            </ErrorBoundary>
-          </div>
-        </div>
+        <ErrorBoundary
+          onReset={reset}
+          fallbackRender={({ resetErrorBoundary }) => (
+            <div className="py-20 text-center">
+              <p className="mb-4 text-sm text-muted-foreground">خطایی رخ داد</p>
+              <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+                تلاش مجدد
+              </Button>
+            </div>
+          )}
+        >
+          <Suspense fallback={<GamesGridSkeleton />}>
+            <GamesContent />
+          </Suspense>
+        </ErrorBoundary>
       </div>
     </div>
   )
@@ -340,8 +355,8 @@ function GamesContent() {
       </p>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {games.map((game) => (
-          <GameCard key={game.id} game={game} rate={exchange_rate} />
+        {games.map((game, i) => (
+          <GameCard key={game.id} game={game} rate={exchange_rate} index={i} />
         ))}
       </div>
 
@@ -405,9 +420,18 @@ function GamesContent() {
   )
 }
 
-// A single game card for the main grid. Shows the platform/pre-order/discount
-// badges, tags, and a discounted "از" price.
-function GameCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
+// A single game card for the main grid. Cover-forward: the art is the hero, with
+// console family shown as small accent dots and one discount flag; the text block is
+// just the title + the cheapest "از" price.
+function GameCard({
+  game,
+  rate,
+  index = 0,
+}: {
+  game: Game
+  rate: ExchangeRate
+  index?: number
+}) {
   const minPrice = cheapestPrice(game, rate)
   const finalMin = discountedPrice(minPrice, game)
   const hasDiscount =
@@ -415,40 +439,46 @@ function GameCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
 
   return (
     <Link to="/games/$slug" params={{ slug: game.slug }} viewTransition>
-      <div className="group h-full cursor-pointer overflow-hidden rounded-xl border border-border/60 bg-card/75 backdrop-blur-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10">
-        <img
-          src={gameCoverSrc(game.cover_image, game.id)}
-          alt={game.name}
-          className="aspect-3/4 w-full object-cover"
-          loading="lazy"
-          style={{ viewTransitionName: `game-cover-${game.id}` }}
-        />
-        <div className="space-y-2 p-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge
-              variant="secondary"
-              className={`border px-2 py-0.5 text-xs ${PLATFORM_BADGE_CLASS[game.platform]}`}
-            >
-              {PLATFORM_LABEL[game.platform]}
-            </Badge>
-            {game.phase === "pre_order" && <PreOrderBadge />}
-            {game.discount && <DiscountBadge percent={game.discount} />}
-          </div>
+      <div
+        className="group h-full cursor-pointer overflow-hidden rounded-xl border border-border/60 bg-card/75 backdrop-blur-sm transition-all duration-200 animate-in fade-in-0 slide-in-from-bottom-2 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
+        style={{
+          animationDelay: `${Math.min(index, 8) * 40}ms`,
+          animationFillMode: "both",
+        }}
+      >
+        <div className="relative overflow-hidden">
+          <img
+            src={gameCoverSrc(game.cover_image, game.id)}
+            alt={game.name}
+            className="aspect-3/4 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            loading="lazy"
+            style={{ viewTransitionName: `game-cover-${game.id}` }}
+          />
+          {/* Bottom scrim so the console dots stay legible over any art. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/55 to-transparent" />
+          <ConsoleDots
+            consoles={game.consoles}
+            rate={rate}
+            className="absolute bottom-2 left-2"
+          />
+          {game.discount && (
+            <DiscountBadge
+              percent={game.discount}
+              className="absolute top-2 left-2 shadow-sm"
+            />
+          )}
+          {game.phase === "pre_order" && (
+            <PreOrderBadge className="absolute top-2 right-2 shadow-sm" />
+          )}
+        </div>
+        <div className="space-y-1 p-3">
           <p className="line-clamp-2 text-sm leading-snug font-medium">
             {game.name}
           </p>
-          <GameTags tags={game.tags.slice(0, 2)} />
           {minPrice !== null && (
-            <div className="space-y-0.5">
-              {hasDiscount && (
-                <p className="text-xs text-muted-foreground tabular-nums line-through">
-                  {formatToman(minPrice)}
-                </p>
-              )}
-              <p className="text-sm font-semibold text-primary tabular-nums">
-                از {formatToman(hasDiscount ? finalMin : minPrice)}
-              </p>
-            </div>
+            <p className="text-sm font-semibold text-primary tabular-nums">
+              از {formatToman(hasDiscount ? finalMin : minPrice)}
+            </p>
           )}
         </div>
       </div>
@@ -468,24 +498,35 @@ function FeaturedCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
   return (
     <Link to="/games/$slug" params={{ slug: game.slug }} viewTransition>
       <div className="group flex h-full cursor-pointer gap-4">
-        <img
-          src={gameCoverSrc(game.cover_image, game.id)}
-          alt={game.name}
-          className="h-full min-h-44 w-28 shrink-0 object-cover sm:w-32"
-          loading="lazy"
-          style={{ viewTransitionName: `game-cover-${game.id}` }}
-        />
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 py-4 pl-4">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge
-              variant="secondary"
-              className={`border px-2 py-0.5 text-xs ${PLATFORM_BADGE_CLASS[game.platform]}`}
-            >
-              {PLATFORM_LABEL[game.platform]}
-            </Badge>
-            {game.phase === "pre_order" && <PreOrderBadge />}
-            {game.discount && <DiscountBadge percent={game.discount} />}
-          </div>
+        <div className="relative h-full shrink-0 overflow-hidden rounded-lg">
+          {/* No viewTransitionName here on purpose: a featured game also appears in
+              the grid below, and a duplicate name aborts the cover morph. The grid
+              card owns the shared-element transition. */}
+          <img
+            src={gameCoverSrc(game.cover_image, game.id)}
+            alt={game.name}
+            className="h-full min-h-44 w-28 object-cover transition-transform duration-300 group-hover:scale-[1.04] sm:w-32"
+            loading="lazy"
+          />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/55 to-transparent" />
+          <ConsoleDots
+            consoles={game.consoles}
+            rate={rate}
+            className="absolute bottom-2 left-2"
+          />
+          {game.discount && (
+            <DiscountBadge
+              percent={game.discount}
+              className="absolute top-2 left-2 shadow-sm"
+            />
+          )}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 py-4 pl-4">
+          {game.phase === "pre_order" && (
+            <div>
+              <PreOrderBadge />
+            </div>
+          )}
           <p className="line-clamp-2 text-base leading-snug font-semibold">
             {game.name}
           </p>

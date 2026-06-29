@@ -24,6 +24,7 @@ import { Route as GamesSlugIndexRouteImport } from './routes/games/$slug/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
 import { Route as AdminGamesIndexRouteImport } from './routes/admin/games/index'
 import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin/orders/$orderId'
+import { Route as AdminGamesPricingRouteImport } from './routes/admin/games/pricing'
 import { Route as AdminGamesNewRouteImport } from './routes/admin/games/new'
 import { Route as AdminGamesIdEditRouteImport } from './routes/admin/games/$id/edit'
 
@@ -102,6 +103,11 @@ const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
   path: '/orders/$orderId',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminGamesPricingRoute = AdminGamesPricingRouteImport.update({
+  id: '/games/pricing',
+  path: '/games/pricing',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminGamesNewRoute = AdminGamesNewRouteImport.update({
   id: '/games/new',
   path: '/games/new',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/games/': typeof GamesIndexRoute
   '/admin/games/new': typeof AdminGamesNewRoute
+  '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/games': typeof GamesIndexRoute
   '/admin/games/new': typeof AdminGamesNewRoute
+  '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/games': typeof AdminGamesIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/games/': typeof GamesIndexRoute
   '/admin/games/new': typeof AdminGamesNewRoute
+  '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/games/'
     | '/admin/games/new'
+    | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/games/'
     | '/admin/orders/'
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/games'
     | '/admin/games/new'
+    | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/games'
     | '/admin/orders'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/games/'
     | '/admin/games/new'
+    | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/games/'
     | '/admin/orders/'
@@ -347,6 +359,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrdersOrderIdRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/games/pricing': {
+      id: '/admin/games/pricing'
+      path: '/games/pricing'
+      fullPath: '/admin/games/pricing'
+      preLoaderRoute: typeof AdminGamesPricingRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/games/new': {
       id: '/admin/games/new'
       path: '/games/new'
@@ -367,6 +386,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
   AdminGamesNewRoute: typeof AdminGamesNewRoute
+  AdminGamesPricingRoute: typeof AdminGamesPricingRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
   AdminGamesIndexRoute: typeof AdminGamesIndexRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
@@ -376,6 +396,7 @@ interface AdminRouteRouteChildren {
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
   AdminGamesNewRoute: AdminGamesNewRoute,
+  AdminGamesPricingRoute: AdminGamesPricingRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminGamesIndexRoute: AdminGamesIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,

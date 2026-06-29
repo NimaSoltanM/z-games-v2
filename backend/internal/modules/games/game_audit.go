@@ -13,7 +13,6 @@ import (
 type oldGameState struct {
 	Name            string
 	CoverImage      *string
-	Platform        string
 	PriceMode       string
 	Active          bool
 	ReleaseStatus   string
@@ -28,12 +27,30 @@ type oldGameState struct {
 func loadOldGameState(ctx context.Context, tx pgx.Tx, id string) (oldGameState, error) {
 	var s oldGameState
 	err := tx.QueryRow(ctx, `
-		SELECT name, cover_image, platform, price_mode, active,
+		SELECT name, cover_image, price_mode, active,
 		       release_status, release_date, alert_message, alert_variant, profit_margin_pct
 		FROM games WHERE id = $1 FOR UPDATE
-	`, id).Scan(&s.Name, &s.CoverImage, &s.Platform, &s.PriceMode, &s.Active,
+	`, id).Scan(&s.Name, &s.CoverImage, &s.PriceMode, &s.Active,
 		&s.ReleaseStatus, &s.ReleaseDate, &s.AlertMessage, &s.AlertVariant, &s.ProfitMarginPct)
 	return s, err
+}
+
+// loadOldConsoles returns a game's current console codes, for the audit diff.
+func loadOldConsoles(ctx context.Context, tx pgx.Tx, id string) ([]string, error) {
+	rows, err := tx.Query(ctx, "SELECT console_code FROM game_consoles WHERE game_id = $1 ORDER BY console_code", id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, err
+		}
+		out = append(out, code)
+	}
+	return out, rows.Err()
 }
 
 // loadOldPrices reads a game's current prices into lookup maps: fixed prices
@@ -82,7 +99,7 @@ func loadOldPrices(ctx context.Context, tx pgx.Tx, id string) (fixed map[string]
 // returns the audit metadata: the game name (so the feed reads naturally and
 // survives deletion), a map of changed scalar fields ({from,to}), and a list of
 // price changes. A field is present only when it actually changed.
-func buildUpdateMetadata(old oldGameState, in normalizedGame, oldFixed map[string]int, oldBase map[string]float64) map[string]any {
+func buildUpdateMetadata(old oldGameState, in normalizedGame, oldFixed map[string]int, oldBase map[string]float64, oldConsoles []string) map[string]any {
 	changes := map[string]any{}
 	set := func(field string, from, to any) { changes[field] = map[string]any{"from": from, "to": to} }
 
@@ -92,8 +109,8 @@ func buildUpdateMetadata(old oldGameState, in normalizedGame, oldFixed map[strin
 	if old.Active != in.Active {
 		set("active", old.Active, in.Active)
 	}
-	if old.Platform != in.Platform {
-		set("platform", old.Platform, in.Platform)
+	if !sameStringSet(oldConsoles, in.Consoles) {
+		set("consoles", oldConsoles, in.Consoles)
 	}
 	if old.PriceMode != in.PriceMode {
 		set("price_mode", old.PriceMode, in.PriceMode)
@@ -172,6 +189,28 @@ func computePriceChanges(oldMode string, in normalizedGame, oldFixed map[string]
 		}
 	}
 	return out
+}
+
+// sameStringSet reports whether two slices contain the same elements, ignoring
+// order and duplicates — used to detect a change in a game's console set.
+func sameStringSet(a, b []string) bool {
+	seen := make(map[string]bool, len(a))
+	for _, s := range a {
+		seen[s] = true
+	}
+	other := make(map[string]bool, len(b))
+	for _, s := range b {
+		other[s] = true
+	}
+	if len(seen) != len(other) {
+		return false
+	}
+	for s := range seen {
+		if !other[s] {
+			return false
+		}
+	}
+	return true
 }
 
 // --- nil-safe compare + unwrap helpers (nil pointer -> JSON null) ------------

@@ -34,9 +34,9 @@ import type { OrderItem, OrderStatus } from "@/features/orders"
 import { formatOrderDate, formatOrderNumber } from "@/features/orders"
 import {
   formatToman,
-  PLATFORM_LABEL,
-  PLATFORM_BADGE_CLASS,
-  ZARFIAT_LABEL,
+  consoleLabel,
+  platformBadgeClass,
+  capacityLabel,
 } from "@/features/games"
 import { cn } from "@/lib/utils"
 
@@ -288,12 +288,12 @@ function AdminOrderCard({ order }: { order: AdminOrder }) {
               <span className="truncate font-medium">{it.game_name}</span>
               <Badge
                 variant="secondary"
-                className={`shrink-0 border text-xs ${PLATFORM_BADGE_CLASS[it.platform]}`}
+                className={`shrink-0 border text-xs ${platformBadgeClass(it.platform)}`}
               >
-                {PLATFORM_LABEL[it.platform]}
+                {consoleLabel(it.platform)}
               </Badge>
               <span className="shrink-0 text-xs text-muted-foreground">
-                {ZARFIAT_LABEL[it.zarfiat]}
+                {capacityLabel(it.zarfiat)}
               </span>
             </div>
             <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
