@@ -122,6 +122,40 @@ func TestListOwned_Estimate(t *testing.T) {
 	}
 }
 
+func TestGetOwnedItem(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001", "user")
+	seedRate(t, ctx, db, testRate)
+	seedGame(t, ctx, db, "g1", true, true, testUSD)
+	itemID := seedDeliveredItem(t, ctx, db, "u1", "g1", "e", "p", "c")
+
+	it, err := getOwnedItem(ctx, db, "u1", itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it == nil {
+		t.Fatal("owned item should be found")
+	}
+	if it.ItemID != itemID || it.Console != "ps5" || it.Capacity != "z2" {
+		t.Fatalf("unexpected item: %+v", it)
+	}
+	if !it.Returnable || it.ReturnStatus != nil {
+		t.Fatalf("want returnable + no existing return, got returnable=%v status=%v", it.Returnable, it.ReturnStatus)
+	}
+	if !it.Estimate.Available || it.Estimate.NetCredit != testZ2Credit {
+		t.Fatalf("estimate = %+v, want available net %d", it.Estimate, testZ2Credit)
+	}
+
+	// Another user can't see it, and an unknown id returns nil (not an error).
+	if other, err := getOwnedItem(ctx, db, "stranger", itemID); err != nil || other != nil {
+		t.Fatalf("cross-user fetch = (%v, %v), want (nil, nil)", other, err)
+	}
+	if missing, err := getOwnedItem(ctx, db, "u1", "00000000-0000-0000-0000-000000000000"); err != nil || missing != nil {
+		t.Fatalf("missing fetch = (%v, %v), want (nil, nil)", missing, err)
+	}
+}
+
 func TestListOwned_DelistedHasNoEstimate(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)
@@ -137,6 +171,88 @@ func TestListOwned_DelistedHasNoEstimate(t *testing.T) {
 	}
 	if items[0].Estimate.Available {
 		t.Fatal("a delisted/inactive game must have no credit estimate")
+	}
+}
+
+func TestListOwned_PromoEstimate(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001", "user")
+	seedRate(t, ctx, db, testRate)
+	seedGame(t, ctx, db, "g1", true, true, testUSD)
+	// Open a live reduced return-fee window (10% instead of the default 25%).
+	// Write the window in UTC exactly as setGameReturnFee does — the estimate
+	// compares against time.Now().UTC(), and SQL NOW() would be DB-local time.
+	mustExec(t, ctx, db,
+		"UPDATE games SET return_fee_pct = 10, return_fee_starts_at = $1, return_fee_ends_at = $2 WHERE id = 'g1'",
+		time.Now().UTC().Add(-time.Hour), time.Now().UTC().Add(24*time.Hour))
+	seedDeliveredItem(t, ctx, db, "u1", "g1", "e", "p", "c")
+
+	items, _, err := listOwned(ctx, db, "u1", 20, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	est := items[0].Estimate
+	if !est.Available || !est.Promo {
+		t.Fatalf("want available promo estimate, got %+v", est)
+	}
+	// price 660,000: promo fee 10% → 594,000; default fee 25% → 495,000.
+	if est.FeePct != 10 || est.NormalFeePct != 25 {
+		t.Fatalf("fees = (%d, %d), want (10, 25)", est.FeePct, est.NormalFeePct)
+	}
+	if est.NetCredit != 594000 || est.NormalCredit != testZ2Credit {
+		t.Fatalf("credits = (%d, %d), want (594000, %d)", est.NetCredit, est.NormalCredit, testZ2Credit)
+	}
+	if est.NetCredit <= est.NormalCredit {
+		t.Fatal("promo net credit must exceed the normal credit")
+	}
+}
+
+func TestReviewReturn_ReasonRequired(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001", "user")
+	seedUser(t, ctx, db, "admin", "09120000009", "admin")
+	seedRate(t, ctx, db, testRate)
+	seedGame(t, ctx, db, "g1", true, true, testUSD)
+	itemID := seedDeliveredItem(t, ctx, db, "u1", "g1", "e", "p", "c")
+	retID, _ := insertReturn(ctx, db, "u1", itemID, "v.mp4")
+
+	// A blank / whitespace-only reason is rejected for both reject and refuse.
+	if err := reviewReturn(ctx, db, "admin", retID, "   ", false); !errors.Is(err, ErrReasonRequired) {
+		t.Fatalf("blank reject reason: want ErrReasonRequired, got %v", err)
+	}
+	if err := reviewReturn(ctx, db, "admin", retID, "", true); !errors.Is(err, ErrReasonRequired) {
+		t.Fatalf("empty refuse reason: want ErrReasonRequired, got %v", err)
+	}
+	// The return is untouched (still pending) after the rejected attempts.
+	if s := returnStatus(t, ctx, db, retID); s != "pending" {
+		t.Fatalf("status = %q, want pending (no review applied)", s)
+	}
+}
+
+func TestCanCreateReturn_UndeliveredItem(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001", "user")
+	seedGame(t, ctx, db, "g1", true, true, testUSD)
+	// A paid order whose item has NO credentials yet (not delivered).
+	var orderID string
+	if err := db.QueryRow(ctx,
+		"INSERT INTO orders (user_id, amount, status) VALUES ('u1', 10000, 'paid') RETURNING id",
+	).Scan(&orderID); err != nil {
+		t.Fatal(err)
+	}
+	var itemID string
+	if err := db.QueryRow(ctx, `
+		INSERT INTO order_items (order_id, game_id, game_name, platform, zarfiat, quantity)
+		VALUES ($1, 'g1', 'Test Game', 'ps5', 'z2', 1) RETURNING id`, orderID,
+	).Scan(&itemID); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := canCreateReturn(ctx, db, "u1", itemID); !errors.Is(err, ErrItemNotFound) {
+		t.Fatalf("undelivered item: want ErrItemNotFound, got %v", err)
 	}
 }
 

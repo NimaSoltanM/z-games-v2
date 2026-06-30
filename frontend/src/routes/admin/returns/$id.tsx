@@ -13,6 +13,7 @@ import { Video, VideoOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardHeader } from "@/components/dashboard-shell"
@@ -314,13 +315,12 @@ function ReviewPanel({ ret }: { ret: AdminReturnDetail }) {
           دلیل را بنویسید. «نیازمند اصلاح» به کاربر اجازه می‌دهد ویدیو را اصلاح
           و دوباره ارسال کند؛ «رد نهایی» قطعی است و قابل بازگشت نیست.
         </p>
-        <textarea
+        <Textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
           disabled={busy}
           placeholder="دلیل برای کاربر…"
-          className="w-full rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/30"
         />
         <div className="mt-2 flex gap-2">
           <Button

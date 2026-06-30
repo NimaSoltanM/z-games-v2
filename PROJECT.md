@@ -48,8 +48,42 @@ For high-demand games (e.g. GTA 6), the admin may pre-buy accounts in advance, b
 ## Planned future features (not in V1)
 
 - **PS Store URL scraping**: paste a PSN Store link, auto-fill game name and price
-- **Account trade-in**: customer films their TV logging out of the account, returns it, gets store credit for a new game
-- **Account pooling**: pre-stocked inventory for predictable titles
+- **Account trade-in / buy-back**: ✅ **Built** — see [Game buy-back + wallet](#game-buy-back-returns--in-site-wallet) below.
+- **Account pooling**: partially delivered by the buy-back feature — returned accounts become reusable inventory at fulfillment (below). Pre-buying predictable titles up front is still future.
+
+---
+
+## Game buy-back (returns) + in-site wallet
+
+Customers can **return a game account** they bought and get store credit. This is
+the trade-in idea, built end to end.
+
+**The flow**
+1. The customer opens **بازی‌های من** (their delivered accounts) and picks a returnable game.
+2. They record a single, unedited video of themselves logging out / removing the account from their console and upload it (≤ 50 MB; a real progress bar) plus accept the return terms (the public `/returns/rules` page).
+3. The request lands in the admin **بازگشت‌ها** queue. The admin watches the video and sees everything: the account's email/password/passcode, console, capacity, purchase date, buyer, and the game's current store price + suggested credit.
+4. The admin **approves** (credit goes to the buyer's wallet), **rejects** (fixable — the buyer can re-upload), or **refuses** (terminal — no credit, account forfeited; the clip is kept as evidence). On approval the proof video is deleted.
+
+**Credit** = the game's **current** store price (not what they paid) minus a fee —
+**25% by default**, with an optional **per-game reduced-fee window** (modeled like a
+discount) to encourage returning a specific title. The admin confirms the final
+number at approval (auto-filled; typed by hand when the game/capacity is delisted).
+
+**Wallet** — credit lands in an in-website wallet (never paid to bank). At checkout
+it auto-applies: it covers part of the order via gateway for the remainder, or the
+whole order with **no ZarinPal step** when it's enough. A reconciliation sweep
+settles abandoned checkouts so reserved credit is never stranded.
+
+**Returned-account inventory** — an approved return becomes reusable stock. When a
+later buyer orders the **same game + console + capacity**, the admin sees the
+returned account offered on the fulfillment screen and fulfills with one click
+instead of sourcing a new account (the credentials are copied over and the return
+is consumed).
+
+**Admin controls** — a per-game **returnable** toggle (default on; off blocks
+returns for that game) and the reduced-fee promo live on the admin games screen.
+
+**Deploy notes** — apply migrations `014_returns_and_wallet.sql` + `015_return_inventory.sql`; back up the new `users.wallet_balance` + `wallet_transactions` ledger; point `RETURN_DIR` at a persistent, backed-up, **non-public** volume (proof videos are streamed only to admins).
 
 ---
 

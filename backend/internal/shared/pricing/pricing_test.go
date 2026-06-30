@@ -90,6 +90,70 @@ func TestActiveDiscountPct(t *testing.T) {
 	}
 }
 
+func TestEffectiveReturnFeePct(t *testing.T) {
+	now := time.Date(2026, 6, 27, 12, 0, 0, 0, time.UTC)
+	earlier := now.Add(-time.Hour)
+	later := now.Add(time.Hour)
+	ten := 10
+	zero := 0
+
+	cases := []struct {
+		name             string
+		override         *int
+		startsAt, endsAt *time.Time
+		want             int
+	}{
+		{"no override → default", nil, nil, nil, DefaultReturnFeePct},
+		{"override but no window → default", &ten, nil, nil, DefaultReturnFeePct},
+		{"active window → override", &ten, &earlier, &later, 10},
+		{"zero fee honored when active", &zero, &earlier, &later, 0},
+		{"not started → default", &ten, &later, &later, DefaultReturnFeePct},
+		{"ended → default", &ten, &earlier, &earlier, DefaultReturnFeePct},
+		{"ends exactly now → default", &ten, &earlier, &now, DefaultReturnFeePct},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := EffectiveReturnFeePct(c.override, c.startsAt, c.endsAt, now); got != c.want {
+				t.Fatalf("got %d, want %d", got, c.want)
+			}
+		})
+	}
+}
+
+func TestTierTomanFor(t *testing.T) {
+	cat := Catalog{Consoles: []Console{
+		{Code: "ps5", DefaultMarginPct: 10, Capacities: []Capacity{{Code: "z2", SplitPct: 60}}},
+	}}
+	margin30 := 30
+
+	// Happy path: matches TierToman(8, 10, 60, 95000).
+	if got, ok := cat.TierTomanFor("ps5", "z2", 8, nil, 95000); !ok || got != 501600 {
+		t.Fatalf("ps5/z2 = (%d, %v), want (501600, true)", got, ok)
+	}
+	// Per-game margin override flows through.
+	if got, ok := cat.TierTomanFor("ps5", "z2", 8, &margin30, 95000); !ok || got != TierToman(8, 30, 60, 95000) {
+		t.Fatalf("override margin = (%d, %v)", got, ok)
+	}
+	// Rejections: unknown console/capacity, non-positive rate/price.
+	for _, c := range []struct {
+		name              string
+		console, capacity string
+		base              float64
+		rate              int
+	}{
+		{"unknown console", "steam", "z2", 8, 95000},
+		{"unknown capacity", "ps5", "home", 8, 95000},
+		{"zero rate", "ps5", "z2", 8, 0},
+		{"zero base", "ps5", "z2", 0, 95000},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got, ok := cat.TierTomanFor(c.console, c.capacity, c.base, nil, c.rate); ok || got != 0 {
+				t.Fatalf("got (%d, %v), want (0, false)", got, ok)
+			}
+		})
+	}
+}
+
 func TestApplyDiscount(t *testing.T) {
 	cases := []struct {
 		price, pct, want int

@@ -8,6 +8,7 @@ import type { ErrorComponentProps } from "@tanstack/react-router"
 import {
   useSuspenseQuery,
   useQueries,
+  useQuery,
   useQueryErrorResetBoundary,
 } from "@tanstack/react-query"
 import { Suspense, useEffect, useState } from "react"
@@ -43,6 +44,7 @@ import {
 } from "@/features/games"
 import { useCart, cartTotal } from "@/features/cart"
 import type { CartItem, GamePricing } from "@/features/cart"
+import { walletQueryOptions } from "@/features/returns"
 
 function CartError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -355,6 +357,41 @@ function useCartTotal(items: CartItem[]) {
   }
 }
 
+// MinGatewayToman mirrors the backend orders.MinGatewayToman: ZarinPal's minimum
+// chargeable amount. Keep in sync with backend splitWallet so the amount shown
+// here equals what's actually charged.
+const MIN_GATEWAY_TOMAN = 1000
+
+// splitWallet replicates the backend split exactly: apply the whole balance, but
+// hold a little back if it would leave a non-zero gateway remainder below the
+// gateway minimum. Returns how much wallet credit applies and what's left to pay.
+function splitWallet(balance: number, total: number) {
+  let walletApplied = Math.min(Math.max(balance, 0), total)
+  let gateway = total - walletApplied
+  if (gateway > 0 && gateway < MIN_GATEWAY_TOMAN) {
+    const reduce = Math.min(MIN_GATEWAY_TOMAN - gateway, walletApplied)
+    walletApplied -= reduce
+    gateway = total - walletApplied
+  }
+  return { walletApplied, gateway }
+}
+
+// useWalletSplit fetches the logged-in user's wallet balance (non-blocking — a
+// failure or guest just yields no credit) and returns the same split the server
+// applies, so the cart can show "full price − credit = payable" before checkout.
+function useWalletSplit(total: number, enabled: boolean) {
+  const { data } = useQuery({ ...walletQueryOptions(), enabled })
+  const balance = data?.balance ?? 0
+  return { balance, ...splitWallet(balance, total) }
+}
+
+// payLabel is honest about whether a bank step happens: wallet-covered orders skip
+// the gateway entirely.
+function payLabel(allKnown: boolean, walletApplied: number, gateway: number) {
+  if (allKnown && walletApplied > 0 && gateway === 0) return "پرداخت با کیف پول"
+  return "تکمیل خرید"
+}
+
 // Shared checkout action: gate on auth, then create the order and hand off to
 // ZarinPal. Not logged in -> bounce to /auth and return to the cart afterward.
 function useCheckout() {
@@ -391,6 +428,9 @@ function useCheckout() {
 
 function CartSummary({ items }: { items: CartItem[] }) {
   const { total, allKnown, totalQuantity } = useCartTotal(items)
+  const { isLoggedIn } = useCart()
+  const { walletApplied, gateway } = useWalletSplit(total, isLoggedIn && allKnown)
+  const usesWallet = allKnown && walletApplied > 0
   const { checkout, pending, error } = useCheckout()
   const [ref, setRef] = useState("")
 
@@ -410,10 +450,28 @@ function CartSummary({ items }: { items: CartItem[] }) {
         </div>
         <div className="flex justify-between font-semibold">
           <span>مجموع</span>
-          <span className="text-primary">
+          <span className={usesWallet ? "" : "text-primary"}>
             {allKnown ? formatToman(total) : "در حال محاسبه..."}
           </span>
         </div>
+        {usesWallet && (
+          <>
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+              <span>اعتبار کیف پول</span>
+              <span>−{formatToman(walletApplied)}</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between text-base font-bold">
+              <span>قابل پرداخت</span>
+              <span className="text-primary">{formatToman(gateway)}</span>
+            </div>
+            {gateway === 0 && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                این سفارش به‌طور کامل از کیف پول شما پرداخت می‌شود؛ به درگاه بانکی منتقل نمی‌شوید.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -440,10 +498,10 @@ function CartSummary({ items }: { items: CartItem[] }) {
         {pending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            در حال انتقال به درگاه...
+            {usesWallet && gateway === 0 ? "در حال پردازش..." : "در حال انتقال به درگاه..."}
           </>
         ) : (
-          "تکمیل خرید"
+          payLabel(allKnown, walletApplied, gateway)
         )}
       </Button>
       {error && <p className="text-center text-xs text-destructive">{error}</p>}
@@ -466,6 +524,9 @@ function CartSummary({ items }: { items: CartItem[] }) {
 
 function CartMobileBar({ items }: { items: CartItem[] }) {
   const { total, allKnown, totalQuantity } = useCartTotal(items)
+  const { isLoggedIn } = useCart()
+  const { walletApplied, gateway } = useWalletSplit(total, isLoggedIn && allKnown)
+  const usesWallet = allKnown && walletApplied > 0
   const { checkout, pending, error } = useCheckout()
 
   return (
@@ -473,11 +534,15 @@ function CartMobileBar({ items }: { items: CartItem[] }) {
       <div className="min-w-0 flex-1">
         {error ? (
           <p className="truncate text-xs text-destructive">{error}</p>
+        ) : usesWallet ? (
+          <p className="truncate text-xs text-emerald-600 dark:text-emerald-400">
+            با اعتبار کیف پول ({formatToman(walletApplied)})
+          </p>
         ) : (
           <p className="text-xs text-muted-foreground">{totalQuantity} کالا</p>
         )}
         <p className="truncate text-sm font-bold text-primary">
-          {allKnown ? formatToman(total) : "در حال محاسبه..."}
+          {allKnown ? formatToman(usesWallet ? gateway : total) : "در حال محاسبه..."}
         </p>
       </div>
       <Button
@@ -486,7 +551,11 @@ function CartMobileBar({ items }: { items: CartItem[] }) {
         size="sm"
         onClick={checkout}
       >
-        {pending ? <Loader2 className="size-4 animate-spin" /> : "تکمیل خرید"}
+        {pending ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          payLabel(allKnown, walletApplied, gateway)
+        )}
       </Button>
     </div>
   )

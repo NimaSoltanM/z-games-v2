@@ -41,6 +41,79 @@ func psCatalog() pricing.Catalog {
 	}}
 }
 
+func TestSetGameReturnFee(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+	id, err := createGame(ctx, db, "a1", normalizedGame{
+		Name: "RF Game", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true,
+		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}},
+		Links:      []string{"https://store.example.com/rf"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Start a 7-day reduced fee of 10%.
+	if err := setGameReturnFee(ctx, db, "a1", id, 10, 7); err != nil {
+		t.Fatal(err)
+	}
+	var pct *int
+	var starts, ends *time.Time
+	if err := db.QueryRow(ctx,
+		"SELECT return_fee_pct, return_fee_starts_at, return_fee_ends_at FROM games WHERE id=$1", id,
+	).Scan(&pct, &starts, &ends); err != nil {
+		t.Fatal(err)
+	}
+	if pct == nil || *pct != 10 || starts == nil || ends == nil || !ends.After(*starts) {
+		t.Fatalf("window not set: pct=%v starts=%v ends=%v", pct, starts, ends)
+	}
+	// The window the real code writes must be active immediately — guards the
+	// Go-UTC write / pgx read round-trip the storefront estimate relies on.
+	if got := pricing.EffectiveReturnFeePct(pct, starts, ends, time.Now().UTC()); got != 10 {
+		t.Fatalf("freshly-set window not active now: EffectiveReturnFeePct = %d, want 10", got)
+	}
+	var audits int
+	if err := db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM admin_actions WHERE action='game.return_fee' AND target_id=$1", id,
+	).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 1 {
+		t.Fatalf("audit rows = %d, want 1", audits)
+	}
+
+	// A zero-fee promo is valid (free returns) and still opens a window.
+	if err := setGameReturnFee(ctx, db, "a1", id, 0, 3); err != nil {
+		t.Fatalf("zero-fee window: %v", err)
+	}
+	if err := db.QueryRow(ctx, "SELECT return_fee_pct FROM games WHERE id=$1", id).Scan(&pct); err != nil {
+		t.Fatal(err)
+	}
+	if pct == nil || *pct != 0 {
+		t.Fatalf("zero-fee pct = %v, want 0", pct)
+	}
+
+	// days <= 0 clears the window.
+	if err := setGameReturnFee(ctx, db, "a1", id, 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(ctx, "SELECT return_fee_pct FROM games WHERE id=$1", id).Scan(&pct); err != nil {
+		t.Fatal(err)
+	}
+	if pct != nil {
+		t.Fatalf("window not cleared: %v", *pct)
+	}
+
+	// Out-of-range percent and unknown game are rejected.
+	if err := setGameReturnFee(ctx, db, "a1", id, 100, 7); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("percent 100: want ErrInvalidInput, got %v", err)
+	}
+	if err := setGameReturnFee(ctx, db, "a1", "no-such-game", 10, 7); !errors.Is(err, ErrGameNotFound) {
+		t.Fatalf("unknown game: want ErrGameNotFound, got %v", err)
+	}
+}
+
 func TestCreateGame_Dynamic(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)

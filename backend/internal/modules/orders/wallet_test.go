@@ -62,6 +62,39 @@ func ledgerCount(t *testing.T, ctx context.Context, db *pgxpool.Pool, userID, re
 	return n
 }
 
+func TestGetWallet(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+	setBalance(t, ctx, db, "u1", 5000)
+	mustExec(t, ctx, db,
+		"INSERT INTO wallet_transactions (user_id, amount, reason) VALUES ('u1', 7000, 'return_credit')")
+	mustExec(t, ctx, db,
+		"INSERT INTO wallet_transactions (user_id, amount, reason) VALUES ('u1', -2000, 'order_payment')")
+	// A different user's ledger must not leak in.
+	seedUser(t, ctx, db, "u2", "09120000002")
+	mustExec(t, ctx, db,
+		"INSERT INTO wallet_transactions (user_id, amount, reason) VALUES ('u2', 999, 'return_credit')")
+
+	w, err := getWallet(ctx, db, "u1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.Balance != 5000 {
+		t.Fatalf("balance = %d, want 5000 (the column, not the ledger sum)", w.Balance)
+	}
+	if len(w.Transactions) != 2 {
+		t.Fatalf("txns = %d, want 2 (only u1's)", len(w.Transactions))
+	}
+	sum := 0
+	for _, tx := range w.Transactions {
+		sum += tx.Amount
+	}
+	if sum != 5000 {
+		t.Fatalf("ledger sum = %d, want 5000 (7000 - 2000)", sum)
+	}
+}
+
 func TestCreatePendingOrder_WalletFullyCovers(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)
