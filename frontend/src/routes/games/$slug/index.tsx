@@ -136,7 +136,7 @@ function GameDetail() {
       </div>
 
       {/* Info */}
-      <div className="flex flex-1 flex-col gap-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
+      <div className="flex flex-1 animate-in flex-col gap-6 duration-500 fade-in-0 slide-in-from-bottom-2">
         <div className="space-y-2.5">
           <h1 className="text-2xl leading-snug font-bold">{game.name}</h1>
           <div className="flex flex-wrap items-center gap-2">

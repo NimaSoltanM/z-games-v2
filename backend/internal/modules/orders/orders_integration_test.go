@@ -58,7 +58,7 @@ func TestCreatePendingOrder_ExpandsQuantity(t *testing.T) {
 	// A quantity-3 line must become 3 separate order_items, so each account gets
 	// its own credential slot at fulfillment.
 	items := []orderItem{{GameID: "g1", GameName: "Test Game", Platform: "ps5", Zarfiat: "z2", Quantity: 3}}
-	orderID, err := createPendingOrder(ctx, db, "u1", 3000, "", items)
+	orderID, _, _, err := createPendingOrder(ctx, db, "u1", 3000, 0, "", items)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestMarkOrderPaid_Idempotent(t *testing.T) {
 	db := testdb.New(t)
 	seedUser(t, ctx, db, "u1", "09120000001")
 
-	orderID, err := createPendingOrder(ctx, db, "u1", 1000, "", oneItem())
+	orderID, _, _, err := createPendingOrder(ctx, db, "u1", 1000, 0, "", oneItem())
 	if err != nil {
 		t.Fatalf("createPendingOrder: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestFailOrder_AndPaidGuards(t *testing.T) {
 	seedUser(t, ctx, db, "u1", "09120000001")
 
 	// A pending order can be failed, and a failed order can't be revived to paid.
-	pendingID, _ := createPendingOrder(ctx, db, "u1", 1000, "", oneItem())
+	pendingID, _, _, _ := createPendingOrder(ctx, db, "u1", 1000, 0, "", oneItem())
 	if err := failOrder(ctx, db, pendingID); err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestFailOrder_AndPaidGuards(t *testing.T) {
 	assertStatus(t, ctx, db, pendingID, "failed")
 
 	// A paid order must not be flipped to failed.
-	paidID, _ := createPendingOrder(ctx, db, "u1", 1000, "", oneItem())
+	paidID, _, _, _ := createPendingOrder(ctx, db, "u1", 1000, 0, "", oneItem())
 	if _, err := markOrderPaid(ctx, db, paidID, 7); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestFulfillOrder_EncryptsAtRestAndCompletes(t *testing.T) {
 	cred := newTestCipher(t)
 	seedUser(t, ctx, db, "u1", "09120000001")
 
-	orderID, _ := createPendingOrder(ctx, db, "u1", 1000, "", oneItem())
+	orderID, _, _, _ := createPendingOrder(ctx, db, "u1", 1000, 0, "", oneItem())
 	if _, err := markOrderPaid(ctx, db, orderID, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +268,7 @@ func TestComputeCart_PreOrderStamped(t *testing.T) {
 	}
 
 	// The pre-order flag must be snapshotted onto every expanded order_item.
-	orderID, err := createPendingOrder(ctx, db, "u1", 1000, "", items)
+	orderID, _, _, err := createPendingOrder(ctx, db, "u1", 1000, 0, "", items)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +304,7 @@ func TestComputeCart_PastReleaseBuysAsNormal(t *testing.T) {
 		t.Fatalf("expected one normal (non-pre-order) item, got %+v", items)
 	}
 
-	orderID, err := createPendingOrder(ctx, db, "u1", 1000, "", items)
+	orderID, _, _, err := createPendingOrder(ctx, db, "u1", 1000, 0, "", items)
 	if err != nil {
 		t.Fatal(err)
 	}

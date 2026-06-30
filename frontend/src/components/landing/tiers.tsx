@@ -38,15 +38,17 @@ export function Tiers() {
   return (
     <section className="relative bg-background bg-grid-lines py-20 sm:py-28">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/8 blur-3xl" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">ظرفیت چیه و کدوم رو بگیرم؟</h2>
+          <h2 className="text-3xl font-bold sm:text-4xl">
+            ظرفیت چیه و کدوم رو بگیرم؟
+          </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            هر بازی رو می‌تونی با یکی از دو ظرفیت بگیری. هر دو گارانتی مادام‌العمر دارن —
-            فقط نحوه‌ی دسترسی فرق می‌کنه.
+            هر بازی رو می‌تونی با یکی از دو ظرفیت بگیری. هر دو گارانتی
+            مادام‌العمر دارن — فقط نحوه‌ی دسترسی فرق می‌کنه.
           </p>
         </div>
 
@@ -55,7 +57,9 @@ export function Tiers() {
             <div
               key={tier.name}
               className={`relative rounded-2xl border bg-card/75 p-7 backdrop-blur-sm ${
-                tier.highlighted ? "border-primary/40 ring-1 ring-primary/20" : "border-border/60"
+                tier.highlighted
+                  ? "border-primary/40 ring-1 ring-primary/20"
+                  : "border-border/60"
               }`}
             >
               <div className="flex items-center justify-between">
@@ -70,7 +74,9 @@ export function Tiers() {
                   {tier.badge}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{tier.tagline}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {tier.tagline}
+              </p>
 
               <ul className="mt-6 space-y-3">
                 {tier.features.map((f) => {
@@ -83,7 +89,13 @@ export function Tiers() {
                           isGuarantee ? "text-violet-400" : "text-primary"
                         }`}
                       />
-                      <span className={isGuarantee ? "font-medium text-foreground" : "text-muted-foreground"}>
+                      <span
+                        className={
+                          isGuarantee
+                            ? "font-medium text-foreground"
+                            : "text-muted-foreground"
+                        }
+                      >
                         {f}
                       </span>
                     </li>
@@ -95,8 +107,8 @@ export function Tiers() {
         </div>
 
         <p className="mx-auto mt-8 max-w-xl text-center text-xs text-muted-foreground/80">
-          مطمئن نیستی کدوم برات بهتره؟ ظرفیت دوم برای تجربه‌ی کامل و بدون دغدغه، و ظرفیت سوم برای
-          صرفه‌جویی بیشتر مناسبه.
+          مطمئن نیستی کدوم برات بهتره؟ ظرفیت دوم برای تجربه‌ی کامل و بدون دغدغه،
+          و ظرفیت سوم برای صرفه‌جویی بیشتر مناسبه.
         </p>
       </div>
     </section>

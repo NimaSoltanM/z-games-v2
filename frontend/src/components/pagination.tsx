@@ -46,7 +46,7 @@ export function Pagination({
         )}
       </div>
 
-      <span className="px-3 text-sm tabular-nums text-muted-foreground sm:hidden">
+      <span className="px-3 text-sm text-muted-foreground tabular-nums sm:hidden">
         {page} / {totalPages}
       </span>
 

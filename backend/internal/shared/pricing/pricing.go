@@ -83,6 +83,30 @@ func TierToman(baseUSD float64, marginPct, splitPct, rate int) int {
 	return int(math.Round(TierUSD(baseUSD, marginPct, splitPct) * float64(rate)))
 }
 
+// TierTomanFor derives a dynamic game's Toman price for one console+capacity from
+// its base USD price, applying the console's margin (or a per-game override) and
+// the capacity split from the catalog. It returns false when the console/capacity
+// isn't in the catalog or the inputs can't yield a positive price — the single
+// source of truth both checkout and returns use to price one slot.
+func (cat Catalog) TierTomanFor(console, capacity string, baseUSD float64, marginOverride *int, rate int) (int, bool) {
+	if rate <= 0 || baseUSD <= 0 {
+		return 0, false
+	}
+	cn, ok := cat.Console(console)
+	if !ok {
+		return 0, false
+	}
+	cp, ok := cat.Capacity(console, capacity)
+	if !ok {
+		return 0, false
+	}
+	p := TierToman(baseUSD, cn.Margin(marginOverride), cp.SplitPct, rate)
+	if p <= 0 {
+		return 0, false
+	}
+	return p, true
+}
+
 // ActiveDiscountPct returns the discount percent in effect at `now` for a stored
 // discount window, or 0 when no discount is active. The fields are all-or-nothing
 // and the window is half-open [startsAt, endsAt), so a discount disappears exactly
@@ -104,4 +128,26 @@ func ApplyDiscount(price, pct int) int {
 		return price
 	}
 	return int(math.Round(float64(price) * (1 - float64(pct)/100)))
+}
+
+// DefaultReturnFeePct is the share of a game's current store price the business
+// keeps when crediting a return (so the customer's wallet gets the remaining
+// 100−25 = 75%). A per-game reduced-fee window can lower this temporarily; see
+// EffectiveReturnFeePct.
+const DefaultReturnFeePct = 25
+
+// EffectiveReturnFeePct is the return fee percent that applies to a game at `now`:
+// the per-game override when its window is live, otherwise DefaultReturnFeePct.
+// The window fields are all-or-nothing and half-open [startsAt, endsAt), reusing
+// the same "is it live" logic as ActiveDiscountPct. An override of 0 is honored
+// (a free-return promo), so this checks the window directly rather than treating
+// a 0 result as "inactive".
+func EffectiveReturnFeePct(override *int, startsAt, endsAt *time.Time, now time.Time) int {
+	if override == nil || startsAt == nil || endsAt == nil {
+		return DefaultReturnFeePct
+	}
+	if now.Before(*startsAt) || !now.Before(*endsAt) {
+		return DefaultReturnFeePct
+	}
+	return *override
 }

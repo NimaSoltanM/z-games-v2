@@ -42,14 +42,16 @@ export function HowItWorks() {
               key={step.title}
               className="relative rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm"
             >
-              <span className="absolute end-5 top-5 text-5xl font-bold leading-none text-foreground/5 tabular-nums">
+              <span className="absolute end-5 top-5 text-5xl leading-none font-bold text-foreground/5 tabular-nums">
                 {i + 1}
               </span>
               <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
                 <step.icon className="size-5" />
               </div>
               <h3 className="mt-5 text-base font-semibold">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.desc}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {step.desc}
+              </p>
             </div>
           ))}
         </div>

@@ -26,6 +26,10 @@ type gameInput struct {
 	AlertMessage    *string          `json:"alert_message"`
 	AlertVariant    *string          `json:"alert_variant"`
 	ProfitMarginPct *int             `json:"profit_margin_pct"`
+	// Returnable controls whether a customer can return (buy back) accounts of this
+	// game. Omitted/nil defaults to true — all games are returnable unless an admin
+	// turns it off. The reduced-fee window itself is set via a separate endpoint.
+	Returnable      *bool            `json:"returnable"`
 	BasePrices      []basePriceInput `json:"base_prices"`
 	Prices          []priceInput     `json:"prices"`
 	Links           []string         `json:"links"`
@@ -61,6 +65,7 @@ type normalizedGame struct {
 	AlertMessage    *string
 	AlertVariant    *string
 	ProfitMarginPct *int
+	Returnable      bool
 	BasePrices      []normalizedBasePrice // dynamic only
 	Prices          []normalizedPrice     // fixed only
 	Links           []string
@@ -174,6 +179,10 @@ func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, s
 	}
 
 	out.Active = in.Active
+
+	// Returnable defaults to true when the field is omitted (back-compat / forms
+	// that don't send it). The reduced-fee window is managed by setGameReturnFee.
+	out.Returnable = in.Returnable == nil || *in.Returnable
 
 	// Release lifecycle (empty status defaults to released).
 	out.ReleaseStatus = in.ReleaseStatus

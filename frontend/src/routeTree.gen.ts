@@ -16,16 +16,23 @@ import { Route as GamesIndexRouteImport } from './routes/games/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as CartIndexRouteImport } from './routes/cart/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
+import { Route as ReturnsRulesRouteImport } from './routes/returns/rules'
 import { Route as PaymentResultRouteImport } from './routes/payment/result'
+import { Route as DashboardWalletRouteImport } from './routes/dashboard/wallet'
+import { Route as DashboardReturnsRouteImport } from './routes/dashboard/returns'
 import { Route as DashboardProfileRouteImport } from './routes/dashboard/profile'
 import { Route as DashboardOrderIdRouteImport } from './routes/dashboard/$orderId'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as GamesSlugIndexRouteImport } from './routes/games/$slug/index'
+import { Route as DashboardGamesIndexRouteImport } from './routes/dashboard/games/index'
+import { Route as AdminReturnsIndexRouteImport } from './routes/admin/returns/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
 import { Route as AdminGamesIndexRouteImport } from './routes/admin/games/index'
+import { Route as AdminReturnsIdRouteImport } from './routes/admin/returns/$id'
 import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin/orders/$orderId'
 import { Route as AdminGamesPricingRouteImport } from './routes/admin/games/pricing'
 import { Route as AdminGamesNewRouteImport } from './routes/admin/games/new'
+import { Route as DashboardGamesItemIdReturnRouteImport } from './routes/dashboard/games/$itemId/return'
 import { Route as AdminGamesIdEditRouteImport } from './routes/admin/games/$id/edit'
 
 const DashboardRouteRoute = DashboardRouteRouteImport.update({
@@ -63,10 +70,25 @@ const AuthIndexRoute = AuthIndexRouteImport.update({
   path: '/auth/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReturnsRulesRoute = ReturnsRulesRouteImport.update({
+  id: '/returns/rules',
+  path: '/returns/rules',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PaymentResultRoute = PaymentResultRouteImport.update({
   id: '/payment/result',
   path: '/payment/result',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardWalletRoute = DashboardWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardReturnsRoute = DashboardReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardProfileRoute = DashboardProfileRouteImport.update({
   id: '/profile',
@@ -88,6 +110,16 @@ const GamesSlugIndexRoute = GamesSlugIndexRouteImport.update({
   path: '/games/$slug/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardGamesIndexRoute = DashboardGamesIndexRouteImport.update({
+  id: '/games/',
+  path: '/games/',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const AdminReturnsIndexRoute = AdminReturnsIndexRouteImport.update({
+  id: '/returns/',
+  path: '/returns/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
@@ -96,6 +128,11 @@ const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
 const AdminGamesIndexRoute = AdminGamesIndexRouteImport.update({
   id: '/games/',
   path: '/games/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminReturnsIdRoute = AdminReturnsIdRouteImport.update({
+  id: '/returns/$id',
+  path: '/returns/$id',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
@@ -113,6 +150,12 @@ const AdminGamesNewRoute = AdminGamesNewRouteImport.update({
   path: '/games/new',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const DashboardGamesItemIdReturnRoute =
+  DashboardGamesItemIdReturnRouteImport.update({
+    id: '/games/$itemId/return',
+    path: '/games/$itemId/return',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
 const AdminGamesIdEditRoute = AdminGamesIdEditRouteImport.update({
   id: '/games/$id/edit',
   path: '/games/$id/edit',
@@ -126,7 +169,10 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AdminAuditRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/returns': typeof DashboardReturnsRoute
+  '/dashboard/wallet': typeof DashboardWalletRoute
   '/payment/result': typeof PaymentResultRoute
+  '/returns/rules': typeof ReturnsRulesRoute
   '/auth/': typeof AuthIndexRoute
   '/cart/': typeof CartIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -134,10 +180,14 @@ export interface FileRoutesByFullPath {
   '/admin/games/new': typeof AdminGamesNewRoute
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
+  '/admin/returns/$id': typeof AdminReturnsIdRoute
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
+  '/admin/returns/': typeof AdminReturnsIndexRoute
+  '/dashboard/games/': typeof DashboardGamesIndexRoute
   '/games/$slug/': typeof GamesSlugIndexRoute
   '/admin/games/$id/edit': typeof AdminGamesIdEditRoute
+  '/dashboard/games/$itemId/return': typeof DashboardGamesItemIdReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -145,7 +195,10 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AdminAuditRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/returns': typeof DashboardReturnsRoute
+  '/dashboard/wallet': typeof DashboardWalletRoute
   '/payment/result': typeof PaymentResultRoute
+  '/returns/rules': typeof ReturnsRulesRoute
   '/auth': typeof AuthIndexRoute
   '/cart': typeof CartIndexRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -153,10 +206,14 @@ export interface FileRoutesByTo {
   '/admin/games/new': typeof AdminGamesNewRoute
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
+  '/admin/returns/$id': typeof AdminReturnsIdRoute
   '/admin/games': typeof AdminGamesIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
+  '/admin/returns': typeof AdminReturnsIndexRoute
+  '/dashboard/games': typeof DashboardGamesIndexRoute
   '/games/$slug': typeof GamesSlugIndexRoute
   '/admin/games/$id/edit': typeof AdminGamesIdEditRoute
+  '/dashboard/games/$itemId/return': typeof DashboardGamesItemIdReturnRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -166,7 +223,10 @@ export interface FileRoutesById {
   '/admin/audit': typeof AdminAuditRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/returns': typeof DashboardReturnsRoute
+  '/dashboard/wallet': typeof DashboardWalletRoute
   '/payment/result': typeof PaymentResultRoute
+  '/returns/rules': typeof ReturnsRulesRoute
   '/auth/': typeof AuthIndexRoute
   '/cart/': typeof CartIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -174,10 +234,14 @@ export interface FileRoutesById {
   '/admin/games/new': typeof AdminGamesNewRoute
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
+  '/admin/returns/$id': typeof AdminReturnsIdRoute
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
+  '/admin/returns/': typeof AdminReturnsIndexRoute
+  '/dashboard/games/': typeof DashboardGamesIndexRoute
   '/games/$slug/': typeof GamesSlugIndexRoute
   '/admin/games/$id/edit': typeof AdminGamesIdEditRoute
+  '/dashboard/games/$itemId/return': typeof DashboardGamesItemIdReturnRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -188,7 +252,10 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
+    | '/dashboard/returns'
+    | '/dashboard/wallet'
     | '/payment/result'
+    | '/returns/rules'
     | '/auth/'
     | '/cart/'
     | '/dashboard/'
@@ -196,10 +263,14 @@ export interface FileRouteTypes {
     | '/admin/games/new'
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
+    | '/admin/returns/$id'
     | '/admin/games/'
     | '/admin/orders/'
+    | '/admin/returns/'
+    | '/dashboard/games/'
     | '/games/$slug/'
     | '/admin/games/$id/edit'
+    | '/dashboard/games/$itemId/return'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -207,7 +278,10 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
+    | '/dashboard/returns'
+    | '/dashboard/wallet'
     | '/payment/result'
+    | '/returns/rules'
     | '/auth'
     | '/cart'
     | '/dashboard'
@@ -215,10 +289,14 @@ export interface FileRouteTypes {
     | '/admin/games/new'
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
+    | '/admin/returns/$id'
     | '/admin/games'
     | '/admin/orders'
+    | '/admin/returns'
+    | '/dashboard/games'
     | '/games/$slug'
     | '/admin/games/$id/edit'
+    | '/dashboard/games/$itemId/return'
   id:
     | '__root__'
     | '/'
@@ -227,7 +305,10 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
+    | '/dashboard/returns'
+    | '/dashboard/wallet'
     | '/payment/result'
+    | '/returns/rules'
     | '/auth/'
     | '/cart/'
     | '/dashboard/'
@@ -235,10 +316,14 @@ export interface FileRouteTypes {
     | '/admin/games/new'
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
+    | '/admin/returns/$id'
     | '/admin/games/'
     | '/admin/orders/'
+    | '/admin/returns/'
+    | '/dashboard/games/'
     | '/games/$slug/'
     | '/admin/games/$id/edit'
+    | '/dashboard/games/$itemId/return'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -246,6 +331,7 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
   PaymentResultRoute: typeof PaymentResultRoute
+  ReturnsRulesRoute: typeof ReturnsRulesRoute
   AuthIndexRoute: typeof AuthIndexRoute
   CartIndexRoute: typeof CartIndexRoute
   GamesIndexRoute: typeof GamesIndexRoute
@@ -303,12 +389,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/returns/rules': {
+      id: '/returns/rules'
+      path: '/returns/rules'
+      fullPath: '/returns/rules'
+      preLoaderRoute: typeof ReturnsRulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/payment/result': {
       id: '/payment/result'
       path: '/payment/result'
       fullPath: '/payment/result'
       preLoaderRoute: typeof PaymentResultRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/wallet': {
+      id: '/dashboard/wallet'
+      path: '/wallet'
+      fullPath: '/dashboard/wallet'
+      preLoaderRoute: typeof DashboardWalletRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/returns': {
+      id: '/dashboard/returns'
+      path: '/returns'
+      fullPath: '/dashboard/returns'
+      preLoaderRoute: typeof DashboardReturnsRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/profile': {
       id: '/dashboard/profile'
@@ -338,6 +445,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GamesSlugIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/games/': {
+      id: '/dashboard/games/'
+      path: '/games'
+      fullPath: '/dashboard/games/'
+      preLoaderRoute: typeof DashboardGamesIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/admin/returns/': {
+      id: '/admin/returns/'
+      path: '/returns'
+      fullPath: '/admin/returns/'
+      preLoaderRoute: typeof AdminReturnsIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/orders/': {
       id: '/admin/orders/'
       path: '/orders'
@@ -350,6 +471,13 @@ declare module '@tanstack/react-router' {
       path: '/games'
       fullPath: '/admin/games/'
       preLoaderRoute: typeof AdminGamesIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/returns/$id': {
+      id: '/admin/returns/$id'
+      path: '/returns/$id'
+      fullPath: '/admin/returns/$id'
+      preLoaderRoute: typeof AdminReturnsIdRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/orders/$orderId': {
@@ -373,6 +501,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGamesNewRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/dashboard/games/$itemId/return': {
+      id: '/dashboard/games/$itemId/return'
+      path: '/games/$itemId/return'
+      fullPath: '/dashboard/games/$itemId/return'
+      preLoaderRoute: typeof DashboardGamesItemIdReturnRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/admin/games/$id/edit': {
       id: '/admin/games/$id/edit'
       path: '/games/$id/edit'
@@ -388,8 +523,10 @@ interface AdminRouteRouteChildren {
   AdminGamesNewRoute: typeof AdminGamesNewRoute
   AdminGamesPricingRoute: typeof AdminGamesPricingRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
+  AdminReturnsIdRoute: typeof AdminReturnsIdRoute
   AdminGamesIndexRoute: typeof AdminGamesIndexRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
+  AdminReturnsIndexRoute: typeof AdminReturnsIndexRoute
   AdminGamesIdEditRoute: typeof AdminGamesIdEditRoute
 }
 
@@ -398,8 +535,10 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminGamesNewRoute: AdminGamesNewRoute,
   AdminGamesPricingRoute: AdminGamesPricingRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
+  AdminReturnsIdRoute: AdminReturnsIdRoute,
   AdminGamesIndexRoute: AdminGamesIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
+  AdminReturnsIndexRoute: AdminReturnsIndexRoute,
   AdminGamesIdEditRoute: AdminGamesIdEditRoute,
 }
 
@@ -410,13 +549,21 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 interface DashboardRouteRouteChildren {
   DashboardOrderIdRoute: typeof DashboardOrderIdRoute
   DashboardProfileRoute: typeof DashboardProfileRoute
+  DashboardReturnsRoute: typeof DashboardReturnsRoute
+  DashboardWalletRoute: typeof DashboardWalletRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardGamesIndexRoute: typeof DashboardGamesIndexRoute
+  DashboardGamesItemIdReturnRoute: typeof DashboardGamesItemIdReturnRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardOrderIdRoute: DashboardOrderIdRoute,
   DashboardProfileRoute: DashboardProfileRoute,
+  DashboardReturnsRoute: DashboardReturnsRoute,
+  DashboardWalletRoute: DashboardWalletRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardGamesIndexRoute: DashboardGamesIndexRoute,
+  DashboardGamesItemIdReturnRoute: DashboardGamesItemIdReturnRoute,
 }
 
 const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
@@ -428,6 +575,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
   PaymentResultRoute: PaymentResultRoute,
+  ReturnsRulesRoute: ReturnsRulesRoute,
   AuthIndexRoute: AuthIndexRoute,
   CartIndexRoute: CartIndexRoute,
   GamesIndexRoute: GamesIndexRoute,

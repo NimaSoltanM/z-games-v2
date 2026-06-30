@@ -19,7 +19,7 @@ export function registerUser(
   firstName: string,
   lastName: string,
   registrationToken: string,
-  referralCode = "",
+  referralCode = ""
 ) {
   return apiFetch<{ message: string }>("/auth/register", {
     method: "POST",

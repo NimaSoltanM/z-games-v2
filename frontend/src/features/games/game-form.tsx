@@ -6,7 +6,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { Check, Loader2, Plus, Trash2, X } from "lucide-react"
+import { AlertCircle, Check, Loader2, Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { z } from "zod"
 
@@ -38,7 +38,9 @@ type Catalog = NonNullable<ExchangeRate>
 
 // The flat (console, capacity) cell list from the catalog, in display order. The
 // form's `prices` array mirrors this order so each cell maps to a stable index.
-function catalogCells(catalog: Catalog): { platform: string; zarfiat: string }[] {
+function catalogCells(
+  catalog: Catalog
+): { platform: string; zarfiat: string }[] {
   const out: { platform: string; zarfiat: string }[] = []
   for (const c of catalog.consoles)
     for (const cap of c.capacities)
@@ -59,6 +61,7 @@ type FormValues = {
   price_mode: PriceMode
   cover_image: string | null
   featured: boolean
+  returnable: boolean
   tags: string[]
   margin: string
   bases: Record<string, string>
@@ -113,6 +116,7 @@ function initialValues(catalog: Catalog, game?: Game): FormValues {
     price_mode: game?.price_mode ?? "dynamic",
     cover_image: game?.cover_image ?? null,
     featured: game?.featured ?? false,
+    returnable: game?.returnable ?? true,
     tags: game?.tags ?? [],
     margin:
       game?.profit_margin_pct != null ? String(game.profit_margin_pct) : "",
@@ -148,6 +152,7 @@ const schema = z
     price_mode: z.enum(["dynamic", "fixed"]),
     cover_image: z.string().nullable(),
     featured: z.boolean(),
+    returnable: z.boolean(),
     tags: z.array(z.string()),
     margin: z.string(),
     bases: z.record(z.string(), z.string()),
@@ -294,6 +299,7 @@ function toPayload(v: FormValues, active: boolean): GameFormPayload {
     cover_image: v.cover_image,
     active,
     featured: v.featured,
+    returnable: v.returnable,
     tags: v.tags.map((t) => t.trim()).filter(Boolean),
     release_status: v.release_status,
     release_date:
@@ -316,6 +322,24 @@ function errText(errors: unknown[]): string {
     )
     .filter(Boolean)
     .join("، ")
+}
+
+// Gathers every current field validation message (deduped) so the form can explain,
+// in one place near the actions, exactly why saving is blocked — instead of leaving
+// the save button silently disabled when an off-screen field (e.g. a missing link)
+// is invalid.
+function collectFormErrors(
+  fieldMeta: Record<string, { errors?: unknown[] } | undefined>
+): string[] {
+  const seen = new Set<string>()
+  for (const meta of Object.values(fieldMeta)) {
+    for (const e of meta?.errors ?? []) {
+      const msg =
+        typeof e === "string" ? e : ((e as { message?: string }).message ?? "")
+      if (msg) seen.add(msg)
+    }
+  }
+  return [...seen]
 }
 
 type SlugStatus = "idle" | "checking" | "available" | "taken"
@@ -492,6 +516,24 @@ export function GameForm({ game }: { game?: Game }) {
                 checked={field.state.value}
                 onCheckedChange={field.handleChange}
                 aria-label="منتخب"
+              />
+            )}
+          </form.Field>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">قابل بازگشت</p>
+            <p className="text-xs text-muted-foreground">
+              اگر خاموش شود، کاربران نمی‌توانند این بازی را بازگردانند.
+            </p>
+          </div>
+          <form.Field name="returnable">
+            {(field) => (
+              <Switch
+                checked={field.state.value}
+                onCheckedChange={field.handleChange}
+                aria-label="قابل بازگشت"
               />
             )}
           </form.Field>
@@ -825,49 +867,49 @@ export function GameForm({ game }: { game?: Game }) {
                                     {cap.label_fa}
                                   </p>
                                   <form.Field name={`prices[${i}].price`}>
-                                  {(field) => {
-                                    const invalid =
-                                      field.state.meta.isTouched &&
-                                      !field.state.meta.isValid
-                                    return (
-                                      <div className="space-y-1">
-                                        <MoneyInput
-                                          placeholder="قیمت (تومان)"
-                                          className="h-8 text-xs"
-                                          value={field.state.value}
-                                          onChange={field.handleChange}
-                                          onBlur={field.handleBlur}
-                                          aria-invalid={invalid}
-                                        />
-                                        {invalid && (
-                                          <FieldError
-                                            errors={field.state.meta.errors}
+                                    {(field) => {
+                                      const invalid =
+                                        field.state.meta.isTouched &&
+                                        !field.state.meta.isValid
+                                      return (
+                                        <div className="space-y-1">
+                                          <MoneyInput
+                                            placeholder="قیمت (تومان)"
+                                            className="h-8 text-xs"
+                                            value={field.state.value}
+                                            onChange={field.handleChange}
+                                            onBlur={field.handleBlur}
+                                            aria-invalid={invalid}
                                           />
-                                        )}
-                                      </div>
-                                    )
-                                  }}
-                                </form.Field>
-                                <form.Field name={`prices[${i}].slots`}>
-                                  {(field) => (
-                                    <Input
-                                      dir="ltr"
-                                      inputMode="numeric"
-                                      placeholder="ظرفیت (اختیاری)"
-                                      className="h-8 text-xs"
-                                      value={field.state.value}
-                                      onBlur={field.handleBlur}
-                                      onChange={(e) =>
-                                        field.handleChange(e.target.value)
-                                      }
-                                    />
-                                  )}
-                                </form.Field>
-                              </div>
-                            )
-                          })}
+                                          {invalid && (
+                                            <FieldError
+                                              errors={field.state.meta.errors}
+                                            />
+                                          )}
+                                        </div>
+                                      )
+                                    }}
+                                  </form.Field>
+                                  <form.Field name={`prices[${i}].slots`}>
+                                    {(field) => (
+                                      <Input
+                                        dir="ltr"
+                                        inputMode="numeric"
+                                        placeholder="ظرفیت (اختیاری)"
+                                        className="h-8 text-xs"
+                                        value={field.state.value}
+                                        onBlur={field.handleBlur}
+                                        onChange={(e) =>
+                                          field.handleChange(e.target.value)
+                                        }
+                                      />
+                                    )}
+                                  </form.Field>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
                       )
                     })
                   }}
@@ -1036,6 +1078,30 @@ export function GameForm({ game }: { game?: Game }) {
           )}
         </form.Field>
       </Card>
+
+      {/* Why the save button is disabled — surfaces validation errors (incl.
+          off-screen fields) so the admin never faces a silently disabled button. */}
+      <form.Subscribe selector={(s) => s.fieldMeta}>
+        {(fieldMeta) => {
+          const errors = collectFormErrors(
+            fieldMeta as Record<string, { errors?: unknown[] }>
+          )
+          if (errors.length === 0) return null
+          return (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+              <p className="mb-1 flex items-center gap-1.5 text-sm font-medium text-destructive">
+                <AlertCircle className="size-4" />
+                برای ذخیره، موارد زیر را برطرف کنید:
+              </p>
+              <ul className="list-disc space-y-0.5 pr-5 text-xs text-muted-foreground">
+                {errors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )
+        }}
+      </form.Subscribe>
 
       {/* Actions */}
       <div className="flex flex-wrap items-center justify-end gap-3">

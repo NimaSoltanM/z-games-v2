@@ -440,7 +440,7 @@ function GameCard({
   return (
     <Link to="/games/$slug" params={{ slug: game.slug }} viewTransition>
       <div
-        className="group h-full cursor-pointer overflow-hidden rounded-xl border border-border/60 bg-card/75 backdrop-blur-sm transition-all duration-200 animate-in fade-in-0 slide-in-from-bottom-2 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
+        className="group h-full animate-in cursor-pointer overflow-hidden rounded-xl border border-border/60 bg-card/75 backdrop-blur-sm transition-all duration-200 fade-in-0 slide-in-from-bottom-2 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
         style={{
           animationDelay: `${Math.min(index, 8) * 40}ms`,
           animationFillMode: "both",

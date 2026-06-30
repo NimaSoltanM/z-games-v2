@@ -12,7 +12,13 @@ import {
 } from "./api"
 import type { ServerCartItem } from "./api"
 import { serverCartQueryOptions, SERVER_CART_KEY } from "./queries"
-import { addToCart, cartStore, clearCart, removeFromCart, setQuantity } from "./store"
+import {
+  addToCart,
+  cartStore,
+  clearCart,
+  removeFromCart,
+  setQuantity,
+} from "./store"
 import type { CartItem } from "./types"
 
 const MAX_QTY = 10
@@ -31,8 +37,15 @@ function toLine(i: ServerCartItem): CartItem {
   }
 }
 
-function sameLine(i: ServerCartItem, gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat) {
-  return i.game_id === gameId && i.platform === platform && i.zarfiat === zarfiat
+function sameLine(
+  i: ServerCartItem,
+  gameId: string,
+  platform: ConsolePlatform,
+  zarfiat: Zarfiat
+) {
+  return (
+    i.game_id === gameId && i.platform === platform && i.zarfiat === zarfiat
+  )
 }
 
 export type AddInput = Omit<CartItem, "quantity">
@@ -62,7 +75,9 @@ export function useCart() {
     }))
   }
 
-  async function beginOptimistic(updater: (items: ServerCartItem[]) => ServerCartItem[]) {
+  async function beginOptimistic(
+    updater: (items: ServerCartItem[]) => ServerCartItem[]
+  ) {
     await queryClient.cancelQueries({ queryKey: SERVER_CART_KEY })
     const prev = queryClient.getQueryData<ServerCache>(SERVER_CART_KEY)
     patchCache(updater)
@@ -84,13 +99,23 @@ export function useCart() {
   const addMutation = useMutation({
     mutationKey: CART_MUT_KEY,
     mutationFn: (v: AddInput) =>
-      addServerCartItem({ game_id: v.gameId, platform: v.platform, zarfiat: v.zarfiat, quantity: 1 }),
+      addServerCartItem({
+        game_id: v.gameId,
+        platform: v.platform,
+        zarfiat: v.zarfiat,
+        quantity: 1,
+      }),
     onMutate: (v) =>
       beginOptimistic((list) => {
-        const idx = list.findIndex((i) => sameLine(i, v.gameId, v.platform, v.zarfiat))
+        const idx = list.findIndex((i) =>
+          sameLine(i, v.gameId, v.platform, v.zarfiat)
+        )
         if (idx >= 0) {
           const next = list.slice()
-          next[idx] = { ...next[idx], quantity: Math.min(next[idx].quantity + 1, MAX_QTY) }
+          next[idx] = {
+            ...next[idx],
+            quantity: Math.min(next[idx].quantity + 1, MAX_QTY),
+          }
           return next
         }
         return [
@@ -112,17 +137,29 @@ export function useCart() {
 
   const updateMutation = useMutation({
     mutationKey: CART_MUT_KEY,
-    mutationFn: (v: { gameId: string; platform: ConsolePlatform; zarfiat: Zarfiat; quantity: number }) =>
-      updateServerCartItem({ game_id: v.gameId, platform: v.platform, zarfiat: v.zarfiat, quantity: v.quantity }),
+    mutationFn: (v: {
+      gameId: string
+      platform: ConsolePlatform
+      zarfiat: Zarfiat
+      quantity: number
+    }) =>
+      updateServerCartItem({
+        game_id: v.gameId,
+        platform: v.platform,
+        zarfiat: v.zarfiat,
+        quantity: v.quantity,
+      }),
     onMutate: (v) =>
       beginOptimistic((list) => {
         if (v.quantity <= 0) {
-          return list.filter((i) => !sameLine(i, v.gameId, v.platform, v.zarfiat))
+          return list.filter(
+            (i) => !sameLine(i, v.gameId, v.platform, v.zarfiat)
+          )
         }
         return list.map((i) =>
           sameLine(i, v.gameId, v.platform, v.zarfiat)
             ? { ...i, quantity: Math.min(v.quantity, MAX_QTY) }
-            : i,
+            : i
         )
       }),
     onError: (_e, _v, ctx) => rollback(ctx),
@@ -131,10 +168,20 @@ export function useCart() {
 
   const removeMutation = useMutation({
     mutationKey: CART_MUT_KEY,
-    mutationFn: (v: { gameId: string; platform: ConsolePlatform; zarfiat: Zarfiat }) =>
-      removeServerCartItem({ game_id: v.gameId, platform: v.platform, zarfiat: v.zarfiat }),
+    mutationFn: (v: {
+      gameId: string
+      platform: ConsolePlatform
+      zarfiat: Zarfiat
+    }) =>
+      removeServerCartItem({
+        game_id: v.gameId,
+        platform: v.platform,
+        zarfiat: v.zarfiat,
+      }),
     onMutate: (v) =>
-      beginOptimistic((list) => list.filter((i) => !sameLine(i, v.gameId, v.platform, v.zarfiat))),
+      beginOptimistic((list) =>
+        list.filter((i) => !sameLine(i, v.gameId, v.platform, v.zarfiat))
+      ),
     onError: (_e, _v, ctx) => rollback(ctx),
     onSettled: reconcile,
   })
@@ -154,12 +201,22 @@ export function useCart() {
     else addToCart(input)
   }
 
-  function setItemQty(gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat, quantity: number) {
-    if (isLoggedIn) updateMutation.mutate({ gameId, platform, zarfiat, quantity })
+  function setItemQty(
+    gameId: string,
+    platform: ConsolePlatform,
+    zarfiat: Zarfiat,
+    quantity: number
+  ) {
+    if (isLoggedIn)
+      updateMutation.mutate({ gameId, platform, zarfiat, quantity })
     else setQuantity(gameId, platform, zarfiat, quantity)
   }
 
-  function removeItem(gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat) {
+  function removeItem(
+    gameId: string,
+    platform: ConsolePlatform,
+    zarfiat: Zarfiat
+  ) {
     if (isLoggedIn) removeMutation.mutate({ gameId, platform, zarfiat })
     else removeFromCart(gameId, platform, zarfiat)
   }

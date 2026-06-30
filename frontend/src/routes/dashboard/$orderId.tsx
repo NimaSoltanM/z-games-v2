@@ -1,6 +1,9 @@
 import { createFileRoute, ErrorComponent, Link } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
-import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
+import {
+  useSuspenseQuery,
+  useQueryErrorResetBoundary,
+} from "@tanstack/react-query"
 import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 import { ArrowRight, KeyRound, Copy, Check } from "lucide-react"
@@ -17,7 +20,14 @@ import {
   PRE_ORDER_CREDENTIALS_NOTE,
 } from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
-import { formatToman, consoleLabel, platformBadgeClass, capacityLabel, passcodeLabel, PreOrderBadge } from "@/features/games"
+import {
+  formatToman,
+  consoleLabel,
+  platformBadgeClass,
+  capacityLabel,
+  passcodeLabel,
+  PreOrderBadge,
+} from "@/features/games"
 import { cn } from "@/lib/utils"
 
 function OrderError({ error }: ErrorComponentProps) {
@@ -50,7 +60,9 @@ function OrderDetailPage() {
         onReset={reset}
         fallbackRender={({ resetErrorBoundary }) => (
           <div className="py-20 text-center">
-            <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری سفارش</p>
+            <p className="mb-4 text-sm text-muted-foreground">
+              خطا در بارگذاری سفارش
+            </p>
             <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
               تلاش مجدد
             </Button>
@@ -73,7 +85,9 @@ function OrderDetail() {
     return (
       <div className="py-20 text-center">
         <p className="text-base font-semibold">سفارش یافت نشد</p>
-        <p className="mt-1 text-sm text-muted-foreground">این سفارش وجود ندارد یا متعلق به شما نیست</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          این سفارش وجود ندارد یا متعلق به شما نیست
+        </p>
       </div>
     )
   }
@@ -84,16 +98,22 @@ function OrderDetail() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6">
+      <div className="rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-bold">جزئیات سفارش</h1>
-            <p dir="ltr" className="mt-1 font-mono text-sm font-semibold text-foreground">
+            <p
+              dir="ltr"
+              className="mt-1 font-mono text-sm font-semibold text-foreground"
+            >
               {formatOrderNumber(order.order_number)}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">{date}</p>
           </div>
-          <Badge variant="secondary" className={cn("gap-1.5 border", meta.className)}>
+          <Badge
+            variant="secondary"
+            className={cn("gap-1.5 border", meta.className)}
+          >
             <StatusIcon className="size-3.5" />
             {meta.label}
           </Badge>
@@ -103,7 +123,10 @@ function OrderDetail() {
 
         <div className="space-y-3">
           {groupItems(order.items).map((it, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 text-sm">
+            <div
+              key={i}
+              className="flex items-center justify-between gap-3 text-sm"
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <span className="truncate font-medium">{it.game_name}</span>
                 <Badge
@@ -128,12 +151,14 @@ function OrderDetail() {
 
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">مبلغ پرداختی</span>
-          <span className="text-base font-bold text-primary">{formatToman(order.amount)}</span>
+          <span className="text-base font-bold text-primary">
+            {formatToman(order.amount)}
+          </span>
         </div>
       </div>
 
       {/* Credentials — delivered by support after the order is prepared. */}
-      <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6">
+      <div className="rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm">
         <div className="flex items-center gap-2.5">
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
             <KeyRound className="size-4" />
@@ -156,8 +181,8 @@ function OrderDetail() {
             )}
             {order.items.some((it) => !it.pre_order) && (
               <p className="text-sm leading-relaxed text-muted-foreground">
-                سفارش شما در حال آماده‌سازی است. به‌محض آماده شدن، ایمیل، رمز عبور و PSN-pass اکانت
-                همین‌جا برای شما نمایش داده می‌شود.
+                سفارش شما در حال آماده‌سازی است. به‌محض آماده شدن، ایمیل، رمز
+                عبور و PSN-pass اکانت همین‌جا برای شما نمایش داده می‌شود.
               </p>
             )}
           </div>
@@ -186,9 +211,12 @@ function groupItems(items: OrderItem[]): GroupedItem[] {
   return [...map.values()]
 }
 
-function accountLabels(items: OrderItem[]): { item: OrderItem; label: string }[] {
+function accountLabels(
+  items: OrderItem[]
+): { item: OrderItem; label: string }[] {
   const totals = new Map<string, number>()
-  for (const it of items) totals.set(itemKey(it), (totals.get(itemKey(it)) ?? 0) + 1)
+  for (const it of items)
+    totals.set(itemKey(it), (totals.get(itemKey(it)) ?? 0) + 1)
 
   const seen = new Map<string, number>()
   return items.map((item) => {
@@ -196,7 +224,9 @@ function accountLabels(items: OrderItem[]): { item: OrderItem; label: string }[]
     const n = (seen.get(k) ?? 0) + 1
     seen.set(k, n)
     const label =
-      (totals.get(k) ?? 1) > 1 ? `${item.game_name} — اکانت ${n.toLocaleString("fa-IR")}` : item.game_name
+      (totals.get(k) ?? 1) > 1
+        ? `${item.game_name} — اکانت ${n.toLocaleString("fa-IR")}`
+        : item.game_name
     return { item, label }
   })
 }
@@ -210,7 +240,9 @@ function ItemCredentials({ item, label }: { item: OrderItem; label: string }) {
           {item.pre_order && <PreOrderBadge />}
         </div>
         <p className="text-xs text-muted-foreground">
-          {item.pre_order ? PRE_ORDER_CREDENTIALS_NOTE : "این مورد هنوز در حال آماده‌سازی است."}
+          {item.pre_order
+            ? PRE_ORDER_CREDENTIALS_NOTE
+            : "این مورد هنوز در حال آماده‌سازی است."}
         </p>
       </div>
     )
@@ -223,7 +255,10 @@ function ItemCredentials({ item, label }: { item: OrderItem; label: string }) {
         {item.email && <CredField label="ایمیل" value={item.email} />}
         {item.password && <CredField label="رمز عبور" value={item.password} />}
         {item.passcode && (
-          <CredField label={passcodeLabel(item.platform)} value={item.passcode} />
+          <CredField
+            label={passcodeLabel(item.platform)}
+            value={item.passcode}
+          />
         )}
       </div>
     </div>
@@ -259,7 +294,11 @@ function CredField({ label, value }: { label: string; value: string }) {
         onClick={copy}
         aria-label={`کپی ${label}`}
       >
-        {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
+        {copied ? (
+          <Check className="size-4 text-primary" />
+        ) : (
+          <Copy className="size-4" />
+        )}
       </Button>
     </div>
   )

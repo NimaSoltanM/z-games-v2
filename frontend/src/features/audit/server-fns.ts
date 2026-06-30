@@ -21,12 +21,13 @@ export const getAuditFn = createServerFn({ method: "GET" })
     return (await res.json()) as AuditPage
   })
 
-export const getAuditActorsFn = createServerFn({ method: "GET" })
-  .handler(async () => {
+export const getAuditActorsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
     const cookie = getRequestHeader("cookie")
     const res = await fetch(`${API_URL}/admin/audit/admins`, {
       headers: cookie ? { cookie } : {},
     })
     if (!res.ok) throw new Error("FETCH_AUDIT_ACTORS_FAILED")
     return (await res.json()) as { actors: AuditActor[] }
-  })
+  }
+)

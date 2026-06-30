@@ -38,7 +38,9 @@ function zarfiatLabel(z: string): string {
 // Audit change values are usually scalars, but the `consoles` diff carries string
 // arrays; read them defensively.
 function asStringArray(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []
+  return Array.isArray(v)
+    ? v.filter((x): x is string => typeof x === "string")
+    : []
 }
 
 // The game name from metadata, or a fallback to the target id.
@@ -84,27 +86,41 @@ function updateDetails(
     out.push(to === false ? "بازی غیرفعال شد" : "بازی فعال شد")
   }
   if (changes.name) {
-    out.push(`نام: «${asString(changes.name.from)}» ← «${asString(changes.name.to)}»`)
+    out.push(
+      `نام: «${asString(changes.name.from)}» ← «${asString(changes.name.to)}»`
+    )
   }
   if (changes.price_mode) {
-    const from = PRICE_MODE_LABEL[asString(changes.price_mode.from)] ?? asString(changes.price_mode.from)
-    const to = PRICE_MODE_LABEL[asString(changes.price_mode.to)] ?? asString(changes.price_mode.to)
+    const from =
+      PRICE_MODE_LABEL[asString(changes.price_mode.from)] ??
+      asString(changes.price_mode.from)
+    const to =
+      PRICE_MODE_LABEL[asString(changes.price_mode.to)] ??
+      asString(changes.price_mode.to)
     out.push(`حالت قیمت: ${from} ← ${to}`)
   }
   if (changes.consoles) {
     const fmtList = (v: unknown) =>
       asStringArray(v).map(platformLabel).join("، ") || "—"
-    out.push(`کنسول‌ها: ${fmtList(changes.consoles.from)} ← ${fmtList(changes.consoles.to)}`)
+    out.push(
+      `کنسول‌ها: ${fmtList(changes.consoles.from)} ← ${fmtList(changes.consoles.to)}`
+    )
   }
   if (changes.release_status) {
-    const from = RELEASE_LABEL[asString(changes.release_status.from)] ?? asString(changes.release_status.from)
-    const to = RELEASE_LABEL[asString(changes.release_status.to)] ?? asString(changes.release_status.to)
+    const from =
+      RELEASE_LABEL[asString(changes.release_status.from)] ??
+      asString(changes.release_status.from)
+    const to =
+      RELEASE_LABEL[asString(changes.release_status.to)] ??
+      asString(changes.release_status.to)
     out.push(`وضعیت انتشار: ${from} ← ${to}`)
   }
   if (changes.profit_margin_pct) {
     const f = changes.profit_margin_pct.from
     const t = changes.profit_margin_pct.to
-    out.push(`سود: ${f === null ? "—" : `${faNum(Number(f))}٪`} ← ${t === null ? "—" : `${faNum(Number(t))}٪`}`)
+    out.push(
+      `سود: ${f === null ? "—" : `${faNum(Number(f))}٪`} ← ${t === null ? "—" : `${faNum(Number(t))}٪`}`
+    )
   }
   if (changes.alert_message) out.push("متن اعلان تغییر کرد")
   if (changes.release_date) out.push("تاریخ انتشار تغییر کرد")
@@ -132,7 +148,10 @@ export function describeAction(row: AuditRow): AuditDescription {
       }
 
     case "game.update": {
-      const details = updateDetails(meta.changes ?? {}, meta.price_changes ?? [])
+      const details = updateDetails(
+        meta.changes ?? {},
+        meta.price_changes ?? []
+      )
       return {
         text: `بازی «${name}» را ویرایش کرد`,
         details: details.length > 0 ? details : ["بدون تغییر"],
@@ -146,7 +165,10 @@ export function describeAction(row: AuditRow): AuditDescription {
       const status = asString(meta.release_status)
       const label = RELEASE_LABEL[status] ?? status
       const details = meta.date_updated ? ["تاریخ انتشار به‌روزرسانی شد"] : []
-      return { text: `وضعیت انتشار «${name}» را به «${label}» تغییر داد`, details }
+      return {
+        text: `وضعیت انتشار «${name}» را به «${label}» تغییر داد`,
+        details,
+      }
     }
 
     case "game.alert":
@@ -158,7 +180,8 @@ export function describeAction(row: AuditRow): AuditDescription {
       }
 
     case "exchange_rate.set": {
-      const rate = typeof meta.usd_to_toman === "number" ? meta.usd_to_toman : null
+      const rate =
+        typeof meta.usd_to_toman === "number" ? meta.usd_to_toman : null
       return {
         text: "تنظیمات قیمت‌گذاری را به‌روزرسانی کرد",
         details: rate !== null ? [`نرخ دلار: ${faNum(rate)} تومان`] : [],
@@ -169,7 +192,8 @@ export function describeAction(row: AuditRow): AuditDescription {
       const fulfilled = meta.status === "fulfilled"
       return {
         text: fulfilled ? "سفارشی را تحویل داد" : "اطلاعات سفارشی را ذخیره کرد",
-        details: typeof meta.items === "number" ? [`${faNum(meta.items)} آیتم`] : [],
+        details:
+          typeof meta.items === "number" ? [`${faNum(meta.items)} آیتم`] : [],
       }
     }
 

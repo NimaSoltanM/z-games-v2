@@ -10,7 +10,9 @@ import {
 import type { CartItem } from "./types"
 
 // A complete cart line minus quantity (quantity is owned by the store).
-function line(overrides: Partial<Omit<CartItem, "quantity">> = {}): Omit<CartItem, "quantity"> {
+function line(
+  overrides: Partial<Omit<CartItem, "quantity">> = {}
+): Omit<CartItem, "quantity"> {
   return {
     gameId: "g1",
     gameName: "Test Game",

@@ -65,7 +65,7 @@ export function DiscountBadge({
   return (
     <Badge
       variant="secondary"
-      className={`border border-rose-500/30 bg-rose-500/10 text-rose-600 tabular-nums dark:text-rose-400 ${className ?? ""}`}
+      className={`border-transparent bg-rose-600 font-semibold text-white tabular-nums shadow-sm ring-1 ring-rose-900/20 ${className ?? ""}`}
     >
       <Percent className="size-3" />
       {percent.toLocaleString("fa-IR")}٪ تخفیف

@@ -30,7 +30,9 @@ function applyTheme(theme: Theme) {
   root.classList.remove("light", "dark")
   const resolved =
     theme === "system"
-      ? window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light"
       : theme
   root.classList.add(resolved)
   root.style.colorScheme = resolved
@@ -47,7 +49,9 @@ export function ThemeProvider({
   useEffect(() => {
     const stored = localStorage.getItem(storageKey)
     setThemeState(
-      stored === "light" || stored === "dark" || stored === "system" ? stored : defaultTheme
+      stored === "light" || stored === "dark" || stored === "system"
+        ? stored
+        : defaultTheme
     )
     setMounted(true)
   }, [defaultTheme, storageKey])

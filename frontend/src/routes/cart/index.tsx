@@ -371,10 +371,15 @@ function useCheckout() {
     }
     setPending(true)
     try {
-      const { payment_url } = await checkoutOrder({
-        referral_code: getReferral(),
-      })
-      window.location.href = payment_url
+      const result = await checkoutOrder({ referral_code: getReferral() })
+      if (result.paid) {
+        // Wallet fully covered the order — no gateway step; go straight to the result.
+        window.location.href = `/payment/result?status=success&order=${result.order_number ?? ""}`
+      } else if (result.payment_url) {
+        window.location.href = result.payment_url
+      } else {
+        throw new Error("خطا در شروع پرداخت")
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در شروع پرداخت")
       setPending(false)

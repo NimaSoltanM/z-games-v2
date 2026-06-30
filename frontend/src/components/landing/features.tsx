@@ -51,7 +51,9 @@ export function Features() {
                 <f.icon className="size-5" />
               </div>
               <h3 className="mt-5 text-base font-semibold">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {f.desc}
+              </p>
             </div>
           ))}
         </div>

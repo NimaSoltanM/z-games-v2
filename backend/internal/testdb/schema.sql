@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict cCpnpnYpIZWMyjU6lWSqv33kbUfbDR9YzjyxrGH33ba7dN5hzEhxCE9RcX7MTmz
+\restrict M4qEQKB9KNEJCoprgMOAd59tMw9bclSfNufGVfAi9Wp1O8g0n7VRKoWNVZdESEu
 
 -- Dumped from database version 18.4
 -- Dumped by pg_dump version 18.4
@@ -24,13 +24,6 @@ SET row_security = off;
 --
 
 CREATE SCHEMA drizzle;
-
-
---
--- Name: public; Type: SCHEMA; Schema: -; Owner: -
---
-
--- *not* creating schema, since initdb creates it
 
 
 --
@@ -219,6 +212,30 @@ CREATE TABLE public.game_prices (
 
 
 --
+-- Name: game_returns; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.game_returns (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    order_item_id uuid NOT NULL,
+    user_id character varying NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    video_filename text,
+    agreed_terms boolean DEFAULT false NOT NULL,
+    reason text,
+    credit_amount integer,
+    reviewed_by character varying,
+    reviewed_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    reused_at timestamp without time zone,
+    reused_for_item_id uuid,
+    CONSTRAINT game_returns_credit_amount_check CHECK (((credit_amount IS NULL) OR (credit_amount >= 0))),
+    CONSTRAINT game_returns_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'refused'::text])))
+);
+
+
+--
 -- Name: games; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -242,11 +259,17 @@ CREATE TABLE public.games (
     discount_pct smallint,
     discount_starts_at timestamp without time zone,
     discount_ends_at timestamp without time zone,
+    returnable boolean DEFAULT true NOT NULL,
+    return_fee_pct smallint,
+    return_fee_starts_at timestamp without time zone,
+    return_fee_ends_at timestamp without time zone,
     CONSTRAINT games_alert_variant_check CHECK (((alert_variant IS NULL) OR (alert_variant = ANY (ARRAY['info'::text, 'warning'::text])))),
     CONSTRAINT games_discount_pct_check CHECK (((discount_pct IS NULL) OR ((discount_pct >= 1) AND (discount_pct <= 99)))),
     CONSTRAINT games_discount_window_check CHECK ((((discount_pct IS NULL) AND (discount_starts_at IS NULL) AND (discount_ends_at IS NULL)) OR ((discount_pct IS NOT NULL) AND (discount_starts_at IS NOT NULL) AND (discount_ends_at IS NOT NULL) AND (discount_ends_at > discount_starts_at)))),
     CONSTRAINT games_profit_margin_pct_check CHECK (((profit_margin_pct IS NULL) OR (profit_margin_pct >= 0))),
-    CONSTRAINT games_release_status_check CHECK ((release_status = ANY (ARRAY['released'::text, 'pre_order'::text])))
+    CONSTRAINT games_release_status_check CHECK ((release_status = ANY (ARRAY['released'::text, 'pre_order'::text]))),
+    CONSTRAINT games_return_fee_pct_check CHECK (((return_fee_pct IS NULL) OR ((return_fee_pct >= 0) AND (return_fee_pct <= 99)))),
+    CONSTRAINT games_return_fee_window_check CHECK ((((return_fee_pct IS NULL) AND (return_fee_starts_at IS NULL) AND (return_fee_ends_at IS NULL)) OR ((return_fee_pct IS NOT NULL) AND (return_fee_starts_at IS NOT NULL) AND (return_fee_ends_at IS NOT NULL) AND (return_fee_ends_at > return_fee_starts_at))))
 );
 
 
@@ -297,8 +320,10 @@ CREATE TABLE public.orders (
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
     order_number bigint DEFAULT nextval('public.orders_order_number_seq'::regclass) NOT NULL,
+    wallet_applied integer DEFAULT 0 NOT NULL,
     CONSTRAINT orders_amount_check CHECK ((amount > 0)),
-    CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'paid'::text, 'failed'::text, 'fulfilled'::text])))
+    CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'paid'::text, 'failed'::text, 'fulfilled'::text]))),
+    CONSTRAINT orders_wallet_applied_check CHECK (((wallet_applied >= 0) AND (wallet_applied <= amount)))
 );
 
 
@@ -328,7 +353,24 @@ CREATE TABLE public.users (
     last_name character varying(50),
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     role public.user_role DEFAULT 'user'::public.user_role NOT NULL,
-    referred_by text
+    referred_by text,
+    wallet_balance integer DEFAULT 0 NOT NULL,
+    CONSTRAINT users_wallet_balance_check CHECK ((wallet_balance >= 0))
+);
+
+
+--
+-- Name: wallet_transactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.wallet_transactions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id character varying NOT NULL,
+    amount integer NOT NULL,
+    reason text NOT NULL,
+    ref_type text,
+    ref_id text,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
 );
 
 
@@ -414,6 +456,12 @@ INSERT INTO public.consoles VALUES ('xbox_series', 'xbox', 'ایکس‌باکس 
 
 
 --
+-- Data for Name: game_returns; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: games; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -439,6 +487,12 @@ INSERT INTO public.consoles VALUES ('xbox_series', 'xbox', 'ایکس‌باکس 
 
 --
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: wallet_transactions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
@@ -570,6 +624,22 @@ ALTER TABLE ONLY public.game_prices
 
 
 --
+-- Name: game_returns game_returns_order_item_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_returns
+    ADD CONSTRAINT game_returns_order_item_id_key UNIQUE (order_item_id);
+
+
+--
+-- Name: game_returns game_returns_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_returns
+    ADD CONSTRAINT game_returns_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: games games_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -634,6 +704,14 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: wallet_transactions wallet_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wallet_transactions
+    ADD CONSTRAINT wallet_transactions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: admin_actions_admin_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -652,6 +730,27 @@ CREATE INDEX admin_actions_created_at_idx ON public.admin_actions USING btree (c
 --
 
 CREATE INDEX admin_actions_target_idx ON public.admin_actions USING btree (target_type, target_id);
+
+
+--
+-- Name: game_returns_available_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX game_returns_available_idx ON public.game_returns USING btree (order_item_id) WHERE ((status = 'approved'::text) AND (reused_at IS NULL));
+
+
+--
+-- Name: game_returns_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX game_returns_status_idx ON public.game_returns USING btree (status);
+
+
+--
+-- Name: game_returns_user_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX game_returns_user_idx ON public.game_returns USING btree (user_id, created_at DESC);
 
 
 --
@@ -694,6 +793,13 @@ CREATE INDEX orders_user_id_idx ON public.orders USING btree (user_id);
 --
 
 CREATE INDEX otp_codes_phone_idx ON public.otp_codes USING btree (phone);
+
+
+--
+-- Name: wallet_transactions_user_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX wallet_transactions_user_idx ON public.wallet_transactions USING btree (user_id, created_at DESC);
 
 
 --
@@ -793,6 +899,38 @@ ALTER TABLE ONLY public.game_prices
 
 
 --
+-- Name: game_returns game_returns_order_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_returns
+    ADD CONSTRAINT game_returns_order_item_id_fkey FOREIGN KEY (order_item_id) REFERENCES public.order_items(id) ON DELETE CASCADE;
+
+
+--
+-- Name: game_returns game_returns_reused_for_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_returns
+    ADD CONSTRAINT game_returns_reused_for_item_id_fkey FOREIGN KEY (reused_for_item_id) REFERENCES public.order_items(id) ON DELETE SET NULL;
+
+
+--
+-- Name: game_returns game_returns_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_returns
+    ADD CONSTRAINT game_returns_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id);
+
+
+--
+-- Name: game_returns game_returns_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_returns
+    ADD CONSTRAINT game_returns_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: order_items order_items_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -809,8 +947,16 @@ ALTER TABLE ONLY public.orders
 
 
 --
+-- Name: wallet_transactions wallet_transactions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wallet_transactions
+    ADD CONSTRAINT wallet_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict cCpnpnYpIZWMyjU6lWSqv33kbUfbDR9YzjyxrGH33ba7dN5hzEhxCE9RcX7MTmz
+\unrestrict M4qEQKB9KNEJCoprgMOAd59tMw9bclSfNufGVfAi9Wp1O8g0n7VRKoWNVZdESEu
 

@@ -17,15 +17,19 @@ import (
 	"github.com/soltanmohammdi/z-games/internal/modules/cart"
 	"github.com/soltanmohammdi/z-games/internal/modules/games"
 	"github.com/soltanmohammdi/z-games/internal/modules/orders"
+	"github.com/soltanmohammdi/z-games/internal/modules/returns"
 	"github.com/soltanmohammdi/z-games/internal/modules/uploads"
 )
 
 func NewApp(db *pgxpool.Pool) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: errorHandler,
-		// Headroom for image uploads (uploads.MaxUploadBytes) plus multipart
-		// overhead; every other endpoint takes only small JSON bodies.
-		BodyLimit: uploads.MaxUploadBytes + (1 << 20),
+		// Headroom for the largest upload — return videos (uploads.MaxVideoBytes,
+		// 50 MB) — plus multipart overhead. Fiber's BodyLimit is global (no
+		// per-route override), so every endpoint nominally accepts this size, but
+		// each one rejects early: image uploads cap at 5 MB in SaveImage, the video
+		// route is heavily rate-limited, and all other endpoints take small JSON.
+		BodyLimit: uploads.MaxVideoBytes + (2 << 20),
 	})
 
 	app.Use(recoverer.New(recoverer.Config{
@@ -59,6 +63,7 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 	cart.RegisterRoutes(app, db)
 	games.RegisterRoutes(app, db)
 	orders.RegisterRoutes(app, db)
+	returns.RegisterRoutes(app, db)
 	uploads.RegisterRoutes(app, db)
 	audit.RegisterRoutes(app, db)
 

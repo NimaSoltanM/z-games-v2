@@ -11,7 +11,13 @@ type ResultStatus = "success" | "failed" | "pending"
 // again while we confirm, rather than wrongly reporting success or failure.
 const RESULT_META: Record<
   ResultStatus,
-  { icon: typeof CheckCircle2; tint: string; glow: string; title: string; body: string }
+  {
+    icon: typeof CheckCircle2
+    tint: string
+    glow: string
+    title: string
+    body: string
+  }
 > = {
   success: {
     icon: CheckCircle2,
@@ -37,9 +43,15 @@ const RESULT_META: Record<
 }
 
 export const Route = createFileRoute("/payment/result")({
-  validateSearch: (search: Record<string, unknown>): { status: ResultStatus; order: string | undefined } => ({
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { status: ResultStatus; order: string | undefined } => ({
     status:
-      search.status === "success" ? "success" : search.status === "pending" ? "pending" : "failed",
+      search.status === "success"
+        ? "success"
+        : search.status === "pending"
+          ? "pending"
+          : "failed",
     order: typeof search.order === "string" ? search.order : undefined,
   }),
   component: PaymentResultPage,
@@ -54,12 +66,14 @@ function PaymentResultPage() {
     <div className="relative flex min-h-[calc(100vh-57px)] items-center justify-center overflow-hidden bg-background bg-grid-lines px-4">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
-          className={`absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 rounded-full blur-3xl ${meta.glow}`}
+          className={`absolute top-1/3 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full blur-3xl ${meta.glow}`}
         />
       </div>
 
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-border/60 bg-card/75 p-8 text-center backdrop-blur-sm">
-        <div className={`mx-auto flex size-16 items-center justify-center rounded-2xl ${meta.tint}`}>
+        <div
+          className={`mx-auto flex size-16 items-center justify-center rounded-2xl ${meta.tint}`}
+        >
           <Icon className="size-8" />
         </div>
 
@@ -70,7 +84,10 @@ function PaymentResultPage() {
 
         {order && (
           <p className="mt-4 text-sm text-muted-foreground">
-            شماره سفارش: <span dir="ltr" className="font-mono font-semibold text-foreground">#{order}</span>
+            شماره سفارش:{" "}
+            <span dir="ltr" className="font-mono font-semibold text-foreground">
+              #{order}
+            </span>
           </p>
         )}
 

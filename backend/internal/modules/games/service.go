@@ -179,6 +179,66 @@ func setGameDiscount(ctx context.Context, db *pgxpool.Pool, adminID, gameID stri
 	return tx.Commit(ctx)
 }
 
+// setGameReturnFee starts or stops a game's time-boxed reduced return fee. percent
+// in 0..99 with days > 0 opens a window [now, now+days) during which returns of
+// this game are charged that fee instead of the default 25% (a 0 fee = free return
+// promo). days <= 0 clears the window. Audited. Returns ErrGameNotFound /
+// ErrInvalidInput.
+func setGameReturnFee(ctx context.Context, db *pgxpool.Pool, adminID, gameID string, percent, days int) error {
+	clear := days <= 0
+	if !clear {
+		if percent < 0 || percent > 99 {
+			return ErrInvalidInput
+		}
+	}
+
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("setGameReturnFee begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var (
+		name             string
+		pct              *int
+		startsAt, endsAt *time.Time
+	)
+	if !clear {
+		now := time.Now().UTC()
+		end := now.Add(time.Duration(days) * 24 * time.Hour)
+		p := percent
+		pct, startsAt, endsAt = &p, &now, &end
+	}
+
+	err = tx.QueryRow(ctx, `
+		UPDATE games SET return_fee_pct = $1, return_fee_starts_at = $2, return_fee_ends_at = $3, updated_at = NOW()
+		WHERE id = $4 RETURNING name
+	`, pct, startsAt, endsAt, gameID).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrGameNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("setGameReturnFee update: %w", err)
+	}
+
+	meta := map[string]any{"name": name, "cleared": clear}
+	if !clear {
+		meta["percent"] = percent
+		meta["days"] = days
+		meta["ends_at"] = endsAt
+	}
+	if err := audit.Record(ctx, tx, audit.Entry{
+		AdminID:    adminID,
+		Action:     audit.ActionGameReturnFee,
+		TargetType: "game",
+		TargetID:   gameID,
+		Metadata:   meta,
+	}); err != nil {
+		return fmt.Errorf("setGameReturnFee: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
 type gamePriceRow struct {
 	ID         string  `json:"id"`
 	Platform   string  `json:"platform"`
@@ -226,6 +286,14 @@ type gameRow struct {
 	DiscountStartsAt *time.Time `json:"discount_starts_at"`
 	DiscountEndsAt   *time.Time `json:"discount_ends_at"`
 	Discount         *int       `json:"discount"`
+	// Returnable is the admin's per-game buy-back switch. ReturnFee* is an optional
+	// time-boxed reduced return fee (like the discount window); ReturnFee is the
+	// derived "fee in effect right now" the frontend can show.
+	Returnable        bool       `json:"returnable"`
+	ReturnFeePct      *int       `json:"return_fee_pct"`
+	ReturnFeeStartsAt *time.Time `json:"return_fee_starts_at"`
+	ReturnFeeEndsAt   *time.Time `json:"return_fee_ends_at"`
+	ReturnFee         *int       `json:"return_fee"`
 	// TrendingScore is derived from recent sales + views (see attachTrending); it is
 	// always present so the frontend can rank without re-deriving.
 	TrendingScore float64   `json:"trending_score"`
@@ -244,6 +312,10 @@ func (g *gameRow) derivePhase(now time.Time) {
 	g.Phase = release.Phase(g.ReleaseStatus, g.ReleaseDate, now)
 	g.Purchasable = release.Purchasable(g.Phase)
 	g.Discount = activeDiscount(g.DiscountPct, g.DiscountStartsAt, g.DiscountEndsAt, now)
+	// Surface the fee a return would incur right now (the override during its window,
+	// else the default) so the storefront can advertise a return promo.
+	fee := pricing.EffectiveReturnFeePct(g.ReturnFeePct, g.ReturnFeeStartsAt, g.ReturnFeeEndsAt, now)
+	g.ReturnFee = &fee
 }
 
 // activeDiscount returns the discount percent if one is currently in effect,
@@ -275,6 +347,7 @@ type listFilter struct {
 const gameColumns = `id, slug, name, cover_image, price_mode::text, active,
 	release_status, release_date, alert_message, alert_variant, profit_margin_pct,
 	featured, view_count, tags, discount_pct, discount_starts_at, discount_ends_at,
+	returnable, return_fee_pct, return_fee_starts_at, return_fee_ends_at,
 	created_at, updated_at`
 
 // scanGameRow scans one row selected with gameColumns (in that exact order).
@@ -283,6 +356,7 @@ func scanGameRow(row pgx.Row, g *gameRow) error {
 		&g.ID, &g.Slug, &g.Name, &g.CoverImage, &g.PriceMode, &g.Active,
 		&g.ReleaseStatus, &g.ReleaseDate, &g.AlertMessage, &g.AlertVariant, &g.ProfitMarginPct,
 		&g.Featured, &g.ViewCount, &g.Tags, &g.DiscountPct, &g.DiscountStartsAt, &g.DiscountEndsAt,
+		&g.Returnable, &g.ReturnFeePct, &g.ReturnFeeStartsAt, &g.ReturnFeeEndsAt,
 		&g.CreatedAt, &g.UpdatedAt,
 	)
 }

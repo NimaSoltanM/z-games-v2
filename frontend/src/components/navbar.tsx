@@ -1,7 +1,14 @@
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { ShoppingCart, Menu, LogOut, ChevronDown, LayoutDashboard, ShieldCheck } from "lucide-react"
+import {
+  ShoppingCart,
+  Menu,
+  LogOut,
+  ChevronDown,
+  LayoutDashboard,
+  ShieldCheck,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -67,8 +74,15 @@ export function Navbar() {
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         {/* Brand + desktop nav */}
         <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2 font-bold text-lg tracking-tight">
-            <img src="/logo.png" alt="Z-Games" className="size-8 object-contain" />
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-lg font-bold tracking-tight"
+          >
+            <img
+              src="/logo.png"
+              alt="Z-Games"
+              className="size-8 object-contain"
+            />
             Z-Games
           </Link>
 
@@ -79,7 +93,7 @@ export function Navbar() {
                 to={l.to}
                 search={l.to === "/games" ? GAMES_DEFAULT_SEARCH : undefined}
                 activeOptions={{ exact: l.exact }}
-                className="relative px-2 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground [&.active]:text-foreground after:absolute after:inset-x-2 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-200 [&.active]:after:scale-x-100"
+                className="relative px-2 py-2 text-sm text-muted-foreground transition-colors after:absolute after:inset-x-2 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-200 hover:text-foreground [&.active]:text-foreground [&.active]:after:scale-x-100"
               >
                 {l.label}
               </Link>
@@ -109,7 +123,12 @@ export function Navbar() {
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger
               render={
-                <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label="باز کردن منو" />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="md:hidden"
+                  aria-label="باز کردن منو"
+                />
               }
             >
               <Menu className="size-5" />
@@ -124,7 +143,9 @@ export function Navbar() {
                   <Link
                     key={l.to}
                     to={l.to}
-                    search={l.to === "/games" ? GAMES_DEFAULT_SEARCH : undefined}
+                    search={
+                      l.to === "/games" ? GAMES_DEFAULT_SEARCH : undefined
+                    }
                     activeOptions={{ exact: l.exact }}
                     onClick={() => setMobileOpen(false)}
                     className="rounded-lg border-r-2 border-transparent px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-accent [&.active]:border-primary [&.active]:bg-primary/8 [&.active]:font-semibold [&.active]:text-primary"
@@ -146,9 +167,14 @@ export function Navbar() {
                         {initialsOf(me)}
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{fullNameOf(me)}</p>
+                        <p className="truncate text-sm font-medium">
+                          {fullNameOf(me)}
+                        </p>
                         {me.phone && (
-                          <p dir="ltr" className="truncate text-xs text-muted-foreground">
+                          <p
+                            dir="ltr"
+                            className="truncate text-xs text-muted-foreground"
+                          >
                             {me.phone}
                           </p>
                         )}
@@ -226,7 +252,7 @@ function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
       <DropdownMenuTrigger
         render={
           <button
-            className="group flex items-center gap-2 rounded-full border border-border/60 bg-card/60 py-1 pe-2.5 ps-1 transition-colors hover:bg-accent aria-expanded:bg-accent"
+            className="group flex items-center gap-2 rounded-full border border-border/60 bg-card/60 py-1 ps-1 pe-2.5 transition-colors hover:bg-accent aria-expanded:bg-accent"
             aria-label="حساب کاربری"
           />
         }
@@ -234,12 +260,16 @@ function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">
           {initialsOf(me)}
         </span>
-        <span className="max-w-28 truncate text-sm">{me.firstName ?? "حساب من"}</span>
+        <span className="max-w-28 truncate text-sm">
+          {me.firstName ?? "حساب من"}
+        </span>
         <ChevronDown className="size-3.5 text-muted-foreground transition-transform group-aria-expanded:rotate-180" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="w-56">
         <div className="flex flex-col px-1.5 py-1.5">
-          <span className="truncate text-sm font-medium text-foreground">{fullNameOf(me)}</span>
+          <span className="truncate text-sm font-medium text-foreground">
+            {fullNameOf(me)}
+          </span>
           {me.phone && (
             <span dir="ltr" className="truncate text-xs text-muted-foreground">
               {me.phone}
@@ -247,12 +277,21 @@ function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
           )}
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link to="/dashboard" search={{ page: 1, status: "" }} />}>
+        <DropdownMenuItem
+          render={<Link to="/dashboard" search={{ page: 1, status: "" }} />}
+        >
           <LayoutDashboard className="size-4" />
           سفارش‌های من
         </DropdownMenuItem>
         {me.role !== "user" && (
-          <DropdownMenuItem render={<Link to="/admin/orders" search={{ page: 1, status: "", search: "" }} />}>
+          <DropdownMenuItem
+            render={
+              <Link
+                to="/admin/orders"
+                search={{ page: 1, status: "", search: "" }}
+              />
+            }
+          >
             <ShieldCheck className="size-4" />
             مدیریت سفارش‌ها
           </DropdownMenuItem>

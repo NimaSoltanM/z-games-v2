@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
-import { Package, Gamepad2, ScrollText, Coins } from "lucide-react"
+import { Package, Gamepad2, ScrollText, Coins, RotateCcw } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-shell"
 import type { DashNavItem } from "@/components/dashboard-shell"
@@ -13,6 +13,12 @@ const NAV: readonly DashNavItem[] = [
     label: "سفارش‌ها",
   },
   { to: "/admin/games", icon: Gamepad2, label: "بازی‌ها" },
+  {
+    to: "/admin/returns",
+    search: { page: 1, status: "", search: "" },
+    icon: RotateCcw,
+    label: "بازگشت‌ها",
+  },
   { to: "/admin/games/pricing", icon: Coins, label: "قیمت‌گذاری" },
   {
     to: "/admin/audit",
@@ -27,7 +33,8 @@ export const Route = createFileRoute("/admin")({
   // longer guard individually; non-admins are bounced home, guests to login.
   beforeLoad: async ({ location }) => {
     const me = await getMeFn()
-    if (!me) throw redirect({ to: "/auth", search: { redirect: location.pathname } })
+    if (!me)
+      throw redirect({ to: "/auth", search: { redirect: location.pathname } })
     if (me.role === "user") throw redirect({ to: "/" })
   },
   component: AdminLayoutRoute,

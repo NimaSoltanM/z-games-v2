@@ -8,7 +8,13 @@ import {
 } from "@tanstack/react-query"
 import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { ArrowRight, CheckCircle2, Clock, AlertTriangle } from "lucide-react"
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Recycle,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -17,11 +23,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { adminOrderQueryOptions, fulfillOrder } from "@/features/admin"
+import {
+  adminOrderQueryOptions,
+  fulfillOrder,
+  reuseReturnedAccount,
+} from "@/features/admin"
 import type { AdminOrder, FulfillItem } from "@/features/admin"
 import { formatOrderDate, formatOrderNumber } from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
-import { formatToman, consoleLabel, platformBadgeClass, capacityLabel, passcodeLabel, PreOrderBadge } from "@/features/games"
+import {
+  formatToman,
+  consoleLabel,
+  platformBadgeClass,
+  capacityLabel,
+  passcodeLabel,
+  PreOrderBadge,
+} from "@/features/games"
 
 function AdminOrderError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -53,7 +70,9 @@ function AdminOrderDetailPage() {
         onReset={reset}
         fallbackRender={({ resetErrorBoundary }) => (
           <div className="py-20 text-center">
-            <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری سفارش</p>
+            <p className="mb-4 text-sm text-muted-foreground">
+              خطا در بارگذاری سفارش
+            </p>
             <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
               تلاش مجدد
             </Button>
@@ -76,7 +95,9 @@ function AdminOrderDetail() {
     return (
       <div className="py-20 text-center">
         <p className="text-base font-semibold">سفارش یافت نشد</p>
-        <p className="mt-1 text-sm text-muted-foreground">این سفارش وجود ندارد</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          این سفارش وجود ندارد
+        </p>
       </div>
     )
   }
@@ -91,12 +112,14 @@ function AdminOrderDetail() {
 
 function OrderSummary({ order }: { order: AdminOrder }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6">
+    <div className="rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm">
       <div>
         <p dir="ltr" className="font-mono text-base font-bold">
           {formatOrderNumber(order.order_number)}
         </p>
-        <h1 className="mt-1 text-lg font-bold">{order.user_name.trim() || "کاربر"}</h1>
+        <h1 className="mt-1 text-lg font-bold">
+          {order.user_name.trim() || "کاربر"}
+        </h1>
         <p dir="ltr" className="mt-0.5 text-left text-sm text-muted-foreground">
           {order.user_phone}
         </p>
@@ -104,9 +127,13 @@ function OrderSummary({ order }: { order: AdminOrder }) {
       <Separator className="my-5" />
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">مبلغ سفارش</span>
-        <span className="font-bold text-primary">{formatToman(order.amount)}</span>
+        <span className="font-bold text-primary">
+          {formatToman(order.amount)}
+        </span>
       </div>
-      <div className="mt-2 text-xs text-muted-foreground">{formatOrderDate(order.created_at)}</div>
+      <div className="mt-2 text-xs text-muted-foreground">
+        {formatOrderDate(order.created_at)}
+      </div>
     </div>
   )
 }
@@ -124,23 +151,30 @@ function ReviewPanel({ order }: { order: AdminOrder }) {
           <p className="text-sm font-semibold">پرداخت تأیید نشده است</p>
         </div>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          نتیجهٔ پرداخت این سفارش از درگاه مشخص نشده است. وضعیت تراکنش را با کد زیر در پنل
-          زرین‌پال بررسی کنید. تا زمان تأیید، امکان ثبت اطلاعات اکانت وجود ندارد.
+          نتیجهٔ پرداخت این سفارش از درگاه مشخص نشده است. وضعیت تراکنش را با کد
+          زیر در پنل زرین‌پال بررسی کنید. تا زمان تأیید، امکان ثبت اطلاعات اکانت
+          وجود ندارد.
         </p>
         {order.authority && (
           <p className="mt-4 text-xs text-muted-foreground">
             کد پیگیری درگاه:{" "}
-            <span dir="ltr" className="font-mono text-foreground">{order.authority}</span>
+            <span dir="ltr" className="font-mono text-foreground">
+              {order.authority}
+            </span>
           </p>
         )}
       </div>
 
-      <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6 space-y-2.5">
+      <div className="space-y-2.5 rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm">
         {groupItems(order.items).map((it, i) => (
-          <div key={i} className="flex items-center justify-between gap-3 text-sm">
+          <div
+            key={i}
+            className="flex items-center justify-between gap-3 text-sm"
+          >
             <span className="truncate font-medium">{it.game_name}</span>
             <span className="shrink-0 text-xs text-muted-foreground">
-              {consoleLabel(it.platform)} · {capacityLabel(it.zarfiat)} · × {it.count}
+              {consoleLabel(it.platform)} · {capacityLabel(it.zarfiat)} · ×{" "}
+              {it.count}
             </span>
           </div>
         ))}
@@ -170,7 +204,8 @@ function groupItems(items: OrderItem[]): GroupedItem[] {
 
 function accountLabels(items: OrderItem[]): Map<string, string> {
   const totals = new Map<string, number>()
-  for (const it of items) totals.set(itemKey(it), (totals.get(itemKey(it)) ?? 0) + 1)
+  for (const it of items)
+    totals.set(itemKey(it), (totals.get(itemKey(it)) ?? 0) + 1)
 
   const seen = new Map<string, number>()
   const labels = new Map<string, string>()
@@ -180,7 +215,9 @@ function accountLabels(items: OrderItem[]): Map<string, string> {
     seen.set(k, n)
     labels.set(
       it.id,
-      (totals.get(k) ?? 1) > 1 ? `${it.game_name} — اکانت ${n.toLocaleString("fa-IR")}` : it.game_name
+      (totals.get(k) ?? 1) > 1
+        ? `${it.game_name} — اکانت ${n.toLocaleString("fa-IR")}`
+        : it.game_name
     )
   }
   return labels
@@ -191,34 +228,80 @@ function FulfillForm({ order }: { order: AdminOrder }) {
   const fulfilled = order.status === "fulfilled"
 
   // One credential draft per item, prefilled with whatever is already saved.
-  const [drafts, setDrafts] = useState<Record<string, { email: string; password: string; passcode: string }>>(
-    () =>
-      Object.fromEntries(
-        order.items.map((it) => [
-          it.id,
-          { email: it.email ?? "", password: it.password ?? "", passcode: it.passcode ?? "" },
-        ])
-      )
+  const [drafts, setDrafts] = useState<
+    Record<string, { email: string; password: string; passcode: string }>
+  >(() =>
+    Object.fromEntries(
+      order.items.map((it) => [
+        it.id,
+        {
+          email: it.email ?? "",
+          password: it.password ?? "",
+          passcode: it.passcode ?? "",
+        },
+      ])
+    )
   )
 
-  const setField = (itemId: string, field: "email" | "password" | "passcode", value: string) =>
-    setDrafts((d) => ({ ...d, [itemId]: { ...d[itemId], [field]: value } }))
+  const setField = (
+    itemId: string,
+    field: "email" | "password" | "passcode",
+    value: string
+  ) => setDrafts((d) => ({ ...d, [itemId]: { ...d[itemId], [field]: value } }))
 
   const labels = accountLabels(order.items)
 
   const mutation = useMutation({
     mutationFn: (items: FulfillItem[]) => fulfillOrder(order.id, items),
     onSuccess: (updated) => {
-      queryClient.setQueryData(adminOrderQueryOptions(order.id).queryKey, updated)
+      queryClient.setQueryData(
+        adminOrderQueryOptions(order.id).queryKey,
+        updated
+      )
       queryClient.invalidateQueries({ queryKey: ["admin", "orders"] })
       queryClient.invalidateQueries({ queryKey: ["orders"] })
       toast.success(
-        updated.status === "fulfilled" ? "سفارش تکمیل و تحویل شد" : "اطلاعات ذخیره شد"
+        updated.status === "fulfilled"
+          ? "سفارش تکمیل و تحویل شد"
+          : "اطلاعات ذخیره شد"
       )
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "خطا در ذخیره اطلاعات")
     },
+  })
+
+  // Fulfilling an item from returned-account inventory: the server copies the
+  // returned account's credentials onto the item and consumes that return. Reflect
+  // the copied credentials back into the form drafts on success.
+  const reuse = useMutation({
+    mutationFn: ({ itemId, returnId }: { itemId: string; returnId: string }) =>
+      reuseReturnedAccount(order.id, itemId, returnId),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(
+        adminOrderQueryOptions(order.id).queryKey,
+        updated
+      )
+      queryClient.invalidateQueries({ queryKey: ["admin", "orders"] })
+      queryClient.invalidateQueries({ queryKey: ["admin", "returns"] })
+      queryClient.invalidateQueries({ queryKey: ["orders"] })
+      setDrafts((d) => {
+        const next = { ...d }
+        for (const it of updated.items) {
+          next[it.id] = {
+            email: it.email ?? "",
+            password: it.password ?? "",
+            passcode: it.passcode ?? "",
+          }
+        }
+        return next
+      })
+      toast.success("حساب بازگردانده‌شده برای این سفارش استفاده شد")
+    },
+    onError: (err) =>
+      toast.error(
+        err instanceof Error ? err.message : "خطا در استفاده از حساب"
+      ),
   })
 
   const allComplete = order.items.every((it) => {
@@ -243,14 +326,17 @@ function FulfillForm({ order }: { order: AdminOrder }) {
   return (
     <form onSubmit={submit} className="space-y-5">
       {/* Order + customer summary */}
-      <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6">
+      <div className="rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p dir="ltr" className="font-mono text-base font-bold">
               {formatOrderNumber(order.order_number)}
             </p>
             <h1 className="mt-1 text-lg font-bold">{fullName || "کاربر"}</h1>
-            <p dir="ltr" className="mt-0.5 text-left text-sm text-muted-foreground">
+            <p
+              dir="ltr"
+              className="mt-0.5 text-left text-sm text-muted-foreground"
+            >
               {order.user_phone}
             </p>
           </div>
@@ -262,7 +348,11 @@ function FulfillForm({ order }: { order: AdminOrder }) {
                 : "shrink-0 gap-1.5 border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
             }
           >
-            {fulfilled ? <CheckCircle2 className="size-3.5" /> : <Clock className="size-3.5" />}
+            {fulfilled ? (
+              <CheckCircle2 className="size-3.5" />
+            ) : (
+              <Clock className="size-3.5" />
+            )}
             {fulfilled ? "تحویل شد" : "در انتظار تکمیل"}
           </Badge>
         </div>
@@ -271,7 +361,9 @@ function FulfillForm({ order }: { order: AdminOrder }) {
 
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">مبلغ پرداختی</span>
-          <span className="font-bold text-primary">{formatToman(order.amount)}</span>
+          <span className="font-bold text-primary">
+            {formatToman(order.amount)}
+          </span>
         </div>
         <div className="mt-2 text-xs text-muted-foreground">{date}</div>
       </div>
@@ -280,7 +372,7 @@ function FulfillForm({ order }: { order: AdminOrder }) {
       {order.items.map((it) => (
         <div
           key={it.id}
-          className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-6 space-y-4"
+          className="space-y-4 rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm"
         >
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">{labels.get(it.id)}</span>
@@ -290,14 +382,52 @@ function FulfillForm({ order }: { order: AdminOrder }) {
             >
               {consoleLabel(it.platform)}
             </Badge>
-            <span className="text-xs text-muted-foreground">{capacityLabel(it.zarfiat)}</span>
+            <span className="text-xs text-muted-foreground">
+              {capacityLabel(it.zarfiat)}
+            </span>
             {it.pre_order && <PreOrderBadge />}
           </div>
 
           {it.pre_order && !it.email && !it.password && !it.passcode && (
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
-              این آیتم به‌صورت پیش‌خرید ثبت شده است. اطلاعات اکانت را تنها پس از انتشار رسمی بازی وارد کنید.
+              این آیتم به‌صورت پیش‌خرید ثبت شده است. اطلاعات اکانت را تنها پس از
+              انتشار رسمی بازی وارد کنید.
             </p>
+          )}
+
+          {(order.inventory[it.id]?.length ?? 0) > 0 && (
+            <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <Recycle className="size-3.5" />
+                {(order.inventory[it.id] ?? []).length.toLocaleString(
+                  "fa-IR"
+                )}{" "}
+                حساب بازگردانده‌شده برای این بازی موجود است — به‌جای تهیهٔ حساب
+                نو استفاده کنید
+              </p>
+              {(order.inventory[it.id] ?? []).map((acc) => (
+                <div
+                  key={acc.return_id}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span className="text-xs text-muted-foreground">
+                    بازگشت‌شده در {formatOrderDate(acc.returned_at)}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 text-xs"
+                    disabled={reuse.isPending || mutation.isPending}
+                    onClick={() =>
+                      reuse.mutate({ itemId: it.id, returnId: acc.return_id })
+                    }
+                  >
+                    استفاده از این حساب
+                  </Button>
+                </div>
+              ))}
+            </div>
           )}
 
           <div className="space-y-3">
@@ -324,7 +454,9 @@ function FulfillForm({ order }: { order: AdminOrder }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor={`passcode-${it.id}`}>{passcodeLabel(it.platform)}</Label>
+              <Label htmlFor={`passcode-${it.id}`}>
+                {passcodeLabel(it.platform)}
+              </Label>
               <Input
                 id={`passcode-${it.id}`}
                 dir="ltr"
@@ -363,7 +495,7 @@ function AdminOrderDetailSkeleton() {
         <Separator className="my-5" />
         <Skeleton className="h-4 w-1/2" />
       </div>
-      <div className="rounded-2xl border border-border/60 bg-card/75 p-6 space-y-4">
+      <div className="space-y-4 rounded-2xl border border-border/60 bg-card/75 p-6">
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="h-8 w-full" />
         <Skeleton className="h-8 w-full" />

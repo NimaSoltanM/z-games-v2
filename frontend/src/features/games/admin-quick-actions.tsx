@@ -5,6 +5,7 @@ import {
   Loader2,
   Megaphone,
   Percent,
+  RotateCcw,
   Star,
   Trash2,
 } from "lucide-react"
@@ -26,6 +27,7 @@ import {
   setGameAlert,
   setGameDiscount,
   setGamePreorder,
+  setGameReturnFee,
   updateGame,
 } from "./api"
 import { formatReleaseDate } from "./types"
@@ -55,6 +57,7 @@ function gameToPayload(game: Game): GameFormPayload {
     cover_image: game.cover_image,
     active: game.active,
     featured: game.featured,
+    returnable: game.returnable,
     tags: game.tags,
     release_status: game.release_status,
     release_date: game.release_date,
@@ -399,6 +402,143 @@ export function DiscountPopover({ game }: { game: Game }) {
           >
             {stop.isPending && <Loader2 className="size-4 animate-spin" />}
             توقف تخفیف
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// Whether a reduced return-fee window is live for this game right now. The backend
+// keeps the columns after a window ends (like discounts), so check the dates rather
+// than just presence.
+function isReturnFeeLive(game: Game): boolean {
+  if (
+    game.return_fee_pct == null ||
+    !game.return_fee_starts_at ||
+    !game.return_fee_ends_at
+  )
+    return false
+  const now = Date.now()
+  return (
+    new Date(game.return_fee_starts_at).getTime() <= now &&
+    now < new Date(game.return_fee_ends_at).getTime()
+  )
+}
+
+export function ReturnFeePopover({ game }: { game: Game }) {
+  const [open, setOpen] = useState(false)
+  const [percent, setPercent] = useState("")
+  const [days, setDays] = useState("")
+  const invalidate = useInvalidateGames()
+
+  const live = isReturnFeeLive(game)
+
+  const start = useMutation({
+    mutationFn: () =>
+      setGameReturnFee(game.id, { percent: Number(percent), days: Number(days) }),
+    onSuccess: () => {
+      invalidate()
+      toast.success("کارمزد بازگشت ذخیره شد")
+      setOpen(false)
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "خطا"),
+  })
+
+  const stop = useMutation({
+    mutationFn: () => setGameReturnFee(game.id, { percent: 0, days: 0 }),
+    onSuccess: () => {
+      invalidate()
+      toast.success("کارمزد ویژه متوقف شد")
+      setOpen(false)
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "خطا"),
+  })
+
+  // A reduced fee should be below the default 25%; allow 0 (free-return promo).
+  const validPercent = percent !== "" && Number(percent) >= 0 && Number(percent) <= 99
+  const validDays = Number(days) >= 1
+  const busy = start.isPending || stop.isPending
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (o) {
+          setPercent(game.return_fee_pct != null ? String(game.return_fee_pct) : "")
+          setDays("")
+        }
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-8 gap-1.5 text-xs ${live ? "text-emerald-500" : ""}`}
+          />
+        }
+      >
+        <RotateCcw className="size-3.5" />
+        {live
+          ? `کارمزد ${game.return_fee_pct!.toLocaleString("fa-IR")}٪`
+          : "کارمزد بازگشت"}
+      </PopoverTrigger>
+      <PopoverContent className="w-72 gap-3">
+        <p className="text-sm font-medium">کارمزد بازگشت ویژه</p>
+        <p className="text-xs text-muted-foreground">
+          کارمزد پیش‌فرض بازگشت ۲۵٪ است. می‌توانید برای مدتی آن را کاهش دهید تا کاربران بیشتر این بازی
+          را بازگردانند.
+        </p>
+        {live && game.return_fee_ends_at && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+            کارمزد ویژه‌ی فعلی تا {formatReleaseDate(game.return_fee_ends_at)} ادامه دارد.
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <Label htmlFor={`rf-pct-${game.id}`}>کارمزد (۰ تا ۹۹)</Label>
+            <Input
+              id={`rf-pct-${game.id}`}
+              dir="ltr"
+              inputMode="numeric"
+              placeholder="10"
+              value={percent}
+              onChange={(e) => setPercent(e.target.value.replace(/\D/g, ""))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`rf-days-${game.id}`}>مدت (روز)</Label>
+            <Input
+              id={`rf-days-${game.id}`}
+              dir="ltr"
+              inputMode="numeric"
+              placeholder="7"
+              value={days}
+              onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))}
+            />
+          </div>
+        </div>
+        <Button
+          size="sm"
+          className="w-full gap-1.5"
+          disabled={busy || !validPercent || !validDays}
+          onClick={() => start.mutate()}
+        >
+          {start.isPending && <Loader2 className="size-4 animate-spin" />}
+          {live ? "به‌روزرسانی کارمزد ویژه" : "شروع کارمزد ویژه"}
+        </Button>
+        {live && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full gap-1.5"
+            disabled={busy}
+            onClick={() => stop.mutate()}
+          >
+            {stop.isPending && <Loader2 className="size-4 animate-spin" />}
+            بازگشت به کارمزد پیش‌فرض
           </Button>
         )}
       </PopoverContent>

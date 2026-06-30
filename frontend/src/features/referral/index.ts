@@ -11,7 +11,10 @@ export function captureReferral(code: string) {
   const c = code.trim()
   if (!c) return
   try {
-    localStorage.setItem(KEY, JSON.stringify({ code: c, at: Date.now() } satisfies Stored))
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ code: c, at: Date.now() } satisfies Stored)
+    )
   } catch {
     // storage unavailable (private mode / quota) — referral is best-effort
   }

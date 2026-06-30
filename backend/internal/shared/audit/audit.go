@@ -21,7 +21,12 @@ const (
 	ActionGameUpdate   = "game.update"
 	ActionGameDelete   = "game.delete"
 	ActionGameDiscount = "game.discount"
-	ActionExchangeRate = "exchange_rate.set"
+	ActionGameReturnFee = "game.return_fee"
+	ActionExchangeRate  = "exchange_rate.set"
+	ActionReturnApprove = "return.approve"
+	ActionReturnReject  = "return.reject"
+	ActionReturnRefuse  = "return.refuse"
+	ActionReturnReuse   = "return.reuse" // an approved return reused to fulfill a new order
 )
 
 // execer is satisfied by both *pgxpool.Pool and pgx.Tx.

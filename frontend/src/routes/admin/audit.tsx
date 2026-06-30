@@ -50,21 +50,49 @@ type Search = { page: number; action: string; admin_id: string }
 const ACTION_KEYS = Object.keys(AUDIT_ACTION_LABELS)
 
 const ACTION_VISUAL: Record<string, { icon: LucideIcon; className: string }> = {
-  "game.create": { icon: Plus, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  "game.create": {
+    icon: Plus,
+    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  },
   "game.update": { icon: Pencil, className: "bg-primary/10 text-primary" },
-  "game.delete": { icon: Trash2, className: "bg-red-500/10 text-red-600 dark:text-red-400" },
-  "game.preorder": { icon: Clock, className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
-  "game.alert": { icon: Bell, className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
-  "exchange_rate.set": { icon: DollarSign, className: "bg-primary/10 text-primary" },
-  "order.fulfill": { icon: PackageCheck, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
-  "image.upload": { icon: ImageIcon, className: "bg-muted text-muted-foreground" },
+  "game.delete": {
+    icon: Trash2,
+    className: "bg-red-500/10 text-red-600 dark:text-red-400",
+  },
+  "game.preorder": {
+    icon: Clock,
+    className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  },
+  "game.alert": {
+    icon: Bell,
+    className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  },
+  "exchange_rate.set": {
+    icon: DollarSign,
+    className: "bg-primary/10 text-primary",
+  },
+  "order.fulfill": {
+    icon: PackageCheck,
+    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  },
+  "image.upload": {
+    icon: ImageIcon,
+    className: "bg-muted text-muted-foreground",
+  },
 }
-const DEFAULT_VISUAL = { icon: Activity, className: "bg-muted text-muted-foreground" }
+const DEFAULT_VISUAL = {
+  icon: Activity,
+  className: "bg-muted text-muted-foreground",
+}
 
 // Exact Jalali date + time, to the second.
 function formatTimestamp(iso: string): string {
   const d = new Date(iso)
-  const date = d.toLocaleDateString("fa-IR", { year: "numeric", month: "2-digit", day: "2-digit" })
+  const date = d.toLocaleDateString("fa-IR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
   const time = d.toLocaleTimeString("fa-IR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -111,7 +139,9 @@ function AuditPage() {
         onReset={reset}
         fallbackRender={({ resetErrorBoundary }) => (
           <div className="py-20 text-center">
-            <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری تاریخچه</p>
+            <p className="mb-4 text-sm text-muted-foreground">
+              خطا در بارگذاری تاریخچه
+            </p>
             <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
               تلاش مجدد
             </Button>
@@ -132,8 +162,10 @@ function AuditContent() {
   const { data } = useSuspenseQuery(auditQueryOptions(search))
   const { data: actorsData } = useSuspenseQuery(auditActorsQueryOptions())
 
-  const setAction = (action: string) => navigate({ search: { ...search, action, page: 1 } })
-  const setAdmin = (admin_id: string) => navigate({ search: { ...search, admin_id, page: 1 } })
+  const setAction = (action: string) =>
+    navigate({ search: { ...search, action, page: 1 } })
+  const setAdmin = (admin_id: string) =>
+    navigate({ search: { ...search, admin_id, page: 1 } })
 
   return (
     <div className="space-y-5">
@@ -151,7 +183,9 @@ function AuditContent() {
             <ScrollText className="size-7 text-muted-foreground/40" />
           </div>
           <p className="text-sm text-muted-foreground">
-            {search.action || search.admin_id ? "موردی با این فیلترها پیدا نشد" : "هنوز فعالیتی ثبت نشده است"}
+            {search.action || search.admin_id
+              ? "موردی با این فیلترها پیدا نشد"
+              : "هنوز فعالیتی ثبت نشده است"}
           </p>
         </div>
       ) : (
@@ -187,11 +221,13 @@ function Filters({
   onAdmin: (id: string) => void
 }) {
   const selectedActor = actors.find((a) => a.id === adminId)
-  const adminLabel = adminId ? (selectedActor?.name.trim() || selectedActor?.phone || "مدیر") : "همه مدیران"
+  const adminLabel = adminId
+    ? selectedActor?.name.trim() || selectedActor?.phone || "مدیر"
+    : "همه مدیران"
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="overflow-x-auto scrollbar-none">
+      <div className="scrollbar-none overflow-x-auto">
         <ToggleGroup
           value={[action || "all"]}
           onValueChange={(v) => v[0] && onAction(v[0] === "all" ? "" : v[0])}
@@ -203,7 +239,11 @@ function Filters({
             همه
           </ToggleGroupItem>
           {ACTION_KEYS.map((key) => (
-            <ToggleGroupItem key={key} value={key} className="px-3 text-xs whitespace-nowrap">
+            <ToggleGroupItem
+              key={key}
+              value={key}
+              className="px-3 text-xs whitespace-nowrap"
+            >
               {AUDIT_ACTION_LABELS[key]}
             </ToggleGroupItem>
           ))}
@@ -219,11 +259,18 @@ function Filters({
             </Button>
           }
         />
-        <DropdownMenuContent align="end" className="max-h-72 w-52 overflow-y-auto">
-          <DropdownMenuItem onClick={() => onAdmin("")}>همه مدیران</DropdownMenuItem>
+        <DropdownMenuContent
+          align="end"
+          className="max-h-72 w-52 overflow-y-auto"
+        >
+          <DropdownMenuItem onClick={() => onAdmin("")}>
+            همه مدیران
+          </DropdownMenuItem>
           {actors.map((a) => (
             <DropdownMenuItem key={a.id} onClick={() => onAdmin(a.id)}>
-              <span className="truncate">{a.name.trim() || a.phone || "مدیر"}</span>
+              <span className="truncate">
+                {a.name.trim() || a.phone || "مدیر"}
+              </span>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -240,7 +287,12 @@ function ActionItem({ row }: { row: AuditRow }) {
   return (
     <div className="rounded-xl border border-border/60 bg-card/75 p-4 backdrop-blur-sm">
       <div className="flex items-start gap-3">
-        <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", visual.className)}>
+        <div
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-xl",
+            visual.className
+          )}
+        >
           <Icon className="size-4" />
         </div>
         <div className="min-w-0 flex-1">
@@ -251,7 +303,10 @@ function ActionItem({ row }: { row: AuditRow }) {
           {desc.details.length > 0 && (
             <ul className="mt-1.5 space-y-0.5">
               {desc.details.map((d, i) => (
-                <li key={i} className="text-xs text-muted-foreground tabular-nums">
+                <li
+                  key={i}
+                  className="text-xs text-muted-foreground tabular-nums"
+                >
                   • {d}
                 </li>
               ))}
@@ -272,7 +327,10 @@ function FeedSkeleton() {
       <Skeleton className="h-9 w-full max-w-md rounded-lg" />
       <div className="space-y-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border/60 bg-card/75 p-4">
+          <div
+            key={i}
+            className="rounded-xl border border-border/60 bg-card/75 p-4"
+          >
             <div className="flex items-start gap-3">
               <Skeleton className="size-9 shrink-0 rounded-xl" />
               <div className="flex-1 space-y-2">

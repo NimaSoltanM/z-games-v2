@@ -12,3 +12,5 @@ backend/*.test
 
 # Uploaded images (local-disk storage; UPLOAD_DIR)
 backend/uploads/
+# Return-proof videos (local-disk storage; RETURN_DIR)
+backend/uploads-returns/

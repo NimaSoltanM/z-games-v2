@@ -1,6 +1,14 @@
-import { createFileRoute, ErrorComponent, Link, useNavigate } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  ErrorComponent,
+  Link,
+  useNavigate,
+} from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
-import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query"
+import {
+  useSuspenseQuery,
+  useQueryErrorResetBoundary,
+} from "@tanstack/react-query"
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 import { Package } from "lucide-react"
@@ -11,7 +19,12 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination } from "@/components/pagination"
 import { DashboardHeader } from "@/components/dashboard-shell"
-import { ordersQueryOptions, ORDER_STATUS_META, formatOrderDate, formatOrderNumber } from "@/features/orders"
+import {
+  ordersQueryOptions,
+  ORDER_STATUS_META,
+  formatOrderDate,
+  formatOrderNumber,
+} from "@/features/orders"
 import type { Order, OrderItem } from "@/features/orders"
 import {
   formatToman,
@@ -36,9 +49,14 @@ function DashboardError({ error }: ErrorComponentProps) {
 }
 
 export const Route = createFileRoute("/dashboard/")({
-  validateSearch: (search: Record<string, unknown>): { page: number; status: StatusFilter } => ({
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { page: number; status: StatusFilter } => ({
     page: Math.max(1, Number(search.page) || 1),
-    status: search.status === "paid" || search.status === "fulfilled" ? search.status : "",
+    status:
+      search.status === "paid" || search.status === "fulfilled"
+        ? search.status
+        : "",
   }),
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) => {
@@ -74,7 +92,9 @@ function DashboardPage() {
         onReset={reset}
         fallbackRender={({ resetErrorBoundary }) => (
           <div className="py-20 text-center">
-            <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری سفارش‌ها</p>
+            <p className="mb-4 text-sm text-muted-foreground">
+              خطا در بارگذاری سفارش‌ها
+            </p>
             <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
               تلاش مجدد
             </Button>
@@ -105,7 +125,9 @@ function OrdersList() {
             {search.status ? "سفارشی در این وضعیت نیست" : "هنوز سفارشی ندارید"}
           </p>
           {!search.status && (
-            <p className="text-sm text-muted-foreground">اولین بازی‌ات رو انتخاب کن</p>
+            <p className="text-sm text-muted-foreground">
+              اولین بازی‌ات رو انتخاب کن
+            </p>
           )}
         </div>
         {!search.status && (
@@ -154,16 +176,21 @@ function OrderCard({ order }: { order: Order }) {
     <Link
       to="/dashboard/$orderId"
       params={{ orderId: order.id }}
-      className="block rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-5 transition-colors hover:border-primary/40"
+      className="block rounded-2xl border border-border/60 bg-card/75 p-5 backdrop-blur-sm transition-colors hover:border-primary/40"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p dir="ltr" className="font-mono text-sm font-semibold">
             {formatOrderNumber(order.order_number)}
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{formatOrderDate(order.created_at)}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {formatOrderDate(order.created_at)}
+          </p>
         </div>
-        <Badge variant="secondary" className={cn("gap-1.5 border", meta.className)}>
+        <Badge
+          variant="secondary"
+          className={cn("gap-1.5 border", meta.className)}
+        >
           <StatusIcon className="size-3.5" />
           {meta.label}
         </Badge>
@@ -173,7 +200,10 @@ function OrderCard({ order }: { order: Order }) {
 
       <div className="space-y-2.5">
         {groupItems(order.items).map((it, i) => (
-          <div key={i} className="flex items-center justify-between gap-3 text-sm">
+          <div
+            key={i}
+            className="flex items-center justify-between gap-3 text-sm"
+          >
             <div className="flex min-w-0 items-center gap-2">
               <span className="truncate font-medium">{it.game_name}</span>
               <Badge
@@ -198,7 +228,9 @@ function OrderCard({ order }: { order: Order }) {
 
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted-foreground">مبلغ پرداختی</span>
-        <span className="text-sm font-bold text-primary">{formatToman(order.amount)}</span>
+        <span className="text-sm font-bold text-primary">
+          {formatToman(order.amount)}
+        </span>
       </div>
     </Link>
   )
@@ -208,7 +240,10 @@ function OrdersSkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-2xl border border-border/60 bg-card/75 p-5">
+        <div
+          key={i}
+          className="rounded-2xl border border-border/60 bg-card/75 p-5"
+        >
           <div className="flex items-center justify-between">
             <Skeleton className="h-3 w-24" />
             <Skeleton className="h-5 w-28 rounded-full" />

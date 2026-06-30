@@ -21,7 +21,7 @@ function isValidCartState(val: unknown): val is CartState {
         typeof i.platform === "string" &&
         typeof i.zarfiat === "string" &&
         typeof i.quantity === "number" &&
-        i.quantity > 0,
+        i.quantity > 0
     )
   )
 }
@@ -64,14 +64,16 @@ if (typeof window !== "undefined") {
 export function addToCart(item: Omit<CartItem, "quantity">) {
   cartStore.setState((s) => {
     const k = key(item.gameId, item.platform, item.zarfiat)
-    const exists = s.items.some((i) => key(i.gameId, i.platform, i.zarfiat) === k)
+    const exists = s.items.some(
+      (i) => key(i.gameId, i.platform, i.zarfiat) === k
+    )
     if (exists) {
       return {
         ...s,
         items: s.items.map((i) =>
           key(i.gameId, i.platform, i.zarfiat) === k
             ? { ...i, quantity: Math.min(i.quantity + 1, MAX_QTY) }
-            : i,
+            : i
         ),
       }
     }
@@ -79,7 +81,11 @@ export function addToCart(item: Omit<CartItem, "quantity">) {
   })
 }
 
-export function removeFromCart(gameId: string, platform: ConsolePlatform, zarfiat: Zarfiat) {
+export function removeFromCart(
+  gameId: string,
+  platform: ConsolePlatform,
+  zarfiat: Zarfiat
+) {
   const k = key(gameId, platform, zarfiat)
   cartStore.setState((s) => ({
     ...s,
@@ -91,7 +97,7 @@ export function setQuantity(
   gameId: string,
   platform: ConsolePlatform,
   zarfiat: Zarfiat,
-  quantity: number,
+  quantity: number
 ) {
   if (quantity <= 0) {
     removeFromCart(gameId, platform, zarfiat)
@@ -102,7 +108,9 @@ export function setQuantity(
   cartStore.setState((s) => ({
     ...s,
     items: s.items.map((i) =>
-      key(i.gameId, i.platform, i.zarfiat) === k ? { ...i, quantity: capped } : i,
+      key(i.gameId, i.platform, i.zarfiat) === k
+        ? { ...i, quantity: capped }
+        : i
     ),
   }))
 }

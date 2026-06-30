@@ -31,6 +31,7 @@ import {
   DiscountPopover,
   FeaturedToggle,
   PreorderPopover,
+  ReturnFeePopover,
 } from "@/features/games/admin-quick-actions"
 
 const PAGE_SIZE = 10
@@ -271,6 +272,7 @@ function GameRow({ game }: { game: Game }) {
         <PreorderPopover game={game} />
         <AlertPopover game={game} />
         <DiscountPopover game={game} />
+        <ReturnFeePopover game={game} />
         <Link to="/admin/games/$id/edit" params={{ id: game.id }}>
           <Button
             variant="ghost"

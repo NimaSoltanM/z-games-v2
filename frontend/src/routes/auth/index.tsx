@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
-import { useRef, useState, useEffect  } from "react"
-import type {FormEvent} from "react";
+import { useRef, useState, useEffect } from "react"
+import type { FormEvent } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Phone, KeyRound, User } from "lucide-react"
 
@@ -8,7 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { requestOtp, verifyOtp, registerUser, getMeFn } from "@/features/auth"
-import { cartStore, clearCart, mergeServerCart, SERVER_CART_KEY } from "@/features/cart"
+import {
+  cartStore,
+  clearCart,
+  mergeServerCart,
+  SERVER_CART_KEY,
+} from "@/features/cart"
 import { getReferral } from "@/features/referral"
 
 export const Route = createFileRoute("/auth/")({
@@ -17,7 +22,17 @@ export const Route = createFileRoute("/auth/")({
   }),
   beforeLoad: async () => {
     const me = await getMeFn()
-    if (me) throw redirect({ to: "/games", search: { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" } })
+    if (me)
+      throw redirect({
+        to: "/games",
+        search: {
+          page: 1,
+          platform: "",
+          zarfiat: "",
+          search: "",
+          sort: "-created_at",
+        },
+      })
   },
   component: LoginPage,
 })
@@ -42,7 +57,7 @@ function LoginPage() {
             platform: i.platform,
             zarfiat: i.zarfiat,
             quantity: i.quantity,
-          })),
+          }))
         )
       } catch {
         // ignore — keep logging the user in
@@ -57,7 +72,16 @@ function LoginPage() {
     if (redirectTo) {
       navigate({ to: redirectTo as any })
     } else {
-      navigate({ to: "/games", search: { page: 1, platform: "", zarfiat: "", search: "", sort: "-created_at" } })
+      navigate({
+        to: "/games",
+        search: {
+          page: 1,
+          platform: "",
+          zarfiat: "",
+          search: "",
+          sort: "-created_at",
+        },
+      })
     }
   }
 
@@ -165,7 +189,12 @@ function LoginPage() {
     setLoading(true)
     setError("")
     try {
-      await registerUser(firstName.trim(), lastName.trim(), registrationToken, getReferral())
+      await registerUser(
+        firstName.trim(),
+        lastName.trim(),
+        registrationToken,
+        getReferral()
+      )
       await finishAuth()
     } catch (err: any) {
       setError(err.message ?? "خطایی رخ داد")
@@ -182,7 +211,10 @@ function LoginPage() {
     if (digit && index < 4) otpRefs.current[index + 1]?.focus()
   }
 
-  function handleOtpKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+  function handleOtpKeyDown(
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       otpRefs.current[index - 1]?.focus()
     }
@@ -201,7 +233,7 @@ function LoginPage() {
   const stepIndex = step === "phone" ? 0 : step === "otp" ? 1 : 2
 
   return (
-    <div className="relative min-h-[calc(100vh-57px)] bg-background bg-grid-lines flex items-center justify-center p-4">
+    <div className="relative flex min-h-[calc(100vh-57px)] items-center justify-center bg-background bg-grid-lines p-4">
       {/* Ambient glow */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 right-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
@@ -226,7 +258,7 @@ function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-8 shadow-xl shadow-black/10">
+        <div className="rounded-2xl border border-border/60 bg-card/75 p-8 shadow-xl shadow-black/10 backdrop-blur-sm">
           {/* Phone step */}
           {step === "phone" && (
             <form onSubmit={handleRequestOtp} className="space-y-6">
@@ -235,7 +267,9 @@ function LoginPage() {
                   <Phone className="size-6" />
                 </div>
                 <h1 className="text-xl font-bold">ورود به Z-Games</h1>
-                <p className="text-sm text-muted-foreground">شماره موبایلت رو وارد کن</p>
+                <p className="text-sm text-muted-foreground">
+                  شماره موبایلت رو وارد کن
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">شماره موبایل</Label>
@@ -245,15 +279,20 @@ function LoginPage() {
                   dir="ltr"
                   placeholder="09123456789"
                   value={phone}
-                  onChange={(e) => { setPhone(e.target.value); setError("") }}
+                  onChange={(e) => {
+                    setPhone(e.target.value)
+                    setError("")
+                  }}
                   className="h-11 text-center text-base tracking-widest"
                   maxLength={11}
                   autoComplete="tel"
                   autoFocus
                 />
               </div>
-              {error && <p className="text-sm text-destructive text-center">{error}</p>}
-              <Button type="submit" className="w-full h-11" disabled={loading}>
+              {error && (
+                <p className="text-center text-sm text-destructive">{error}</p>
+              )}
+              <Button type="submit" className="h-11 w-full" disabled={loading}>
                 {loading ? "در حال ارسال..." : "ارسال کد تأیید"}
               </Button>
             </form>
@@ -269,30 +308,39 @@ function LoginPage() {
                 <h1 className="text-xl font-bold">کد تأیید</h1>
                 <p className="text-sm text-muted-foreground">
                   کد ارسال شده به{" "}
-                  <span dir="ltr" className="font-mono font-medium text-foreground">{phone}</span>{" "}
+                  <span
+                    dir="ltr"
+                    className="font-mono font-medium text-foreground"
+                  >
+                    {phone}
+                  </span>{" "}
                   را وارد کن
                 </p>
               </div>
 
               {/* OTP boxes */}
-              <div dir="ltr" className="flex justify-center gap-2.5" onPaste={handleOtpPaste}>
+              <div
+                dir="ltr"
+                className="flex justify-center gap-2.5"
+                onPaste={handleOtpPaste}
+              >
                 {otp.map((digit, i) => (
                   <input
                     key={i}
-                    ref={(el) => { otpRefs.current[i] = el }}
+                    ref={(el) => {
+                      otpRefs.current[i] = el
+                    }}
                     type="text"
                     inputMode="numeric"
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleOtpChange(i, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    className={`h-14 w-12 rounded-xl border text-center text-2xl font-bold tabular-nums outline-none transition-all bg-transparent
-                      ${digit
+                    className={`h-14 w-12 rounded-xl border bg-transparent text-center text-2xl font-bold tabular-nums transition-all outline-none ${
+                      digit
                         ? "border-primary/60 bg-primary/5 text-foreground"
                         : "border-input text-foreground"
-                      }
-                      focus:border-primary focus:ring-2 focus:ring-primary/30
-                      disabled:opacity-50`}
+                    } focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-50`}
                     disabled={loading}
                   />
                 ))}
@@ -300,13 +348,22 @@ function LoginPage() {
 
               {devCode && (
                 <p className="text-center text-xs text-muted-foreground/60">
-                  کد توسعه: <span dir="ltr" className="font-mono">{devCode}</span>
+                  کد توسعه:{" "}
+                  <span dir="ltr" className="font-mono">
+                    {devCode}
+                  </span>
                 </p>
               )}
 
-              {error && <p className="text-sm text-destructive text-center">{error}</p>}
+              {error && (
+                <p className="text-center text-sm text-destructive">{error}</p>
+              )}
 
-              <Button type="submit" className="w-full h-11" disabled={loading || otp.join("").length !== 5}>
+              <Button
+                type="submit"
+                className="h-11 w-full"
+                disabled={loading || otp.join("").length !== 5}
+              >
                 {loading ? "در حال بررسی..." : "تأیید"}
               </Button>
 
@@ -314,7 +371,7 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => goToStep("phone")}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
                 >
                   تغییر شماره
                 </button>
@@ -322,7 +379,7 @@ function LoginPage() {
                   type="button"
                   onClick={handleResendOtp}
                   disabled={countdown > 0 || loading}
-                  className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {countdown > 0 ? `ارسال مجدد (${countdown}s)` : "ارسال مجدد"}
                 </button>
@@ -338,7 +395,9 @@ function LoginPage() {
                   <User className="size-6" />
                 </div>
                 <h1 className="text-xl font-bold">تکمیل ثبت‌نام</h1>
-                <p className="text-sm text-muted-foreground">اولین باره، اسمت رو وارد کن</p>
+                <p className="text-sm text-muted-foreground">
+                  اولین باره، اسمت رو وارد کن
+                </p>
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -346,7 +405,10 @@ function LoginPage() {
                   <Input
                     id="firstName"
                     value={firstName}
-                    onChange={(e) => { setFirstName(e.target.value); setError("") }}
+                    onChange={(e) => {
+                      setFirstName(e.target.value)
+                      setError("")
+                    }}
                     placeholder="علی"
                     className="h-11"
                     autoFocus
@@ -357,14 +419,19 @@ function LoginPage() {
                   <Input
                     id="lastName"
                     value={lastName}
-                    onChange={(e) => { setLastName(e.target.value); setError("") }}
+                    onChange={(e) => {
+                      setLastName(e.target.value)
+                      setError("")
+                    }}
                     placeholder="محمدی"
                     className="h-11"
                   />
                 </div>
               </div>
-              {error && <p className="text-sm text-destructive text-center">{error}</p>}
-              <Button type="submit" className="w-full h-11" disabled={loading}>
+              {error && (
+                <p className="text-center text-sm text-destructive">{error}</p>
+              )}
+              <Button type="submit" className="h-11 w-full" disabled={loading}>
                 {loading ? "در حال ثبت‌نام..." : "ثبت‌نام و ورود"}
               </Button>
             </form>

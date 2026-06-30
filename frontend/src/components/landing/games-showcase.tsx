@@ -17,7 +17,8 @@ const COVERS = [
 ]
 
 // Rotate the covers per column so the four columns don't show the same order.
-const rotate = (arr: string[], n: number) => arr.map((_, i) => arr[(i + n) % arr.length])
+const rotate = (arr: string[], n: number) =>
+  arr.map((_, i) => arr[(i + n) % arr.length])
 const MARQUEE_IMAGES = [0, 2, 4, 6].flatMap((offset) => rotate(COVERS, offset))
 
 export function GamesShowcase() {
@@ -31,7 +32,7 @@ export function GamesShowcase() {
       <div className="absolute inset-0 z-10 bg-background/80" />
 
       <div className="relative z-20 mx-auto max-w-3xl px-4 text-center sm:px-6">
-        <h2 className="bg-gradient-to-b from-foreground to-foreground/55 bg-clip-text text-3xl font-bold leading-tight text-transparent sm:text-5xl">
+        <h2 className="bg-gradient-to-b from-foreground to-foreground/55 bg-clip-text text-3xl leading-tight font-bold text-transparent sm:text-5xl">
           صدها بازی،{" "}
           <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
             یک‌جا

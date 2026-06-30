@@ -115,3 +115,15 @@ export function setGameDiscount(
     body: JSON.stringify(body),
   })
 }
+
+// Starts a time-boxed reduced return fee ({ percent: 0..99, days > 0 }) that
+// replaces the default 25% buy-back fee for this game, or stops it ({ days: 0 }).
+export function setGameReturnFee(
+  id: string,
+  body: { percent: number; days: number }
+) {
+  return apiFetch<{ game: Game }>(`/games/admin/${id}/return-fee`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+}

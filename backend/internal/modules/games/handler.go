@@ -343,6 +343,32 @@ func (h *handler) adminSetDiscount(c fiber.Ctx) error {
 	return h.respondGame(c, id)
 }
 
+// adminSetReturnFee starts or stops a game's time-boxed reduced return fee. A
+// non-positive days clears it (back to the default fee). Returns the updated game.
+func (h *handler) adminSetReturnFee(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+	id := c.Params("id")
+
+	var body struct {
+		Percent int `json:"percent"`
+		Days    int `json:"days"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
+	}
+
+	err := setGameReturnFee(c.Context(), h.db, adminID, id, body.Percent, body.Days)
+	switch {
+	case errors.Is(err, ErrGameNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
+	case errors.Is(err, ErrInvalidInput):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "درصد کارمزد باید بین ۰ تا ۹۹ و مدت آن بیشتر از صفر باشد"})
+	case err != nil:
+		return err
+	}
+	return h.respondGame(c, id)
+}
+
 func (h *handler) adminDeleteGame(c fiber.Ctx) error {
 	adminID := c.Locals(middleware.LocalUserID).(string)
 	err := deleteGame(c.Context(), h.db, adminID, c.Params("id"))

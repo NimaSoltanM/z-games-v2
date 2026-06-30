@@ -56,6 +56,13 @@ export type Game = {
   featured: boolean
   tags: string[]
   view_count: number
+  // Buy-back: whether customers may return accounts of this game, plus the optional
+  // reduced-fee window. `return_fee` is the fee percent in effect right now.
+  returnable: boolean
+  return_fee: number | null
+  return_fee_pct: number | null
+  return_fee_starts_at: string | null
+  return_fee_ends_at: string | null
   // `discount` is the percent in effect right now (null when no active discount);
   // the *_at fields describe the stored window. `trending_score` is computed.
   discount: number | null
@@ -149,6 +156,7 @@ export type GameFormPayload = {
   cover_image: string | null
   active: boolean
   featured: boolean
+  returnable: boolean
   tags: string[]
   release_status: ReleaseStatus
   release_date: string | null
@@ -359,7 +367,9 @@ const PLATFORM_ACCENT_CLASS: Record<string, string | undefined> = {
 // Color accessors keyed by console code, with neutral fallbacks so an unknown
 // console (e.g. a freshly added one) still renders cleanly.
 export function platformBadgeClass(code: string): string {
-  return PLATFORM_BADGE_CLASS[code] ?? "bg-muted text-muted-foreground border-border"
+  return (
+    PLATFORM_BADGE_CLASS[code] ?? "bg-muted text-muted-foreground border-border"
+  )
 }
 
 export function platformGlowClass(code: string): string {
@@ -432,7 +442,8 @@ export function gameFamilies(
   const seen = new Set<string>()
   for (const code of consoles) {
     const fam =
-      rate?.consoles.find((c) => c.code === code)?.family ?? familyFromCode(code)
+      rate?.consoles.find((c) => c.code === code)?.family ??
+      familyFromCode(code)
     if (!seen.has(fam)) {
       seen.add(fam)
       order.push(fam)

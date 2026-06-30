@@ -9,13 +9,14 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/soltanmohammdi/z-games/internal/shared/credentials"
 	"github.com/soltanmohammdi/z-games/internal/shared/middleware"
 )
 
 type handler struct {
 	db          *pgxpool.Pool
 	zp          *zarinpalClient
-	cred        *credCipher
+	cred        *credentials.Cipher
 	frontendURL string
 	callbackURL string
 }
@@ -44,15 +45,38 @@ func (h *handler) checkout(c fiber.Ctx) error {
 		return err
 	}
 
-	orderID, err := createPendingOrder(c.Context(), h.db, userID, total, referral, items)
+	// Apply any in-website wallet balance first. If it covers the whole order the
+	// order is created already paid and we skip ZarinPal entirely; otherwise the
+	// wallet is reserved and ZarinPal charges only the remainder.
+	balance, err := userWalletBalance(c.Context(), h.db, userID)
+	if err != nil {
+		return err
+	}
+	walletApplied, gateway := splitWallet(balance, total)
+
+	orderID, orderNumber, paid, err := createPendingOrder(c.Context(), h.db, userID, total, walletApplied, referral, items)
+	if errors.Is(err, ErrInsufficientWallet) {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"message": "موجودی کیف پول شما تغییر کرده است. لطفاً دوباره تلاش کنید",
+		})
+	}
 	if err != nil {
 		return err
 	}
 
-	authority, err := h.zp.requestPayment(c.Context(), total, "خرید بازی از Z-Games", h.callbackURL,
+	if paid {
+		// Fully covered by the wallet — no gateway round-trip. Clear the cart and
+		// report success so the client can go straight to the result page.
+		if err := clearUserCart(c.Context(), h.db, userID); err != nil {
+			log.Printf("clear cart after wallet-paid order %s failed: %v", orderID, err)
+		}
+		return c.JSON(fiber.Map{"paid": true, "order_number": orderNumber})
+	}
+
+	authority, err := h.zp.requestPayment(c.Context(), gateway, "خرید بازی از Z-Games", h.callbackURL,
 		map[string]string{"order_id": orderID})
 	if err != nil {
-		_ = failOrder(c.Context(), h.db, orderID)
+		_ = failOrder(c.Context(), h.db, orderID) // refunds the reserved wallet
 		log.Printf("zarinpal request failed for order %s: %v", orderID, err)
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
 			"message": "خطا در اتصال به درگاه پرداخت. لطفاً دوباره تلاش کنید",
@@ -64,6 +88,16 @@ func (h *handler) checkout(c fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"payment_url": h.zp.paymentURL(authority)})
+}
+
+// getWalletView returns the user's wallet balance and recent ledger entries.
+func (h *handler) getWalletView(c fiber.Ctx) error {
+	userID := c.Locals(middleware.LocalUserID).(string)
+	w, err := getWallet(c.Context(), h.db, userID)
+	if err != nil {
+		return err
+	}
+	return c.JSON(w)
 }
 
 // listOrders returns a page of the current user's orders for their dashboard,
@@ -192,6 +226,43 @@ func (h *handler) adminFulfill(c fiber.Ctx) error {
 	return c.JSON(order)
 }
 
+// adminReuseReturn fulfills one order item from returned-account inventory: the
+// chosen approved return's credentials are copied onto the item and that return is
+// consumed. Returns the updated order (with refreshed inventory).
+func (h *handler) adminReuseReturn(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+	orderID := c.Params("id")
+	itemID := c.Params("itemId")
+
+	var body struct {
+		ReturnID string `json:"return_id"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
+	}
+	returnID := strings.TrimSpace(body.ReturnID)
+	if returnID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "حساب بازگردانده‌شده انتخاب نشده است"})
+	}
+
+	err := reuseReturnedAccount(c.Context(), h.db, adminID, orderID, itemID, returnID)
+	switch {
+	case errors.Is(err, ErrItemNotInOrder):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "مورد سفارش یافت نشد"})
+	case errors.Is(err, ErrNotFulfillable):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "این سفارش قابل تکمیل نیست"})
+	case errors.Is(err, ErrReturnNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "حساب بازگردانده‌شده یافت نشد"})
+	case errors.Is(err, ErrReturnUnavailable):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این حساب دیگر در دسترس نیست"})
+	case errors.Is(err, ErrReturnMismatch):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "این حساب با بازی، کنسول یا ظرفیت این سفارش همخوانی ندارد"})
+	case err != nil:
+		return err
+	}
+	return h.adminGetOrder(c)
+}
+
 // callback is where ZarinPal returns the buyer's browser after payment. It
 // verifies server-side, marks the order paid, clears the cart, then redirects to
 // the frontend result page. No auth: the order is identified by its authority.
@@ -224,7 +295,7 @@ func (h *handler) callback(c fiber.Ctx) error {
 		return h.redirectResult(c, "failed", order.OrderNumber)
 	}
 
-	refID, err := h.zp.verifyPayment(c.Context(), order.Amount, authority)
+	refID, err := h.zp.verifyPayment(c.Context(), order.GatewayAmount(), authority)
 	switch {
 	case errors.Is(err, ErrPaymentNotVerified):
 		// ZarinPal answered cleanly: the payment did not go through.

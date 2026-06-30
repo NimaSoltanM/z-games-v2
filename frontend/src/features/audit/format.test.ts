@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest"
 import { describeAction } from "./format"
 import type { AuditMetadata, AuditRow } from "./types"
 
-function row(action: string, metadata: AuditMetadata | null = null, targetId = "g1"): AuditRow {
+function row(
+  action: string,
+  metadata: AuditMetadata | null = null,
+  targetId = "g1"
+): AuditRow {
   return {
     id: "act1",
     admin_id: "a1",
@@ -19,13 +23,17 @@ function row(action: string, metadata: AuditMetadata | null = null, targetId = "
 
 describe("describeAction", () => {
   it("describes a game creation", () => {
-    const d = describeAction(row("game.create", { name: "GTA V", active: true }))
+    const d = describeAction(
+      row("game.create", { name: "GTA V", active: true })
+    )
     expect(d.text).toBe("بازی «GTA V» را ساخت")
     expect(d.details).toEqual([])
   })
 
   it("flags a game created as draft", () => {
-    const d = describeAction(row("game.create", { name: "GTA V", active: false }))
+    const d = describeAction(
+      row("game.create", { name: "GTA V", active: false })
+    )
     expect(d.details).toEqual(["به‌صورت پیش‌نویس"])
   })
 
@@ -65,7 +73,15 @@ describe("describeAction", () => {
       row("game.update", {
         name: "X",
         changes: {},
-        price_changes: [{ platform: "ps4", zarfiat: "z2", kind: "toman", from: 500000, to: 450000 }],
+        price_changes: [
+          {
+            platform: "ps4",
+            zarfiat: "z2",
+            kind: "toman",
+            from: 500000,
+            to: 450000,
+          },
+        ],
       })
     )
     // numbers are localized to fa-IR
@@ -84,7 +100,9 @@ describe("describeAction", () => {
       row("game.update", {
         name: "X",
         changes: {},
-        price_changes: [{ platform: "ps5", kind: "base_usd", from: null, to: 9 }],
+        price_changes: [
+          { platform: "ps5", kind: "base_usd", from: null, to: 9 },
+        ],
       })
     )
     expect(d.details[0]).toContain("افزوده شد")
@@ -97,14 +115,24 @@ describe("describeAction", () => {
   })
 
   it("describes a pre-order status change", () => {
-    const d = describeAction(row("game.preorder", { name: "Upcoming", release_status: "pre_order", date_updated: true }))
+    const d = describeAction(
+      row("game.preorder", {
+        name: "Upcoming",
+        release_status: "pre_order",
+        date_updated: true,
+      })
+    )
     expect(d.text).toBe("وضعیت انتشار «Upcoming» را به «پیش‌خرید» تغییر داد")
     expect(d.details).toContain("تاریخ انتشار به‌روزرسانی شد")
   })
 
   it("distinguishes setting vs clearing an alert", () => {
-    expect(describeAction(row("game.alert", { name: "X", cleared: false })).text).toBe("اعلان «X» را تنظیم کرد")
-    expect(describeAction(row("game.alert", { name: "X", cleared: true })).text).toBe("اعلان «X» را حذف کرد")
+    expect(
+      describeAction(row("game.alert", { name: "X", cleared: false })).text
+    ).toBe("اعلان «X» را تنظیم کرد")
+    expect(
+      describeAction(row("game.alert", { name: "X", cleared: true })).text
+    ).toBe("اعلان «X» را حذف کرد")
   })
 
   it("describes an exchange-rate update with the rate", () => {
@@ -114,8 +142,13 @@ describe("describeAction", () => {
   })
 
   it("distinguishes fulfilled vs saved orders", () => {
-    expect(describeAction(row("order.fulfill", { status: "fulfilled", items: 2 })).text).toBe("سفارشی را تحویل داد")
-    expect(describeAction(row("order.fulfill", { status: "paid", items: 1 })).text).toBe("اطلاعات سفارشی را ذخیره کرد")
+    expect(
+      describeAction(row("order.fulfill", { status: "fulfilled", items: 2 }))
+        .text
+    ).toBe("سفارشی را تحویل داد")
+    expect(
+      describeAction(row("order.fulfill", { status: "paid", items: 1 })).text
+    ).toBe("اطلاعات سفارشی را ذخیره کرد")
   })
 
   it("describes an image upload", () => {

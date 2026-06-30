@@ -133,11 +133,12 @@ func createGame(ctx context.Context, db *pgxpool.Pool, adminID string, in normal
 
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO games (id, slug, name, cover_image, price_mode, active, featured, tags,
-		                   release_status, release_date, alert_message, alert_variant, profit_margin_pct)
-		VALUES ($1, $2, $3, $4, $5::price_mode, $6, $7, $8, $9, $10, $11, $12, $13)
+		                   release_status, release_date, alert_message, alert_variant, profit_margin_pct,
+		                   returnable)
+		VALUES ($1, $2, $3, $4, $5::price_mode, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	`, id, slug, in.Name, in.CoverImage, in.PriceMode, in.Active, in.Featured, tagsOrEmpty(in.Tags),
 		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant,
-		in.ProfitMarginPct); err != nil {
+		in.ProfitMarginPct, in.Returnable); err != nil {
 		if isSlugViolation(err) {
 			return "", ErrDuplicateSlug
 		}
@@ -202,11 +203,12 @@ func updateGame(ctx context.Context, db *pgxpool.Pool, adminID, id string, in no
 		UPDATE games SET name = $2, cover_image = $3,
 		       price_mode = $4::price_mode, active = $5, release_status = $6,
 		       release_date = $7, alert_message = $8, alert_variant = $9,
-		       profit_margin_pct = $10, slug = $11, featured = $12, tags = $13, updated_at = NOW()
+		       profit_margin_pct = $10, slug = $11, featured = $12, tags = $13,
+		       returnable = $14, updated_at = NOW()
 		WHERE id = $1
 	`, id, in.Name, in.CoverImage, in.PriceMode, in.Active,
 		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant,
-		in.ProfitMarginPct, slug, in.Featured, tagsOrEmpty(in.Tags)); err != nil {
+		in.ProfitMarginPct, slug, in.Featured, tagsOrEmpty(in.Tags), in.Returnable); err != nil {
 		if isSlugViolation(err) {
 			return ErrDuplicateSlug
 		}

@@ -153,7 +153,8 @@ function PricingPanel() {
       queryClient.invalidateQueries({ queryKey: ["admin", "pricing"] })
       toast.success("تنظیمات قیمت‌گذاری ذخیره شد")
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "خطا در ذخیره"),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "خطا در ذخیره"),
   })
 
   return (

@@ -48,7 +48,9 @@ function ProfilePage() {
           onReset={reset}
           fallbackRender={({ resetErrorBoundary }) => (
             <div className="py-20 text-center">
-              <p className="mb-4 text-sm text-muted-foreground">خطا در بارگذاری حساب کاربری</p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                خطا در بارگذاری حساب کاربری
+              </p>
               <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
                 تلاش مجدد
               </Button>
@@ -79,7 +81,10 @@ function initialsOf(me: MeResponse) {
 }
 
 function fullNameOf(me: MeResponse) {
-  return [me.firstName, me.lastName].filter(Boolean).join(" ").trim() || "حساب کاربری"
+  return (
+    [me.firstName, me.lastName].filter(Boolean).join(" ").trim() ||
+    "حساب کاربری"
+  )
 }
 
 function ProfileCard() {
@@ -91,7 +96,9 @@ function ProfileCard() {
     return (
       <div className="py-20 text-center">
         <p className="text-base font-semibold">حساب کاربری یافت نشد</p>
-        <p className="mt-1 text-sm text-muted-foreground">لطفاً دوباره وارد شوید</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          لطفاً دوباره وارد شوید
+        </p>
       </div>
     )
   }
@@ -120,13 +127,19 @@ function ProfileCard() {
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="truncate text-lg font-bold">{fullNameOf(me)}</h2>
               {isAdmin && (
-                <Badge variant="secondary" className="gap-1 border border-primary/30 bg-primary/10 text-primary">
+                <Badge
+                  variant="secondary"
+                  className="gap-1 border border-primary/30 bg-primary/10 text-primary"
+                >
                   <ShieldCheck className="size-3.5" />
                   {ROLE_LABEL[me.role]}
                 </Badge>
               )}
             </div>
-            <p dir="ltr" className="mt-0.5 flex items-center gap-1.5 text-left text-sm text-muted-foreground">
+            <p
+              dir="ltr"
+              className="mt-0.5 flex items-center gap-1.5 text-left text-sm text-muted-foreground"
+            >
               <Phone className="size-3.5" />
               {me.phone}
             </p>
@@ -148,7 +161,11 @@ function ProfileCard() {
         <p className="mt-1 text-sm text-muted-foreground">
           برای ورود دوباره به کد تأیید پیامکی نیاز دارید.
         </p>
-        <Button variant="destructive" className="mt-4 gap-2" onClick={handleLogout}>
+        <Button
+          variant="destructive"
+          className="mt-4 gap-2"
+          onClick={handleLogout}
+        >
           <LogOut className="size-4" />
           خروج از حساب
         </Button>
