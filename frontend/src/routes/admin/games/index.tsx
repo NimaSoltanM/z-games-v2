@@ -6,12 +6,25 @@ import {
 } from "@tanstack/react-query"
 import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { Plus, Search, Pencil, Gamepad2, Coins } from "lucide-react"
+import {
+  Plus,
+  Search,
+  Pencil,
+  Gamepad2,
+  Coins,
+  MoreHorizontal,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { DashboardHeader } from "@/components/dashboard-shell"
 import { Pagination } from "@/components/pagination"
@@ -227,7 +240,7 @@ function GameRow({ game }: { game: Game }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/75 p-3 backdrop-blur-sm">
       <img
-        src={gameCoverSrc(game.cover_image, game.id)}
+        src={gameCoverSrc(game.cover_image)}
         alt={game.name}
         className="h-14 w-10 shrink-0 rounded-md object-cover"
         loading="lazy"
@@ -266,13 +279,11 @@ function GameRow({ game }: { game: Game }) {
         </div>
       </div>
 
+      {/* Only the two most-used actions stay inline (publish toggle + edit); the
+          rest collapse into one "more" menu so the row never overflows on mobile
+          and stays uncluttered on wide screens. */}
       <div className="flex shrink-0 items-center gap-0.5">
         <ActiveToggle game={game} />
-        <FeaturedToggle game={game} />
-        <PreorderPopover game={game} />
-        <AlertPopover game={game} />
-        <DiscountPopover game={game} />
-        <ReturnFeePopover game={game} />
         <Link to="/admin/games/$id/edit" params={{ id: game.id }}>
           <Button
             variant="ghost"
@@ -283,9 +294,44 @@ function GameRow({ game }: { game: Game }) {
             <Pencil className="size-4" />
           </Button>
         </Link>
-        <DeleteGameButton game={game} />
+        <GameMoreMenu game={game} />
       </div>
     </div>
+  )
+}
+
+// Collapses the secondary game actions (featured, pre-order, alert, discount,
+// return-fee, delete) into a single popover. Each row inside is itself a
+// popover/toggle; Base UI nests them via its floating tree, and the
+// [&_button] rules turn the inner triggers into full-width menu rows.
+function GameMoreMenu({ game }: { game: Game }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground"
+            aria-label="گزینه‌های بیشتر"
+          />
+        }
+      >
+        <MoreHorizontal className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-56 gap-0.5 p-1 [&_button]:h-8 [&_button]:w-full [&_button]:justify-start"
+      >
+        <FeaturedToggle game={game} />
+        <PreorderPopover game={game} />
+        <AlertPopover game={game} />
+        <DiscountPopover game={game} />
+        <ReturnFeePopover game={game} />
+        <Separator className="my-1" />
+        <DeleteGameButton game={game} />
+      </PopoverContent>
+    </Popover>
   )
 }
 

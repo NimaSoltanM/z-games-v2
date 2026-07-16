@@ -9,6 +9,7 @@ export const getMeFn = createServerFn({ method: "GET" }).handler(async () => {
   const res = await fetch(`${API_URL}/auth/me`, {
     headers: cookie ? { cookie } : {},
   })
-  if (!res.ok) return null
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error("FETCH_ME_FAILED")
   return res.json() as Promise<MeResponse>
 })

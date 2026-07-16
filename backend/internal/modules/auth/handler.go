@@ -35,6 +35,12 @@ type handler struct {
 }
 
 func (h *handler) requestOTP(c fiber.Ctx) error {
+	if os.Getenv("APP_ENV") == "production" {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"message": "ارسال کد تأیید هنوز فعال نشده است. لطفاً بعداً دوباره تلاش کنید",
+		})
+	}
+
 	var body struct {
 		Phone string `json:"phone"`
 	}
@@ -42,8 +48,8 @@ func (h *handler) requestOTP(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
 	body.Phone = strings.TrimSpace(body.Phone)
-	if body.Phone == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "شماره تلفن الزامی است"})
+	if !validIranianMobile(body.Phone) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "شماره تلفن نامعتبر است"})
 	}
 
 	code, err := requestOTP(c.Context(), h.db, body.Phone)
@@ -73,7 +79,7 @@ func (h *handler) verifyOTP(c fiber.Ctx) error {
 	}
 	body.Phone = strings.TrimSpace(body.Phone)
 	body.Code = strings.TrimSpace(body.Code)
-	if body.Phone == "" || len(body.Code) != 5 {
+	if !validIranianMobile(body.Phone) || len(body.Code) != 5 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
 

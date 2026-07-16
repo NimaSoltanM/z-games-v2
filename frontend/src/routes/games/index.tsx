@@ -14,6 +14,7 @@ import { ErrorBoundary } from "react-error-boundary"
 import { Check, ChevronDown, Sparkles, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -238,12 +239,12 @@ function GamesPage() {
       <div className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="py-3">
-            <input
+            <Input
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="جستجوی بازی..."
-              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/50 focus:outline-none"
+              className="h-9"
             />
           </div>
           <div className="flex scrollbar-none items-center gap-2 overflow-x-auto pb-3">
@@ -448,7 +449,7 @@ function GameCard({
       >
         <div className="relative overflow-hidden">
           <img
-            src={gameCoverSrc(game.cover_image, game.id)}
+            src={gameCoverSrc(game.cover_image)}
             alt={game.name}
             className="aspect-3/4 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
@@ -503,7 +504,7 @@ function FeaturedCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
               the grid below, and a duplicate name aborts the cover morph. The grid
               card owns the shared-element transition. */}
           <img
-            src={gameCoverSrc(game.cover_image, game.id)}
+            src={gameCoverSrc(game.cover_image)}
             alt={game.name}
             className="h-full min-h-44 w-28 object-cover transition-transform duration-300 group-hover:scale-[1.04] sm:w-32"
             loading="lazy"

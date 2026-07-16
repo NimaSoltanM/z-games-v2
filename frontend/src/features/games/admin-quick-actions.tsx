@@ -282,13 +282,14 @@ export function FeaturedToggle({ game }: { game: Game }) {
   return (
     <Button
       variant="ghost"
-      size="icon"
-      className={`h-8 w-8 ${game.featured ? "text-amber-500" : "text-muted-foreground"}`}
+      size="sm"
+      className={`h-8 gap-1.5 text-xs ${game.featured ? "text-amber-500" : ""}`}
       disabled={m.isPending}
       onClick={() => m.mutate()}
       aria-label={game.featured ? "حذف از منتخب" : "افزودن به منتخب"}
     >
-      <Star className={`size-4 ${game.featured ? "fill-current" : ""}`} />
+      <Star className={`size-3.5 ${game.featured ? "fill-current" : ""}`} />
+      {game.featured ? "منتخب" : "افزودن به منتخب"}
     </Button>
   )
 }
@@ -436,7 +437,10 @@ export function ReturnFeePopover({ game }: { game: Game }) {
 
   const start = useMutation({
     mutationFn: () =>
-      setGameReturnFee(game.id, { percent: Number(percent), days: Number(days) }),
+      setGameReturnFee(game.id, {
+        percent: Number(percent),
+        days: Number(days),
+      }),
     onSuccess: () => {
       invalidate()
       toast.success("کارمزد بازگشت ذخیره شد")
@@ -456,7 +460,8 @@ export function ReturnFeePopover({ game }: { game: Game }) {
   })
 
   // A reduced fee should be below the default 25%; allow 0 (free-return promo).
-  const validPercent = percent !== "" && Number(percent) >= 0 && Number(percent) <= 99
+  const validPercent =
+    percent !== "" && Number(percent) >= 0 && Number(percent) <= 99
   const validDays = Number(days) >= 1
   const busy = start.isPending || stop.isPending
 
@@ -466,7 +471,9 @@ export function ReturnFeePopover({ game }: { game: Game }) {
       onOpenChange={(o) => {
         setOpen(o)
         if (o) {
-          setPercent(game.return_fee_pct != null ? String(game.return_fee_pct) : "")
+          setPercent(
+            game.return_fee_pct != null ? String(game.return_fee_pct) : ""
+          )
           setDays("")
         }
       }}
@@ -488,12 +495,13 @@ export function ReturnFeePopover({ game }: { game: Game }) {
       <PopoverContent className="w-72 gap-3">
         <p className="text-sm font-medium">کارمزد بازگشت ویژه</p>
         <p className="text-xs text-muted-foreground">
-          کارمزد پیش‌فرض بازگشت ۲۵٪ است. می‌توانید برای مدتی آن را کاهش دهید تا کاربران بیشتر این بازی
-          را بازگردانند.
+          کارمزد پیش‌فرض بازگشت ۲۵٪ است. می‌توانید برای مدتی آن را کاهش دهید تا
+          کاربران بیشتر این بازی را بازگردانند.
         </p>
         {live && game.return_fee_ends_at && (
           <p className="text-xs text-emerald-600 dark:text-emerald-400">
-            کارمزد ویژه‌ی فعلی تا {formatReleaseDate(game.return_fee_ends_at)} ادامه دارد.
+            کارمزد ویژه‌ی فعلی تا {formatReleaseDate(game.return_fee_ends_at)}{" "}
+            ادامه دارد.
           </p>
         )}
         <div className="grid grid-cols-2 gap-2">
@@ -565,13 +573,14 @@ export function DeleteGameButton({ game }: { game: Game }) {
         render={
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-destructive"
             aria-label="حذف بازی"
           />
         }
       >
-        <Trash2 className="size-4" />
+        <Trash2 className="size-3.5" />
+        حذف
       </PopoverTrigger>
       <PopoverContent className="w-64 gap-3" align="end">
         <p className="text-sm font-medium">حذف بازی</p>

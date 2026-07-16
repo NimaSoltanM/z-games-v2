@@ -1,21 +1,14 @@
-# TanStack Start + shadcn/ui
+# Z-Games frontend
 
-This is a template for a new TanStack Start project with React, TypeScript, and shadcn/ui.
+React 19 application built with TanStack Start, TanStack Router, TanStack Query,
+TanStack Store, shadcn/ui, and Tailwind CSS v4.
 
-## Adding components
+Read [`DESIGN.md`](./DESIGN.md) before changing UI and the pinned documentation
+under [`../docs/tanstack`](../docs/tanstack) before changing TanStack code. The
+repository-level [`README.md`](../README.md) contains setup and verification
+commands.
 
-To add components to your app, run the following command:
-
-```bash
-npx shadcn@latest add button
-```
-
-This will place the ui components in the `components` directory.
-
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
-```
+Feature code belongs in `src/features/<feature>`. File routes in `src/routes`
+own navigation, loaders, and route-level loading/error boundaries. Reuse the
+primitives in `src/components/ui`; add missing primitives through shadcn rather
+than hand-rolling replacements.

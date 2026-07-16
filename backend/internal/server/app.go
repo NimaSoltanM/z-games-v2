@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
@@ -22,7 +23,7 @@ import (
 )
 
 func NewApp(db *pgxpool.Pool) *fiber.App {
-	app := fiber.New(fiber.Config{
+	config := fiber.Config{
 		ErrorHandler: errorHandler,
 		// Headroom for the largest upload — return videos (uploads.MaxVideoBytes,
 		// 50 MB) — plus multipart overhead. Fiber's BodyLimit is global (no
@@ -30,7 +31,16 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 		// each one rejects early: image uploads cap at 5 MB in SaveImage, the video
 		// route is heavily rate-limited, and all other endpoints take small JSON.
 		BodyLimit: uploads.MaxVideoBytes + (2 << 20),
-	})
+	}
+	if proxies := trustedProxies(); len(proxies) > 0 {
+		// Rate limiting keys on c.IP(). Only trust forwarding headers when the
+		// operator explicitly lists the proxy IPs/CIDRs that may supply them.
+		config.TrustProxy = true
+		config.ProxyHeader = fiber.HeaderXForwardedFor
+		config.EnableIPValidation = true
+		config.TrustProxyConfig = fiber.TrustProxyConfig{Proxies: proxies}
+	}
+	app := fiber.New(config)
 
 	app.Use(recoverer.New(recoverer.Config{
 		EnableStackTrace: os.Getenv("APP_ENV") != "production",
@@ -68,6 +78,16 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 	audit.RegisterRoutes(app, db)
 
 	return app
+}
+
+func trustedProxies() []string {
+	var proxies []string
+	for _, part := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		if proxy := strings.TrimSpace(part); proxy != "" {
+			proxies = append(proxies, proxy)
+		}
+	}
+	return proxies
 }
 
 func errorHandler(c fiber.Ctx, err error) error {

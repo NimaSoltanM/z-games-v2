@@ -102,7 +102,7 @@ function GameDetail() {
   const { data } = useSuspenseQuery(gameQueryOptions(slug))
   const { game, exchange_rate } = data
 
-  const imgSrc = gameCoverSrc(game.cover_image, game.id)
+  const imgSrc = gameCoverSrc(game.cover_image)
   const families = gameFamilies(game.consoles, exchange_rate)
   // A subtle halo: tinted to the console's brand color when single-family, neutral
   // (theme primary) when the game spans both — the dots carry the cross-platform cue.

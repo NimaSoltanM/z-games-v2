@@ -14,8 +14,8 @@
   Need something new (dropdown-menu, avatar, dialog…)? Add it via shadcn, don't improvise.
 - **Icons: `lucide-react` only.** Sizes `size-3`, `size-3.5`, `size-4`, `size-5`.
 - **Tailwind v4 + theme tokens only.** Use semantic tokens (`bg-background`, `text-muted-foreground`,
-  `border-border`, `text-primary`…). Never hardcode hex/rgb. The one allowed literal-color exception
-  is the PlayStation brand palette below.
+  `border-border`, `text-primary`…). Never hardcode hex/rgb. Literal colors are reserved for the
+  console-family brand palette and status colors documented below.
 
 ## 1. Foundations
 
@@ -71,15 +71,20 @@ Every full page uses the grid-lines background + ambient glow blobs + a max-widt
 Text hierarchy: titles `font-bold` / `font-semibold` `text-foreground`; secondary
 `text-muted-foreground`; prices & key numbers `text-primary font-semibold`.
 
-## 4. PlayStation brand colors (the only allowed literal colors)
+## 4. Console brand and status colors
 
-Import from `@/features/games` — don't redefine:
+Import console colors from `@/features/games` — don't redefine them in pages:
 
-- `PLATFORM_LABEL`, `PLATFORM_BADGE_CLASS` (PS4 = blue, PS5 = white), `PLATFORM_GLOW_CLASS`,
-  `PLATFORM_ACCENT_CLASS`, `ZARFIAT_LABEL`.
+- `platformBadgeClass`, `platformGlowClass`, `platformAccentClass`
+- `gameFamilies`, `familyTextClass`, `familyDotClass`
 
-PS4 reads blue (`blue-600/15 text-blue-400 border-blue-600/30`), PS5 reads white
-(`white/8 text-zinc-200 border-white/15`). Use a `Badge variant="secondary"` with the brand class.
+PlayStation reads blue/white; Xbox reads green. Unknown console families must use
+the neutral semantic-token fallback. Use `Badge variant="secondary"` with the
+exported brand class.
+
+Semantic success/warning/destructive states may use the established emerald,
+orange/amber, and red/rose Tailwind palettes. Keep them functional and consistent;
+do not introduce decorative one-off colors.
 
 ## 5. Selected / active state
 

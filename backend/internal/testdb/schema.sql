@@ -20,13 +20,6 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: drizzle; Type: SCHEMA; Schema: -; Owner: -
---
-
-CREATE SCHEMA drizzle;
-
-
---
 -- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
 --
 
@@ -57,37 +50,6 @@ CREATE TYPE public.user_role AS ENUM (
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
-
---
--- Name: __drizzle_migrations; Type: TABLE; Schema: drizzle; Owner: -
---
-
-CREATE TABLE drizzle.__drizzle_migrations (
-    id integer NOT NULL,
-    hash text NOT NULL,
-    created_at bigint
-);
-
-
---
--- Name: __drizzle_migrations_id_seq; Type: SEQUENCE; Schema: drizzle; Owner: -
---
-
-CREATE SEQUENCE drizzle.__drizzle_migrations_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: __drizzle_migrations_id_seq; Type: SEQUENCE OWNED BY; Schema: drizzle; Owner: -
---
-
-ALTER SEQUENCE drizzle.__drizzle_migrations_id_seq OWNED BY drizzle.__drizzle_migrations.id;
-
 
 --
 -- Name: admin_actions; Type: TABLE; Schema: public; Owner: -
@@ -375,19 +337,6 @@ CREATE TABLE public.wallet_transactions (
 
 
 --
--- Name: __drizzle_migrations id; Type: DEFAULT; Schema: drizzle; Owner: -
---
-
-ALTER TABLE ONLY drizzle.__drizzle_migrations ALTER COLUMN id SET DEFAULT nextval('drizzle.__drizzle_migrations_id_seq'::regclass);
-
-
---
--- Data for Name: __drizzle_migrations; Type: TABLE DATA; Schema: drizzle; Owner: -
---
-
-
-
---
 -- Data for Name: admin_actions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -498,25 +447,10 @@ INSERT INTO public.consoles VALUES ('xbox_series', 'xbox', 'ایکس‌باکس 
 
 
 --
--- Name: __drizzle_migrations_id_seq; Type: SEQUENCE SET; Schema: drizzle; Owner: -
---
-
-SELECT pg_catalog.setval('drizzle.__drizzle_migrations_id_seq', 1, false);
-
-
---
 -- Name: orders_order_number_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.orders_order_number_seq', 100000, false);
-
-
---
--- Name: __drizzle_migrations __drizzle_migrations_pkey; Type: CONSTRAINT; Schema: drizzle; Owner: -
---
-
-ALTER TABLE ONLY drizzle.__drizzle_migrations
-    ADD CONSTRAINT __drizzle_migrations_pkey PRIMARY KEY (id);
 
 
 --
@@ -959,4 +893,3 @@ ALTER TABLE ONLY public.wallet_transactions
 --
 
 \unrestrict M4qEQKB9KNEJCoprgMOAd59tMw9bclSfNufGVfAi9Wp1O8g0n7VRKoWNVZdESEu
-

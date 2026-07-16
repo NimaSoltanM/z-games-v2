@@ -28,6 +28,7 @@ import { getReferral, setReferral } from "@/features/referral"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -208,7 +209,7 @@ function CartItemRow({
     ? calcPrice(game, item.platform, item.zarfiat, exchange_rate)
     : null
 
-  const imgSrc = gameCoverSrc(game.cover_image, game.id)
+  const imgSrc = gameCoverSrc(game.cover_image)
 
   const accentClass = platformAccentClass(item.platform)
 
@@ -429,7 +430,10 @@ function useCheckout() {
 function CartSummary({ items }: { items: CartItem[] }) {
   const { total, allKnown, totalQuantity } = useCartTotal(items)
   const { isLoggedIn } = useCart()
-  const { walletApplied, gateway } = useWalletSplit(total, isLoggedIn && allKnown)
+  const { walletApplied, gateway } = useWalletSplit(
+    total,
+    isLoggedIn && allKnown
+  )
   const usesWallet = allKnown && walletApplied > 0
   const { checkout, pending, error } = useCheckout()
   const [ref, setRef] = useState("")
@@ -467,7 +471,8 @@ function CartSummary({ items }: { items: CartItem[] }) {
             </div>
             {gateway === 0 && (
               <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                این سفارش به‌طور کامل از کیف پول شما پرداخت می‌شود؛ به درگاه بانکی منتقل نمی‌شوید.
+                این سفارش به‌طور کامل از کیف پول شما پرداخت می‌شود؛ به درگاه
+                بانکی منتقل نمی‌شوید.
               </p>
             )}
           </>
@@ -478,7 +483,7 @@ function CartSummary({ items }: { items: CartItem[] }) {
         <label htmlFor="referral" className="text-xs text-muted-foreground">
           کد معرف (اختیاری)
         </label>
-        <input
+        <Input
           id="referral"
           value={ref}
           onChange={(e) => {
@@ -486,7 +491,7 @@ function CartSummary({ items }: { items: CartItem[] }) {
             setReferral(e.target.value)
           }}
           placeholder="کد معرف را وارد کنید"
-          className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/50 focus:outline-none"
+          className="h-9"
         />
       </div>
 
@@ -498,7 +503,9 @@ function CartSummary({ items }: { items: CartItem[] }) {
         {pending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            {usesWallet && gateway === 0 ? "در حال پردازش..." : "در حال انتقال به درگاه..."}
+            {usesWallet && gateway === 0
+              ? "در حال پردازش..."
+              : "در حال انتقال به درگاه..."}
           </>
         ) : (
           payLabel(allKnown, walletApplied, gateway)
@@ -525,7 +532,10 @@ function CartSummary({ items }: { items: CartItem[] }) {
 function CartMobileBar({ items }: { items: CartItem[] }) {
   const { total, allKnown, totalQuantity } = useCartTotal(items)
   const { isLoggedIn } = useCart()
-  const { walletApplied, gateway } = useWalletSplit(total, isLoggedIn && allKnown)
+  const { walletApplied, gateway } = useWalletSplit(
+    total,
+    isLoggedIn && allKnown
+  )
   const usesWallet = allKnown && walletApplied > 0
   const { checkout, pending, error } = useCheckout()
 
@@ -542,7 +552,9 @@ function CartMobileBar({ items }: { items: CartItem[] }) {
           <p className="text-xs text-muted-foreground">{totalQuantity} کالا</p>
         )}
         <p className="truncate text-sm font-bold text-primary">
-          {allKnown ? formatToman(usesWallet ? gateway : total) : "در حال محاسبه..."}
+          {allKnown
+            ? formatToman(usesWallet ? gateway : total)
+            : "در حال محاسبه..."}
         </p>
       </div>
       <Button

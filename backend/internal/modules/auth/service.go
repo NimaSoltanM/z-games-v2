@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -30,6 +31,8 @@ var (
 	ErrOTPBurned   = errors.New("OTP_BURNED")
 )
 
+var iranianMobilePattern = regexp.MustCompile(`^09\d{9}$`)
+
 func generateID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
@@ -49,10 +52,15 @@ func generateOTPCode() (string, error) {
 }
 
 func normalizePhone(phone string) string {
+	phone = strings.TrimSpace(phone)
 	if strings.HasPrefix(phone, "+98") {
 		return "0" + phone[3:]
 	}
 	return phone
+}
+
+func validIranianMobile(phone string) bool {
+	return iranianMobilePattern.MatchString(normalizePhone(phone))
 }
 
 func requestOTP(ctx context.Context, db *pgxpool.Pool, rawPhone string) (string, error) {

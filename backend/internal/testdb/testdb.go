@@ -63,7 +63,6 @@ func New(t *testing.T) *pgxpool.Pool {
 
 	// Simple protocol is required to run these multi-statement scripts in one call.
 	reset := `DROP SCHEMA IF EXISTS public CASCADE;
-		DROP SCHEMA IF EXISTS drizzle CASCADE;
 		CREATE SCHEMA public;`
 	if _, err := pool.Exec(ctx, reset, pgx.QueryExecModeSimpleProtocol); err != nil {
 		t.Fatalf("reset schema: %v", err)

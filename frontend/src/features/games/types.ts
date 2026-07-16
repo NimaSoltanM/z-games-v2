@@ -229,9 +229,9 @@ export function formatToman(amount: number | null): string {
 
 // Resolves a game's cover image to a usable <img src>. A stored absolute URL is
 // used as-is; a server-relative path is prefixed with the API origin; a missing
-// cover falls back to a deterministic placeholder.
-export function gameCoverSrc(coverImage: string | null, id: string): string {
-  if (!coverImage) return `https://picsum.photos/seed/${id}/300/400`
+// cover falls back to the local brand image.
+export function gameCoverSrc(coverImage: string | null): string {
+  if (!coverImage) return "/logo.png"
   if (/^https?:\/\//i.test(coverImage)) return coverImage
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3002"
   return `${apiUrl}${coverImage}`
@@ -296,8 +296,7 @@ export function capacityLabel(code: string, rate?: ExchangeRate): string {
 }
 
 // Short, customer-facing explanation of what each capacity tier means, shown in
-// the buy area so a shopper knows what they're choosing. TODO(copy): owner should
-// review/tune this wording — especially the Xbox Home/Switch lines.
+// the buy area so a shopper knows what they're choosing.
 const CAPACITY_DESC: Record<string, string | undefined> = {
   z1: "تزریق مستقیم بازی؛ بدون گارانتی.",
   z2: "نصب دائمی روی کنسول شما؛ بازی همیشه — حتی آفلاین — در دسترس است.",
@@ -343,7 +342,7 @@ export const GAMES_DEFAULT_SEARCH = {
 // data-driven; callers should fall back to a neutral style for unknown codes.
 const PLATFORM_BADGE_CLASS: Record<string, string | undefined> = {
   ps4: "bg-blue-600/15 text-blue-400 border-blue-600/30",
-  ps5: "bg-black/8 text-zinc-200 border-dark/15",
+  ps5: "bg-white/8 text-zinc-200 border-white/15",
   xbox_one: "bg-green-400/15 text-green-300 border-green-400/30",
   xbox_series: "bg-green-700/15 text-green-500 border-green-700/30",
 }

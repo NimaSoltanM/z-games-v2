@@ -8,6 +8,11 @@ import {
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
+// This skeleton is mandatory for a route's primary loader-owned server data.
+// Global non-blocking queries and client-derived collections whose keys cannot
+// be known by the loader (for example an anonymous localStorage cart) may use
+// useQuery/useQueries when they handle loading and errors locally.
+
 const postQueryOptions = () =>
   queryOptions({
     queryKey: ["post", 1],
