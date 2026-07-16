@@ -36,8 +36,11 @@ import {
   DiscountBadge,
   GameTags,
   gameCoverSrc,
+  consoleFilterGroups,
+  capacityFilterGroups,
+  normalizeCatalogFilters,
 } from "@/features/games"
-import type { Game, ExchangeRate } from "@/features/games"
+import type { CatalogFilterGroup, Game, ExchangeRate } from "@/features/games"
 
 // Params for the "منتخب" rail — a stable object so its query key never churns.
 const FEATURED_PARAMS = { featured: true } as const
@@ -48,46 +51,6 @@ const SORT_OPTIONS = [
   { value: "name", label: "نام (A-Z)" },
   { value: "-name", label: "نام (Z-A)" },
 ] as const
-
-// Filters are grouped by console family so a capacity like "Home" reads under its
-// console, not as a flat list shared across platforms.
-type FilterOption = { value: string; label: string }
-type FilterGroup = { family: string; options: FilterOption[] }
-
-const PLATFORM_GROUPS: FilterGroup[] = [
-  {
-    family: "playstation",
-    options: [
-      { value: "ps4", label: "PS4" },
-      { value: "ps5", label: "PS5" },
-    ],
-  },
-  {
-    family: "xbox",
-    options: [
-      { value: "xbox_one", label: "Xbox One" },
-      { value: "xbox_series", label: "Xbox Series X|S" },
-    ],
-  },
-]
-
-const ZARFIAT_GROUPS: FilterGroup[] = [
-  {
-    family: "playstation",
-    options: [
-      { value: "z1", label: "ظرفیت ۱" },
-      { value: "z2", label: "ظرفیت ۲" },
-      { value: "z3", label: "ظرفیت ۳" },
-    ],
-  },
-  {
-    family: "xbox",
-    options: [
-      { value: "home", label: "Home" },
-      { value: "switch", label: "Switch" },
-    ],
-  },
-]
 
 function GamesError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -120,7 +83,7 @@ function FilterMenu({
   onSelect,
 }: {
   label: string
-  groups: FilterGroup[]
+  groups: CatalogFilterGroup[]
   value: string
   onSelect: (v: string) => void
 }) {
@@ -201,9 +164,48 @@ function FilterOption({
 
 function GamesPage() {
   const { reset } = useQueryErrorResetBoundary()
+
+  return (
+    <div className="relative min-h-screen bg-background bg-grid-lines">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute top-1/2 -left-48 h-80 w-80 rounded-full bg-violet-500/8 blur-3xl" />
+        <div className="absolute right-1/3 -bottom-32 h-64 w-64 rounded-full bg-primary/8 blur-3xl" />
+      </div>
+
+      <ErrorBoundary
+        onReset={reset}
+        fallbackRender={({ resetErrorBoundary }) => (
+          <div className="relative z-10 py-20 text-center">
+            <p className="mb-4 text-sm text-muted-foreground">خطایی رخ داد</p>
+            <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+              تلاش مجدد
+            </Button>
+          </div>
+        )}
+      >
+        <Suspense fallback={<GamesToolbarSkeleton />}>
+          <GamesToolbar />
+        </Suspense>
+
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <Suspense fallback={<GamesGridSkeleton />}>
+            <GamesContent />
+          </Suspense>
+        </div>
+      </ErrorBoundary>
+    </div>
+  )
+}
+
+function GamesToolbar() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: "/games/" })
+  const { data } = useSuspenseQuery(gamesQueryOptions(search))
+  const rate = data.exchange_rate
   const [searchInput, setSearchInput] = useState(search.search)
+  const platformGroups = consoleFilterGroups(rate)
+  const capacityGroups = capacityFilterGroups(rate, search.platform)
 
   useEffect(() => {
     setSearchInput(search.search)
@@ -217,10 +219,47 @@ function GamesPage() {
       })
     }, 500)
     return () => clearTimeout(timer)
-  }, [searchInput])
+  }, [navigate, search.search, searchInput])
 
-  const setFilter = (key: "platform" | "zarfiat", value: string) =>
-    navigate({ search: (prev) => ({ ...prev, [key]: value, page: 1 }) })
+  // Repair stale/bookmarked URLs after the catalog loads. The backend also
+  // treats impossible pairs as no match; this keeps the visible controls and URL
+  // honest instead of leaving a hidden Xbox capacity selected under PlayStation.
+  useEffect(() => {
+    const normalized = normalizeCatalogFilters(
+      rate,
+      search.platform,
+      search.zarfiat
+    )
+    if (
+      normalized.platform === search.platform &&
+      normalized.capacity === search.zarfiat
+    ) {
+      return
+    }
+    navigate({
+      replace: true,
+      search: (prev) => ({
+        ...prev,
+        platform: normalized.platform,
+        zarfiat: normalized.capacity,
+        page: 1,
+      }),
+    })
+  }, [navigate, rate, search.platform, search.zarfiat])
+
+  const setPlatform = (platform: string) => {
+    const normalized = normalizeCatalogFilters(rate, platform, search.zarfiat)
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        platform: normalized.platform,
+        zarfiat: normalized.capacity,
+        page: 1,
+      }),
+    })
+  }
+  const setCapacity = (zarfiat: string) =>
+    navigate({ search: (prev) => ({ ...prev, zarfiat, page: 1 }) })
   const clearFilters = () =>
     navigate({
       search: (prev) => ({ ...prev, platform: "", zarfiat: "", page: 1 }),
@@ -228,97 +267,84 @@ function GamesPage() {
   const hasFilters = !!(search.platform || search.zarfiat)
 
   return (
-    <div className="relative min-h-screen bg-background bg-grid-lines">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute top-1/2 -left-48 h-80 w-80 rounded-full bg-violet-500/8 blur-3xl" />
-        <div className="absolute right-1/3 -bottom-32 h-64 w-64 rounded-full bg-primary/8 blur-3xl" />
-      </div>
-
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="py-3">
-            <Input
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="جستجوی بازی..."
-              className="h-9"
-            />
-          </div>
-          <div className="flex scrollbar-none items-center gap-2 overflow-x-auto pb-3">
-            <FilterMenu
-              label="کنسول"
-              groups={PLATFORM_GROUPS}
-              value={search.platform}
-              onSelect={(v) => setFilter("platform", v)}
-            />
-            <FilterMenu
-              label="ظرفیت"
-              groups={ZARFIAT_GROUPS}
-              value={search.zarfiat}
-              onSelect={(v) => setFilter("zarfiat", v)}
-            />
-            {hasFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0 gap-1 text-muted-foreground"
-                onClick={clearFilters}
-              >
-                <X className="size-3.5" />
-                حذف
-              </Button>
-            )}
-
-            <span className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:block" />
-
-            <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
-              مرتب‌سازی:
-            </span>
-            <ToggleGroup
-              value={[search.sort]}
-              onValueChange={(v) => {
-                if (v[0])
-                  navigate({
-                    search: (prev) => ({ ...prev, sort: v[0], page: 1 }),
-                  })
-              }}
-              spacing={0}
-              variant="outline"
+    <div className="sticky top-14 z-20 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="py-3">
+          <Input
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="جستجوی بازی..."
+            className="h-9"
+          />
+        </div>
+        <div className="flex scrollbar-none items-center gap-2 overflow-x-auto pb-3">
+          <FilterMenu
+            label="کنسول"
+            groups={platformGroups}
+            value={search.platform}
+            onSelect={setPlatform}
+          />
+          <FilterMenu
+            label="ظرفیت"
+            groups={capacityGroups}
+            value={search.zarfiat}
+            onSelect={setCapacity}
+          />
+          {hasFilters && (
+            <Button
+              variant="ghost"
               size="sm"
+              className="shrink-0 gap-1 text-muted-foreground"
+              onClick={clearFilters}
             >
-              {SORT_OPTIONS.map((opt) => (
-                <ToggleGroupItem
-                  key={opt.value}
-                  value={opt.value}
-                  className="shrink-0 px-3 text-xs"
-                >
-                  {opt.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
+              <X className="size-3.5" />
+              حذف
+            </Button>
+          )}
+
+          <span className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:block" />
+
+          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+            مرتب‌سازی:
+          </span>
+          <ToggleGroup
+            value={[search.sort]}
+            onValueChange={(value) => {
+              if (value[0])
+                navigate({
+                  search: (prev) => ({ ...prev, sort: value[0], page: 1 }),
+                })
+            }}
+            spacing={0}
+            variant="outline"
+            size="sm"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                className="shrink-0 px-3 text-xs"
+              >
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
       </div>
+    </div>
+  )
+}
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <ErrorBoundary
-          onReset={reset}
-          fallbackRender={({ resetErrorBoundary }) => (
-            <div className="py-20 text-center">
-              <p className="mb-4 text-sm text-muted-foreground">خطایی رخ داد</p>
-              <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
-                تلاش مجدد
-              </Button>
-            </div>
-          )}
-        >
-          <Suspense fallback={<GamesGridSkeleton />}>
-            <GamesContent />
-          </Suspense>
-        </ErrorBoundary>
+function GamesToolbarSkeleton() {
+  return (
+    <div className="sticky top-14 z-20 border-b border-border/50 bg-background/80 backdrop-blur-md">
+      <div className="mx-auto max-w-7xl space-y-3 px-4 py-3 sm:px-6 lg:px-8">
+        <Skeleton className="h-9 w-full" />
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-8 w-24" />
+        </div>
       </div>
     </div>
   )

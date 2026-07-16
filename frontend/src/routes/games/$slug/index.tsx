@@ -295,7 +295,7 @@ function BuyCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
                     : "border-border/60 border-r-transparent hover:bg-accent"
                 }`}
               >
-                <div className="min-w-0 space-y-0.5">
+                <div className="min-w-0 flex-1 space-y-0.5 text-start">
                   <p
                     className={`text-sm font-medium ${active ? "text-primary" : ""}`}
                   >

@@ -372,7 +372,9 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 	if filter.onlyFeatured {
 		conds = append(conds, "featured = true")
 	}
+	platformParam := 0
 	if filter.platform != "" {
+		platformParam = n
 		conds = append(conds, fmt.Sprintf(
 			"EXISTS (SELECT 1 FROM game_consoles WHERE game_id = games.id AND console_code = $%d)", n,
 		))
@@ -380,9 +382,7 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 		n++
 	}
 	if filter.zarfiat != "" {
-		conds = append(conds, fmt.Sprintf(
-			"EXISTS (SELECT 1 FROM game_prices WHERE game_id = games.id AND zarfiat = $%d)", n,
-		))
+		conds = append(conds, sellableCapacityCondition(platformParam, n))
 		args = append(args, filter.zarfiat)
 		n++
 	}
@@ -446,6 +446,39 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 		return nil, 0, err
 	}
 	return result, total, nil
+}
+
+// sellableCapacityCondition matches the actual console+capacity pair a customer
+// can buy across both pricing models. Fixed games store that pair in game_prices;
+// dynamic games store a base price per console and either an explicit capacity
+// allow-list or an empty list meaning every catalog capacity. When a console is
+// selected, both branches constrain the capacity to that same console—separate
+// EXISTS clauses would incorrectly let PS4 + Xbox Home match one game.
+func sellableCapacityCondition(platformParam, capacityParam int) string {
+	fixedPlatform := ""
+	dynamicPlatform := ""
+	if platformParam > 0 {
+		fixedPlatform = fmt.Sprintf(" AND gp.platform = $%d", platformParam)
+		dynamicPlatform = fmt.Sprintf(" AND gbp.platform = $%d", platformParam)
+	}
+
+	return fmt.Sprintf(`(
+		(games.price_mode = 'fixed' AND EXISTS (
+			SELECT 1 FROM game_prices gp
+			WHERE gp.game_id = games.id
+			  AND gp.zarfiat = $%d%s
+		))
+		OR
+		(games.price_mode = 'dynamic' AND EXISTS (
+			SELECT 1
+			FROM game_base_prices gbp
+			JOIN capacities cp
+			  ON cp.console_code = gbp.platform
+			 AND cp.code = $%d
+			WHERE gbp.game_id = games.id%s
+			  AND (cardinality(gbp.capacities) = 0 OR $%d = ANY(gbp.capacities))
+		))
+	)`, capacityParam, fixedPlatform, capacityParam, dynamicPlatform, capacityParam)
 }
 
 // getGameByID looks up a single game by its id. See getGame for the lookup that

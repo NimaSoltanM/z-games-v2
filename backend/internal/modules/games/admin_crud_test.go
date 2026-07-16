@@ -313,6 +313,77 @@ func TestListGames_FilterByConsole(t *testing.T) {
 	}
 }
 
+func TestListGames_FilterBySellableConsoleCapacityPair(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	price := 1_000_000
+	games := []normalizedGame{
+		{
+			Name: "PS4 Z1 dynamic", Consoles: []string{"ps4"}, PriceMode: "dynamic", Active: true,
+			BasePrices: []normalizedBasePrice{{Platform: "ps4", BaseUSD: 50, Capacities: []string{"z1"}}},
+		},
+		{
+			Name: "PS4 Z2 dynamic", Consoles: []string{"ps4"}, PriceMode: "dynamic", Active: true,
+			BasePrices: []normalizedBasePrice{{Platform: "ps4", BaseUSD: 50, Capacities: []string{"z2"}}},
+		},
+		{
+			Name: "Xbox Home fixed", Consoles: []string{"xbox_series"}, PriceMode: "fixed", Active: true,
+			Prices: []normalizedPrice{{Platform: "xbox_series", Zarfiat: "home", PriceToman: price}},
+		},
+		{
+			// This is the important cross-console case: both products are valid for
+			// the game, but PS4+Home and Xbox+Z1 are not valid products.
+			Name: "PS4 and Xbox mixed", Consoles: []string{"ps4", "xbox_series"}, PriceMode: "fixed", Active: true,
+			Prices: []normalizedPrice{
+				{Platform: "ps4", Zarfiat: "z1", PriceToman: price},
+				{Platform: "xbox_series", Zarfiat: "home", PriceToman: price},
+			},
+		},
+	}
+	for _, game := range games {
+		if _, err := createGame(ctx, db, "a1", game); err != nil {
+			t.Fatalf("create %q: %v", game.Name, err)
+		}
+	}
+
+	assertNames := func(filter listFilter, want ...string) {
+		t.Helper()
+		got, total, err := listGames(ctx, db, filter, "created_at DESC", 50, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if total != len(want) || len(got) != len(want) {
+			t.Fatalf("filter %+v = %d games (total %d), want %d", filter, len(got), total, len(want))
+		}
+		gotNames := make(map[string]bool, len(got))
+		for _, game := range got {
+			gotNames[game.Name] = true
+		}
+		for _, name := range want {
+			if !gotNames[name] {
+				t.Errorf("filter %+v missing %q; got %#v", filter, name, gotNames)
+			}
+		}
+	}
+
+	// Dynamic capacity allow-lists must participate in filtering.
+	assertNames(listFilter{platform: "ps4", zarfiat: "z1", onlyActive: true},
+		"PS4 Z1 dynamic", "PS4 and Xbox mixed")
+	assertNames(listFilter{platform: "ps4", zarfiat: "z2", onlyActive: true},
+		"PS4 Z2 dynamic")
+	assertNames(listFilter{zarfiat: "z1", onlyActive: true},
+		"PS4 Z1 dynamic", "PS4 and Xbox mixed")
+
+	// A capacity on another console must never satisfy the selected pair, even
+	// when the same game independently sells products for both consoles.
+	assertNames(listFilter{platform: "ps4", zarfiat: "home", onlyActive: true})
+	assertNames(listFilter{platform: "xbox_series", zarfiat: "z1", onlyActive: true})
+	assertNames(listFilter{platform: "xbox_series", zarfiat: "home", onlyActive: true},
+		"Xbox Home fixed", "PS4 and Xbox mixed")
+}
+
 func TestCreateGame_DuplicateLink(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)

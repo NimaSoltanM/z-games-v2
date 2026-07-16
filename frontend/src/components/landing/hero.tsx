@@ -40,7 +40,7 @@ export function Hero() {
           بازی اورجینال، قیمت ایرانی
         </div>
 
-        <h1 className="mt-6 bg-linear-to-b from-foreground to-foreground/55 bg-clip-text text-4xl leading-tight font-bold text-transparent sm:text-6xl lg:text-7xl">
+        <h1 className="mt-6 bg-linear-to-b from-foreground to-foreground/55 bg-clip-text pb-2 text-4xl leading-[1.35] font-bold text-transparent sm:text-6xl lg:text-7xl">
           اورجینال بازی کن،
           <br />
           <span className="bg-linear-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
