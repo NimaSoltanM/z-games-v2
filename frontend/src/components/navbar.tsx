@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import {
+  ArrowLeft,
   ShoppingCart,
   Menu,
   LogOut,
@@ -38,6 +39,8 @@ const NAV_LINKS = [
   { to: "/games", label: "بازی‌ها", exact: false },
 ] as const
 
+const ADMIN_HOME_SEARCH = { page: 1, status: "", search: "" } as const
+
 function initialsOf(me: MeResponse) {
   const f = me.firstName?.trim()[0] ?? ""
   const l = me.lastName?.trim()[0] ?? ""
@@ -56,6 +59,7 @@ export function Navbar() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const isAdmin = me != null && me.role !== "user"
 
   async function handleLogout() {
     setMobileOpen(false)
@@ -105,6 +109,25 @@ export function Navbar() {
         <div className="flex items-center gap-1.5">
           <CartButton count={totalQuantity} />
           <ModeToggle />
+
+          {isAdmin && (
+            <Button
+              render={
+                <Link
+                  to="/admin/orders"
+                  search={ADMIN_HOME_SEARCH}
+                  aria-label="ورود به پنل مدیریت"
+                />
+              }
+              nativeButton={false}
+              variant="secondary"
+              size="sm"
+              className="hidden gap-1.5 md:inline-flex"
+            >
+              <ShieldCheck className="size-3.5" />
+              پنل مدیریت
+            </Button>
+          )}
 
           {/* Auth — desktop */}
           <div className="hidden md:block">
@@ -170,6 +193,11 @@ export function Navbar() {
                         <p className="truncate text-sm font-medium">
                           {fullNameOf(me)}
                         </p>
+                        {isAdmin && (
+                          <p className="text-xs font-medium text-primary">
+                            حساب مدیر
+                          </p>
+                        )}
                         {me.phone && (
                           <p
                             dir="ltr"
@@ -180,6 +208,30 @@ export function Navbar() {
                         )}
                       </div>
                     </div>
+                    {isAdmin && (
+                      <Button
+                        render={
+                          <Link
+                            to="/admin/orders"
+                            search={ADMIN_HOME_SEARCH}
+                            onClick={() => setMobileOpen(false)}
+                          />
+                        }
+                        nativeButton={false}
+                        className="h-auto w-full justify-start gap-3 py-3 text-start whitespace-normal"
+                      >
+                        <ShieldCheck className="size-4" />
+                        <span className="flex-1">
+                          <span className="block font-semibold">
+                            ورود به پنل مدیریت
+                          </span>
+                          <span className="mt-0.5 block text-xs font-normal opacity-70">
+                            سفارش‌ها، بازی‌ها، بازگشت‌ها و قیمت‌گذاری
+                          </span>
+                        </span>
+                        <ArrowLeft className="size-4" />
+                      </Button>
+                    )}
                     <Link
                       to="/dashboard"
                       search={{ page: 1, status: "" }}
@@ -190,18 +242,6 @@ export function Navbar() {
                         سفارش‌های من
                       </Button>
                     </Link>
-                    {me.role !== "user" && (
-                      <Link
-                        to="/admin/orders"
-                        search={{ page: 1, status: "", search: "" }}
-                        onClick={() => setMobileOpen(false)}
-                      >
-                        <Button variant="outline" className="w-full gap-1.5">
-                          <ShieldCheck className="size-4" />
-                          مدیریت سفارش‌ها
-                        </Button>
-                      </Link>
-                    )}
                     <Button
                       variant="destructive"
                       className="w-full"
@@ -285,15 +325,20 @@ function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
         </DropdownMenuItem>
         {me.role !== "user" && (
           <DropdownMenuItem
-            render={
-              <Link
-                to="/admin/orders"
-                search={{ page: 1, status: "", search: "" }}
-              />
-            }
+            render={<Link to="/admin/orders" search={ADMIN_HOME_SEARCH} />}
+            className="gap-3 py-2.5"
           >
-            <ShieldCheck className="size-4" />
-            مدیریت سفارش‌ها
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <ShieldCheck className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium text-foreground">
+                پنل مدیریت
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                سفارش‌ها، بازی‌ها و تنظیمات فروشگاه
+              </span>
+            </span>
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
