@@ -1,5 +1,13 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
-import { Package, Gamepad2, ScrollText, Coins, RotateCcw } from "lucide-react"
+import {
+  ArchiveRestore,
+  KeyRound,
+  Package,
+  Gamepad2,
+  ScrollText,
+  Coins,
+  RotateCcw,
+} from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-shell"
 import type { DashNavItem } from "@/components/dashboard-shell"
@@ -18,6 +26,18 @@ const NAV: readonly DashNavItem[] = [
     search: { page: 1, status: "", search: "" },
     icon: RotateCcw,
     label: "بازگشت‌ها",
+  },
+  {
+    to: "/admin/inventory",
+    search: { page: 1, status: "", search: "" },
+    icon: ArchiveRestore,
+    label: "موجودی برگشتی",
+  },
+  {
+    to: "/admin/verification-codes",
+    search: { page: 1, status: "", search: "" },
+    icon: KeyRound,
+    label: "کدهای ورود",
   },
   { to: "/admin/games/pricing", icon: Coins, label: "قیمت‌گذاری" },
   {

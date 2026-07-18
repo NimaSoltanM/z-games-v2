@@ -37,6 +37,7 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 	app.Post("/orders/checkout", checkoutLimit, auth, h.checkout)
 	app.Get("/orders", auth, h.listOrders)
 	app.Get("/orders/:id", auth, h.getOrder)
+	app.Post("/verification-code-requests", auth, h.requestVerificationCode)
 	app.Get("/wallet", auth, h.getWalletView)
 	app.Get("/payment/callback", h.callback)
 
@@ -49,6 +50,10 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 	app.Get("/admin/orders/:id", admin, h.adminGetOrder)
 	app.Post("/admin/orders/:id/fulfill", admin, h.adminFulfill)
 	app.Post("/admin/orders/:id/items/:itemId/reuse", admin, h.adminReuseReturn)
+	app.Get("/admin/verification-code-requests", admin, h.adminListVerificationCodes)
+	app.Post("/admin/verification-code-requests/:id/send", admin, h.adminSendVerificationCode)
+
+	startVerificationCodeCleanup(db)
 }
 
 func envOr(key, fallback string) string {

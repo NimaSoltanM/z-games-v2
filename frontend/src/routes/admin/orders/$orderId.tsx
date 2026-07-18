@@ -13,12 +13,14 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  ArchiveRestore,
   Recycle,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -28,7 +30,12 @@ import {
   fulfillOrder,
   reuseReturnedAccount,
 } from "@/features/admin"
-import type { AdminOrder, FulfillItem } from "@/features/admin"
+import type {
+  AdminOrder,
+  CredentialWarning,
+  DuplicateCredentialsError,
+  FulfillItem,
+} from "@/features/admin"
 import { formatOrderDate, formatOrderNumber } from "@/features/orders"
 import type { OrderItem } from "@/features/orders"
 import {
@@ -39,6 +46,7 @@ import {
   passcodeLabel,
   PreOrderBadge,
 } from "@/features/games"
+import { ApiError } from "@/lib/api-client"
 
 function AdminOrderError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -226,6 +234,18 @@ function accountLabels(items: OrderItem[]): Map<string, string> {
 function FulfillForm({ order }: { order: AdminOrder }) {
   const queryClient = useQueryClient()
   const fulfilled = order.status === "fulfilled"
+  const editableItems = order.items.filter((item) => !item.credentials_returned)
+
+  type DuplicateConfirmation =
+    | { kind: "fulfill"; items: FulfillItem[]; warnings: CredentialWarning[] }
+    | {
+        kind: "reuse"
+        itemId: string
+        returnId: string
+        warnings: CredentialWarning[]
+      }
+  const [duplicateConfirmation, setDuplicateConfirmation] =
+    useState<DuplicateConfirmation | null>(null)
 
   // One credential draft per item, prefilled with whatever is already saved.
   const [drafts, setDrafts] = useState<
@@ -247,18 +267,31 @@ function FulfillForm({ order }: { order: AdminOrder }) {
     itemId: string,
     field: "email" | "password" | "passcode",
     value: string
-  ) => setDrafts((d) => ({ ...d, [itemId]: { ...d[itemId], [field]: value } }))
+  ) => {
+    setDuplicateConfirmation(null)
+    setDrafts((d) => ({ ...d, [itemId]: { ...d[itemId], [field]: value } }))
+  }
 
   const labels = accountLabels(order.items)
 
   const mutation = useMutation({
-    mutationFn: (items: FulfillItem[]) => fulfillOrder(order.id, items),
+    mutationFn: ({
+      items,
+      allowDuplicate,
+    }: {
+      items: FulfillItem[]
+      allowDuplicate: boolean
+    }) => fulfillOrder(order.id, items, allowDuplicate),
     onSuccess: (updated) => {
+      setDuplicateConfirmation(null)
       queryClient.setQueryData(
         adminOrderQueryOptions(order.id).queryKey,
         updated
       )
       queryClient.invalidateQueries({ queryKey: ["admin", "orders"] })
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "returned-accounts"],
+      })
       queryClient.invalidateQueries({ queryKey: ["orders"] })
       toast.success(
         updated.status === "fulfilled"
@@ -266,7 +299,16 @@ function FulfillForm({ order }: { order: AdminOrder }) {
           : "اطلاعات ذخیره شد"
       )
     },
-    onError: (err) => {
+    onError: (err, variables) => {
+      const warnings = duplicateWarningsFrom(err)
+      if (warnings) {
+        setDuplicateConfirmation({
+          kind: "fulfill",
+          items: variables.items,
+          warnings,
+        })
+        return
+      }
       toast.error(err instanceof Error ? err.message : "خطا در ذخیره اطلاعات")
     },
   })
@@ -275,15 +317,26 @@ function FulfillForm({ order }: { order: AdminOrder }) {
   // returned account's credentials onto the item and consumes that return. Reflect
   // the copied credentials back into the form drafts on success.
   const reuse = useMutation({
-    mutationFn: ({ itemId, returnId }: { itemId: string; returnId: string }) =>
-      reuseReturnedAccount(order.id, itemId, returnId),
+    mutationFn: ({
+      itemId,
+      returnId,
+      allowDuplicate,
+    }: {
+      itemId: string
+      returnId: string
+      allowDuplicate: boolean
+    }) => reuseReturnedAccount(order.id, itemId, returnId, allowDuplicate),
     onSuccess: (updated) => {
+      setDuplicateConfirmation(null)
       queryClient.setQueryData(
         adminOrderQueryOptions(order.id).queryKey,
         updated
       )
       queryClient.invalidateQueries({ queryKey: ["admin", "orders"] })
       queryClient.invalidateQueries({ queryKey: ["admin", "returns"] })
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "returned-accounts"],
+      })
       queryClient.invalidateQueries({ queryKey: ["orders"] })
       setDrafts((d) => {
         const next = { ...d }
@@ -298,26 +351,37 @@ function FulfillForm({ order }: { order: AdminOrder }) {
       })
       toast.success("حساب بازگردانده‌شده برای این سفارش استفاده شد")
     },
-    onError: (err) =>
-      toast.error(
-        err instanceof Error ? err.message : "خطا در استفاده از حساب"
-      ),
+    onError: (err, variables) => {
+      const warnings = duplicateWarningsFrom(err)
+      if (warnings) {
+        setDuplicateConfirmation({
+          kind: "reuse",
+          itemId: variables.itemId,
+          returnId: variables.returnId,
+          warnings,
+        })
+        return
+      }
+      toast.error(err instanceof Error ? err.message : "خطا در استفاده از حساب")
+    },
   })
 
   const allComplete = order.items.every((it) => {
+    if (it.credentials_returned) return true
     const d = drafts[it.id]
     return d.email.trim() && d.password.trim() && d.passcode.trim()
   })
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    const items: FulfillItem[] = order.items.map((it) => ({
+    const items: FulfillItem[] = editableItems.map((it) => ({
       id: it.id,
       email: drafts[it.id].email.trim(),
       password: drafts[it.id].password.trim(),
       passcode: drafts[it.id].passcode.trim(),
     }))
-    mutation.mutate(items)
+    setDuplicateConfirmation(null)
+    mutation.mutate({ items, allowDuplicate: false })
   }
 
   const date = formatOrderDate(order.created_at)
@@ -395,40 +459,56 @@ function FulfillForm({ order }: { order: AdminOrder }) {
             </p>
           )}
 
-          {(order.inventory[it.id]?.length ?? 0) > 0 && (
-            <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <Recycle className="size-3.5" />
-                {(order.inventory[it.id] ?? []).length.toLocaleString(
-                  "fa-IR"
-                )}{" "}
-                حساب بازگردانده‌شده برای این بازی موجود است — به‌جای تهیهٔ حساب
-                نو استفاده کنید
-              </p>
-              {(order.inventory[it.id] ?? []).map((acc) => (
-                <div
-                  key={acc.return_id}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <span className="text-xs text-muted-foreground">
-                    بازگشت‌شده در {formatOrderDate(acc.returned_at)}
-                  </span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="h-7 text-xs"
-                    disabled={reuse.isPending || mutation.isPending}
-                    onClick={() =>
-                      reuse.mutate({ itemId: it.id, returnId: acc.return_id })
-                    }
-                  >
-                    استفاده از این حساب
-                  </Button>
-                </div>
-              ))}
-            </div>
+          {it.credentials_returned && (
+            <Alert variant="info">
+              <ArchiveRestore className="size-4" />
+              <AlertTitle>این حساب به فروشگاه بازگردانده شده است</AlertTitle>
+              <AlertDescription>
+                اطلاعات فقط برای سابقهٔ مدیر نمایش داده می‌شود و دیگر در اختیار
+                خریدار این سفارش نیست.
+              </AlertDescription>
+            </Alert>
           )}
+
+          {!it.credentials_returned &&
+            (order.inventory[it.id]?.length ?? 0) > 0 && (
+              <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <Recycle className="size-3.5" />
+                  {(order.inventory[it.id] ?? []).length.toLocaleString(
+                    "fa-IR"
+                  )}{" "}
+                  حساب بازگردانده‌شده برای این بازی موجود است — به‌جای تهیهٔ
+                  حساب نو استفاده کنید
+                </p>
+                {(order.inventory[it.id] ?? []).map((acc) => (
+                  <div
+                    key={acc.return_id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="text-xs text-muted-foreground">
+                      بازگشت‌شده در {formatOrderDate(acc.returned_at)}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="h-7 text-xs"
+                      disabled={reuse.isPending || mutation.isPending}
+                      onClick={() =>
+                        reuse.mutate({
+                          itemId: it.id,
+                          returnId: acc.return_id,
+                          allowDuplicate: false,
+                        })
+                      }
+                    >
+                      استفاده از این حساب
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
 
           <div className="space-y-3">
             <div className="space-y-1.5">
@@ -439,7 +519,7 @@ function FulfillForm({ order }: { order: AdminOrder }) {
                 autoComplete="off"
                 value={drafts[it.id].email}
                 onChange={(e) => setField(it.id, "email", e.target.value)}
-                disabled={mutation.isPending}
+                disabled={it.credentials_returned || mutation.isPending}
               />
             </div>
             <div className="space-y-1.5">
@@ -450,7 +530,7 @@ function FulfillForm({ order }: { order: AdminOrder }) {
                 autoComplete="off"
                 value={drafts[it.id].password}
                 onChange={(e) => setField(it.id, "password", e.target.value)}
-                disabled={mutation.isPending}
+                disabled={it.credentials_returned || mutation.isPending}
               />
             </div>
             <div className="space-y-1.5">
@@ -463,12 +543,34 @@ function FulfillForm({ order }: { order: AdminOrder }) {
                 autoComplete="off"
                 value={drafts[it.id].passcode}
                 onChange={(e) => setField(it.id, "passcode", e.target.value)}
-                disabled={mutation.isPending}
+                disabled={it.credentials_returned || mutation.isPending}
               />
             </div>
           </div>
         </div>
       ))}
+
+      {duplicateConfirmation && (
+        <DuplicateCredentialAlert
+          warnings={duplicateConfirmation.warnings}
+          onCancel={() => setDuplicateConfirmation(null)}
+          onConfirm={() => {
+            if (duplicateConfirmation.kind === "fulfill") {
+              mutation.mutate({
+                items: duplicateConfirmation.items,
+                allowDuplicate: true,
+              })
+            } else {
+              reuse.mutate({
+                itemId: duplicateConfirmation.itemId,
+                returnId: duplicateConfirmation.returnId,
+                allowDuplicate: true,
+              })
+            }
+          }}
+          pending={mutation.isPending || reuse.isPending}
+        />
+      )}
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
@@ -476,11 +578,106 @@ function FulfillForm({ order }: { order: AdminOrder }) {
             ? "با ذخیره، سفارش به حالت «تحویل شد» تغییر می‌کند."
             : "تا تکمیل همهٔ اطلاعات، سفارش در حالت «در انتظار تکمیل» می‌ماند."}
         </p>
-        <Button type="submit" disabled={mutation.isPending}>
+        <Button
+          type="submit"
+          disabled={
+            editableItems.length === 0 || mutation.isPending || reuse.isPending
+          }
+        >
           {mutation.isPending ? "در حال ذخیره..." : "ذخیره"}
         </Button>
       </div>
     </form>
+  )
+}
+
+function duplicateWarningsFrom(error: unknown): CredentialWarning[] | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null
+  const data = error.data as Partial<DuplicateCredentialsError> | null
+  if (
+    !data ||
+    data.code !== "DUPLICATE_CREDENTIALS" ||
+    !Array.isArray(data.warnings)
+  ) {
+    return null
+  }
+  return data.warnings
+}
+
+function DuplicateCredentialAlert({
+  warnings,
+  onCancel,
+  onConfirm,
+  pending,
+}: {
+  warnings: CredentialWarning[]
+  onCancel: () => void
+  onConfirm: () => void
+  pending: boolean
+}) {
+  return (
+    <Alert variant="warning" className="py-4">
+      <AlertTriangle className="size-4" />
+      <AlertTitle>هشدار: این اکانت قبلاً تحویل داده شده است</AlertTitle>
+      <AlertDescription className="gap-3">
+        <p>
+          ثبت مسدود نشده، اما ادامه دادن یعنی آگاهانه یک اکانت را به بیش از یک
+          خریدار می‌دهید. سفارش‌های مرتبط را پیش از تأیید بررسی کنید.
+        </p>
+        <div className="w-full space-y-2">
+          {warnings.flatMap((warning) =>
+            warning.matches.map((match) => (
+              <div
+                key={`${warning.item_id}-${match.item_id}`}
+                className="rounded-lg border border-amber-500/25 bg-background/50 p-3"
+              >
+                <p dir="ltr" className="text-left font-mono text-xs">
+                  {warning.email}
+                </p>
+                <p className="mt-1 text-xs">
+                  {match.game_name} · {consoleLabel(match.console)} ·{" "}
+                  {capacityLabel(match.capacity)}
+                </p>
+                <Button
+                  render={
+                    <Link
+                      to="/admin/orders/$orderId"
+                      params={{ orderId: match.order_id }}
+                      target="_blank"
+                    />
+                  }
+                  nativeButton={false}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 h-7 text-xs"
+                >
+                  مشاهده سفارش #{match.order_number.toLocaleString("fa-IR")}
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex w-full flex-wrap justify-end gap-2 pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={onCancel}
+          >
+            بازگشت و اصلاح
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending}
+            onClick={onConfirm}
+          >
+            با اطلاع از تکراری بودن ثبت کن
+          </Button>
+        </div>
+      </AlertDescription>
+    </Alert>
   )
 }
 

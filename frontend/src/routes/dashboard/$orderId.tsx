@@ -1,12 +1,23 @@
 import { createFileRoute, ErrorComponent, Link } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
 import {
+  useMutation,
+  useQueryClient,
   useSuspenseQuery,
   useQueryErrorResetBoundary,
 } from "@tanstack/react-query"
 import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { ArrowRight, KeyRound, Copy, Check } from "lucide-react"
+import {
+  ArrowRight,
+  KeyRound,
+  Copy,
+  Check,
+  ArchiveRestore,
+  Clock3,
+  RefreshCw,
+} from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +40,7 @@ import {
   PreOrderBadge,
 } from "@/features/games"
 import { cn } from "@/lib/utils"
+import { requestFreshVerificationCode } from "@/features/verification-codes"
 
 function OrderError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
@@ -166,7 +178,10 @@ function OrderDetail() {
           <p className="text-sm font-semibold">اطلاعات اکانت</p>
         </div>
 
-        {order.items.some((it) => it.email || it.password || it.passcode) ? (
+        {order.items.some(
+          (it) =>
+            it.email || it.password || it.passcode || it.credentials_returned
+        ) ? (
           <div className="mt-5 space-y-5">
             {accountLabels(order.items).map(({ item, label }, i) => (
               <ItemCredentials key={i} item={item} label={label} />
@@ -232,6 +247,21 @@ function accountLabels(
 }
 
 function ItemCredentials({ item, label }: { item: OrderItem; label: string }) {
+  if (item.credentials_returned) {
+    return (
+      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+          <ArchiveRestore className="size-4" />
+          <p className="text-sm font-medium">{label}</p>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          این حساب به فروشگاه بازگردانده شده و اطلاعات ورود آن دیگر در دسترس
+          نیست.
+        </p>
+      </div>
+    )
+  }
+
   if (!item.email && !item.password && !item.passcode) {
     return (
       <div className="rounded-xl border border-border/60 bg-background/40 p-4">
@@ -261,8 +291,108 @@ function ItemCredentials({ item, label }: { item: OrderItem; label: string }) {
           />
         )}
       </div>
+      {item.verification_code?.eligible && <FreshCodeSupport item={item} />}
     </div>
   )
+}
+
+function FreshCodeSupport({ item }: { item: OrderItem }) {
+  const queryClient = useQueryClient()
+  const support = item.verification_code
+  const request = support?.request
+  const mutation = useMutation({
+    mutationFn: () => requestFreshVerificationCode(item.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] })
+      toast.success("درخواست کد ورود برای پشتیبانی ارسال شد")
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "خطا در ثبت درخواست کد"
+      ),
+  })
+
+  return (
+    <div className="mt-4 border-t border-border/60 pt-4">
+      <div className="flex items-start gap-2.5">
+        <RefreshCw className="mt-0.5 size-4 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">کد ورود مجدد</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            اگر از حساب خارج شدید، هر ۲۴ ساعت یک‌بار می‌توانید کد تازه از
+            پشتیبانی بخواهید.
+          </p>
+        </div>
+      </div>
+
+      {request?.status === "pending" && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
+          <Clock3 className="size-4 shrink-0" />
+          درخواست شما ثبت شده و در انتظار ارسال کد توسط پشتیبانی است.
+        </div>
+      )}
+
+      {request?.status === "delivered" && request.code && (
+        <div className="mt-3 space-y-2.5">
+          <CredField label="کد ورود تازه" value={request.code} />
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+            <Clock3 className="mt-0.5 size-4 shrink-0" />
+            <span>
+              این کد فقط تا {formatVerificationDeadline(request.expires_at)}
+              معتبر است؛ لطفاً پیش از پایان ۲۴ ساعت آن را وارد کنید.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {request?.status === "expired" && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          کد قبلی منقضی شده و برای امنیت از سامانه حذف شده است.
+        </p>
+      )}
+
+      {!request && support?.blocked_reason === "pending" && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          یک درخواست دیگر شما در انتظار پاسخ پشتیبانی است.
+        </p>
+      )}
+      {!request && support?.blocked_reason === "active" && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          برای یکی دیگر از حساب‌هایتان هنوز یک کد معتبر دارید.
+        </p>
+      )}
+      {support?.blocked_reason === "cooldown" && support.next_request_at && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          درخواست بعدی از {formatVerificationDeadline(support.next_request_at)}
+          امکان‌پذیر است.
+        </p>
+      )}
+
+      {support?.can_request && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3 gap-2"
+          disabled={mutation.isPending}
+          onClick={() => mutation.mutate()}
+        >
+          <RefreshCw
+            className={cn("size-3.5", mutation.isPending && "animate-spin")}
+          />
+          {mutation.isPending ? "در حال ثبت…" : "درخواست کد ورود جدید"}
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function formatVerificationDeadline(value: string | null): string {
+  if (!value) return "پایان مهلت"
+  return new Intl.DateTimeFormat("fa-IR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value))
 }
 
 function CredField({ label, value }: { label: string; value: string }) {

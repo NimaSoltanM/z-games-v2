@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/shared/audit"
 	"github.com/soltanmohammdi/z-games/internal/shared/credentials"
+	"github.com/soltanmohammdi/z-games/internal/shared/credentialstate"
 	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
 	"github.com/soltanmohammdi/z-games/internal/shared/release"
 )
@@ -322,16 +323,18 @@ func clearUserCart(ctx context.Context, db *pgxpool.Pool, userID string) error {
 // --- reads (user dashboard) -------------------------------------------------
 
 type OrderItemView struct {
-	ID       string  `json:"id"`
-	GameID   string  `json:"game_id"`
-	GameName string  `json:"game_name"`
-	Platform string  `json:"platform"`
-	Zarfiat  string  `json:"zarfiat"`
-	Quantity int     `json:"quantity"`
-	PreOrder bool    `json:"pre_order"`
-	Email    *string `json:"email"`
-	Password *string `json:"password"`
-	Passcode *string `json:"passcode"`
+	ID                  string                   `json:"id"`
+	GameID              string                   `json:"game_id"`
+	GameName            string                   `json:"game_name"`
+	Platform            string                   `json:"platform"`
+	Zarfiat             string                   `json:"zarfiat"`
+	Quantity            int                      `json:"quantity"`
+	PreOrder            bool                     `json:"pre_order"`
+	CredentialsReturned bool                     `json:"credentials_returned"`
+	Email               *string                  `json:"email"`
+	Password            *string                  `json:"password"`
+	Passcode            *string                  `json:"passcode"`
+	VerificationCode    *VerificationSupportView `json:"verification_code"`
 }
 
 type OrderView struct {
@@ -392,7 +395,7 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cip
 	for _, o := range orders {
 		ids = append(ids, o.ID)
 	}
-	if err := attachOrderItems(ctx, db, cred, ids, func(orderID string, it OrderItemView) {
+	if err := attachOrderItems(ctx, db, cred, ids, false, func(orderID string, it OrderItemView) {
 		if i, ok := byID[orderID]; ok {
 			orders[i].Items = append(orders[i].Items, it)
 		}
@@ -418,9 +421,12 @@ func getUserOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ciphe
 		return nil, fmt.Errorf("getUserOrder: %w", err)
 	}
 	o.Items = []OrderItemView{}
-	if err := attachOrderItems(ctx, db, cred, []string{o.ID}, func(_ string, it OrderItemView) {
+	if err := attachOrderItems(ctx, db, cred, []string{o.ID}, false, func(_ string, it OrderItemView) {
 		o.Items = append(o.Items, it)
 	}); err != nil {
+		return nil, err
+	}
+	if err := attachVerificationSupport(ctx, db, cred, userID, o.Status, o.Items); err != nil {
 		return nil, err
 	}
 	return &o, nil
@@ -429,12 +435,13 @@ func getUserOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ciphe
 // --- admin fulfillment -------------------------------------------------------
 
 var (
-	ErrOrderNotFound     = errors.New("ORDER_NOT_FOUND")
-	ErrNotFulfillable    = errors.New("ORDER_NOT_FULFILLABLE")
-	ErrItemNotInOrder    = errors.New("ITEM_NOT_IN_ORDER")
-	ErrReturnNotFound    = errors.New("RETURN_NOT_FOUND")
-	ErrReturnUnavailable = errors.New("RETURN_UNAVAILABLE") // not approved, or already reused
-	ErrReturnMismatch    = errors.New("RETURN_MISMATCH")    // game/console/capacity differs from the item
+	ErrOrderNotFound         = errors.New("ORDER_NOT_FOUND")
+	ErrNotFulfillable        = errors.New("ORDER_NOT_FULFILLABLE")
+	ErrItemNotInOrder        = errors.New("ITEM_NOT_IN_ORDER")
+	ErrReturnNotFound        = errors.New("RETURN_NOT_FOUND")
+	ErrReturnUnavailable     = errors.New("RETURN_UNAVAILABLE") // not approved, or already reused
+	ErrReturnMismatch        = errors.New("RETURN_MISMATCH")    // game/console/capacity differs from the item
+	ErrReturnedItemImmutable = errors.New("RETURNED_ITEM_IMMUTABLE")
 )
 
 type AdminOrderView struct {
@@ -536,7 +543,7 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ci
 	for _, o := range orders {
 		ids = append(ids, o.ID)
 	}
-	if err := attachOrderItems(ctx, db, cred, ids, func(orderID string, it OrderItemView) {
+	if err := attachOrderItems(ctx, db, cred, ids, true, func(orderID string, it OrderItemView) {
 		if i, ok := byID[orderID]; ok {
 			orders[i].Items = append(orders[i].Items, it)
 		}
@@ -562,7 +569,7 @@ func getAdminOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ciph
 		return nil, fmt.Errorf("getAdminOrder: %w", err)
 	}
 	o.Items = []OrderItemView{}
-	if err := attachOrderItems(ctx, db, cred, []string{o.ID}, func(_ string, it OrderItemView) {
+	if err := attachOrderItems(ctx, db, cred, []string{o.ID}, true, func(_ string, it OrderItemView) {
 		o.Items = append(o.Items, it)
 	}); err != nil {
 		return nil, err
@@ -605,7 +612,9 @@ func attachReturnInventory(ctx context.Context, db *pgxpool.Pool, items []OrderI
 		SELECT gr.id, gr.created_at, src.game_id, src.platform, src.zarfiat
 		FROM game_returns gr
 		JOIN order_items src ON src.id = gr.order_item_id
-		WHERE gr.status = 'approved' AND gr.reused_at IS NULL
+		WHERE gr.status = 'approved'
+		  AND gr.reused_at IS NULL
+		  AND gr.inventory_disabled_at IS NULL
 		  AND src.game_id = ANY($1)
 		ORDER BY gr.created_at ASC
 	`, gameIDs)
@@ -647,41 +656,129 @@ type credInput struct {
 	Passcode string
 }
 
+type CredentialMatch struct {
+	OrderID     string `json:"order_id"`
+	OrderNumber int64  `json:"order_number"`
+	ItemID      string `json:"item_id"`
+	GameName    string `json:"game_name"`
+	Console     string `json:"console"`
+	Capacity    string `json:"capacity"`
+}
+
+type CredentialWarning struct {
+	ItemID  string            `json:"item_id"`
+	Email   string            `json:"email"`
+	Matches []CredentialMatch `json:"matches"`
+}
+
+type fulfillmentItem struct {
+	ID       string
+	GameName string
+	Console  string
+	Capacity string
+	Returned bool
+}
+
 // fulfillOrder writes credentials onto the given items (scoped to the order) and
 // flips the order to 'fulfilled' once every item has all three credentials
 // (or back to 'paid' if any is cleared). Empty fields are stored as NULL.
-func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cipher, adminID, orderID string, items []credInput) error {
+func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cipher, adminID, orderID string, items []credInput, allowDuplicate bool) ([]CredentialWarning, error) {
 	tx, err := db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("fulfillOrder begin: %w", err)
+		return nil, fmt.Errorf("fulfillOrder begin: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", credentialstate.FulfillmentAdvisoryLockKey); err != nil {
+		return nil, fmt.Errorf("fulfillOrder lock: %w", err)
+	}
 
-	var status string
-	err = tx.QueryRow(ctx, "SELECT status FROM orders WHERE id = $1", orderID).Scan(&status)
+	var (
+		status      string
+		orderNumber int64
+	)
+	err = tx.QueryRow(ctx, "SELECT status, order_number FROM orders WHERE id = $1 FOR UPDATE", orderID).Scan(&status, &orderNumber)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrOrderNotFound
+		return nil, ErrOrderNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("fulfillOrder status: %w", err)
+		return nil, fmt.Errorf("fulfillOrder status: %w", err)
 	}
 	if status != "paid" && status != "fulfilled" {
-		return ErrNotFulfillable
+		return nil, ErrNotFulfillable
+	}
+
+	rows, err := tx.Query(ctx, `
+		SELECT oi.id, oi.game_name, oi.platform, oi.zarfiat,
+		       COALESCE(gr.status IN ('approved', 'refused'), false)
+		FROM order_items oi
+		LEFT JOIN game_returns gr ON gr.order_item_id = oi.id
+		WHERE oi.order_id = $1
+		FOR UPDATE OF oi
+	`, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("fulfillOrder items: %w", err)
+	}
+	orderItems := make(map[string]fulfillmentItem)
+	for rows.Next() {
+		var it fulfillmentItem
+		if err := rows.Scan(&it.ID, &it.GameName, &it.Console, &it.Capacity, &it.Returned); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("fulfillOrder items scan: %w", err)
+		}
+		orderItems[it.ID] = it
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("fulfillOrder items rows: %w", err)
+	}
+	rows.Close()
+
+	excluded := make(map[string]struct{}, len(items))
+	wanted := make(map[string]struct{})
+	identities := make(map[string]string)
+	for _, input := range items {
+		if _, exists := excluded[input.ItemID]; exists {
+			return nil, ErrItemNotInOrder
+		}
+		meta, exists := orderItems[input.ItemID]
+		if !exists {
+			return nil, ErrItemNotInOrder
+		}
+		if meta.Returned {
+			return nil, ErrReturnedItemImmutable
+		}
+		excluded[input.ItemID] = struct{}{}
+		if input.Email != "" && input.Password != "" && input.Passcode != "" {
+			identity := credentialstate.AccountIdentity(input.Email, meta.Console)
+			wanted[identity] = struct{}{}
+			if _, exists := identities[identity]; !exists {
+				identities[identity] = input.ItemID
+			}
+		}
+	}
+
+	holders, err := credentialstate.ActiveHolders(ctx, tx, cred, wanted, excluded)
+	if err != nil {
+		return nil, err
+	}
+	warnings := duplicateWarnings(orderID, orderNumber, items, orderItems, holders)
+	if len(warnings) > 0 && !allowDuplicate {
+		return warnings, nil
 	}
 
 	for _, it := range items {
 		// Credentials are encrypted at rest; empty fields are stored as NULL.
 		email, err := cred.EncryptNullable(it.Email)
 		if err != nil {
-			return fmt.Errorf("fulfillOrder encrypt email: %w", err)
+			return nil, fmt.Errorf("fulfillOrder encrypt email: %w", err)
 		}
 		password, err := cred.EncryptNullable(it.Password)
 		if err != nil {
-			return fmt.Errorf("fulfillOrder encrypt password: %w", err)
+			return nil, fmt.Errorf("fulfillOrder encrypt password: %w", err)
 		}
 		passcode, err := cred.EncryptNullable(it.Passcode)
 		if err != nil {
-			return fmt.Errorf("fulfillOrder encrypt passcode: %w", err)
+			return nil, fmt.Errorf("fulfillOrder encrypt passcode: %w", err)
 		}
 
 		tag, err := tx.Exec(ctx, `
@@ -689,11 +786,16 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ciphe
 			WHERE id = $4 AND order_id = $5
 		`, email, password, passcode, it.ItemID, orderID)
 		if err != nil {
-			return fmt.Errorf("fulfillOrder update item: %w", err)
+			return nil, fmt.Errorf("fulfillOrder update item: %w", err)
 		}
 		if tag.RowsAffected() == 0 {
-			return ErrItemNotInOrder
+			return nil, ErrItemNotInOrder
 		}
+	}
+
+	consumed, err := consumeReturnedAccountsByIdentity(ctx, tx, cred, adminID, orderID, identities, "manual_credentials")
+	if err != nil {
+		return nil, err
 	}
 
 	var incomplete int
@@ -701,7 +803,7 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ciphe
 		SELECT COUNT(*) FROM order_items
 		WHERE order_id = $1 AND (email IS NULL OR password IS NULL OR passcode IS NULL)
 	`, orderID).Scan(&incomplete); err != nil {
-		return fmt.Errorf("fulfillOrder completeness: %w", err)
+		return nil, fmt.Errorf("fulfillOrder completeness: %w", err)
 	}
 
 	newStatus := "paid"
@@ -711,7 +813,7 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ciphe
 	if _, err := tx.Exec(ctx,
 		"UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 AND status IN ('paid', 'fulfilled')",
 		newStatus, orderID); err != nil {
-		return fmt.Errorf("fulfillOrder status update: %w", err)
+		return nil, fmt.Errorf("fulfillOrder status update: %w", err)
 	}
 
 	// Audit the action in the same transaction, so a delivery always has a record.
@@ -720,12 +822,127 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ciphe
 		Action:     audit.ActionOrderFulfill,
 		TargetType: "order",
 		TargetID:   orderID,
-		Metadata:   map[string]any{"status": newStatus, "items": len(items)},
+		Metadata: map[string]any{
+			"status": newStatus, "items": len(items),
+			"duplicate_override": len(warnings), "returned_accounts_consumed": consumed,
+		},
 	}); err != nil {
-		return fmt.Errorf("fulfillOrder: %w", err)
+		return nil, fmt.Errorf("fulfillOrder: %w", err)
 	}
 
-	return tx.Commit(ctx)
+	return nil, tx.Commit(ctx)
+}
+
+func duplicateWarnings(orderID string, orderNumber int64, inputs []credInput, items map[string]fulfillmentItem, holders map[string][]credentialstate.Holder) []CredentialWarning {
+	byIdentity := make(map[string][]credInput)
+	for _, input := range inputs {
+		if input.Email == "" || input.Password == "" || input.Passcode == "" {
+			continue
+		}
+		identity := credentialstate.AccountIdentity(input.Email, items[input.ItemID].Console)
+		byIdentity[identity] = append(byIdentity[identity], input)
+	}
+
+	warnings := make([]CredentialWarning, 0)
+	for identity, group := range byIdentity {
+		for _, input := range group {
+			matches := make([]CredentialMatch, 0, len(holders[identity])+len(group)-1)
+			for _, holder := range holders[identity] {
+				matches = append(matches, CredentialMatch{
+					OrderID: holder.OrderID, OrderNumber: holder.OrderNumber, ItemID: holder.ItemID,
+					GameName: holder.GameName, Console: holder.Console, Capacity: holder.Capacity,
+				})
+			}
+			for _, other := range group {
+				if other.ItemID == input.ItemID {
+					continue
+				}
+				meta := items[other.ItemID]
+				matches = append(matches, CredentialMatch{
+					OrderID: orderID, OrderNumber: orderNumber, ItemID: other.ItemID,
+					GameName: meta.GameName, Console: meta.Console, Capacity: meta.Capacity,
+				})
+			}
+			if len(matches) > 0 {
+				warnings = append(warnings, CredentialWarning{ItemID: input.ItemID, Email: input.Email, Matches: matches})
+			}
+		}
+	}
+	return warnings
+}
+
+// consumeReturnedAccountsByIdentity closes every available inventory row for an
+// account that was manually pasted into fulfillment. This prevents the same login
+// remaining advertised as stock merely because the admin did not use the explicit
+// reuse button. Identity spans games, capacities, and console generations within
+// one account ecosystem, but never collides across unrelated ecosystems.
+func consumeReturnedAccountsByIdentity(ctx context.Context, tx pgx.Tx, cred *credentials.Cipher, adminID, orderID string, identityTargets map[string]string, mode string) (int, error) {
+	if len(identityTargets) == 0 {
+		return 0, nil
+	}
+	rows, err := tx.Query(ctx, `
+		SELECT gr.id, gr.order_item_id, src.email, src.platform
+		FROM game_returns gr
+		JOIN order_items src ON src.id = gr.order_item_id
+		WHERE gr.status = 'approved'
+		  AND gr.reused_at IS NULL
+		  AND gr.inventory_disabled_at IS NULL
+		FOR UPDATE OF gr
+	`)
+	if err != nil {
+		return 0, fmt.Errorf("consumeReturnedAccountsByIdentity: %w", err)
+	}
+	type candidate struct{ returnID, sourceItemID, identity, platform string }
+	var candidates []candidate
+	for rows.Next() {
+		var c candidate
+		var encryptedEmail *string
+		if err := rows.Scan(&c.returnID, &c.sourceItemID, &encryptedEmail, &c.platform); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("consumeReturnedAccountsByIdentity scan: %w", err)
+		}
+		email, err := cred.DecryptPtr(encryptedEmail)
+		if err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("consumeReturnedAccountsByIdentity decrypt email: %w", err)
+		}
+		if email != nil {
+			c.identity = credentialstate.AccountIdentity(*email, c.platform)
+			candidates = append(candidates, c)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, fmt.Errorf("consumeReturnedAccountsByIdentity rows: %w", err)
+	}
+	rows.Close()
+
+	consumed := 0
+	for _, c := range candidates {
+		targetItemID, match := identityTargets[c.identity]
+		if !match || targetItemID == c.sourceItemID {
+			continue
+		}
+		tag, err := tx.Exec(ctx, `
+			UPDATE game_returns
+			SET reused_at = NOW(), reused_for_item_id = $1, updated_at = NOW()
+			WHERE id = $2 AND reused_at IS NULL AND inventory_disabled_at IS NULL
+		`, targetItemID, c.returnID)
+		if err != nil {
+			return 0, fmt.Errorf("consumeReturnedAccountsByIdentity update: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			continue
+		}
+		consumed++
+		if err := audit.Record(ctx, tx, audit.Entry{
+			AdminID: adminID, Action: audit.ActionReturnReuse, TargetType: "return", TargetID: c.returnID,
+			Metadata: map[string]any{"order_id": orderID, "order_item_id": targetItemID, "mode": mode},
+		}); err != nil {
+			return 0, fmt.Errorf("consumeReturnedAccountsByIdentity audit: %w", err)
+		}
+	}
+	return consumed, nil
 }
 
 // reuseReturnedAccount fulfills one order item from returned-account inventory: it
@@ -733,80 +950,116 @@ func fulfillOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ciphe
 // item, marks the source return consumed, recomputes the order's fulfillment
 // status, and audits — atomically. The return must be approved, not yet reused, and
 // match the item's game + console + capacity exactly.
-func reuseReturnedAccount(ctx context.Context, db *pgxpool.Pool, adminID, orderID, itemID, returnID string) error {
+func reuseReturnedAccount(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cipher, adminID, orderID, itemID, returnID string, allowDuplicate bool) ([]CredentialWarning, error) {
 	tx, err := db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("reuseReturnedAccount begin: %w", err)
+		return nil, fmt.Errorf("reuseReturnedAccount begin: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", credentialstate.FulfillmentAdvisoryLockKey); err != nil {
+		return nil, fmt.Errorf("reuseReturnedAccount lock: %w", err)
+	}
 
 	// Target item + its order status.
 	var tGame, tPlatform, tZarfiat, orderStatus string
+	var targetReturned bool
 	err = tx.QueryRow(ctx, `
-		SELECT oi.game_id, oi.platform, oi.zarfiat, o.status
+		SELECT oi.game_id, oi.platform, oi.zarfiat, o.status,
+		       COALESCE(target_return.status IN ('approved', 'refused'), false)
 		FROM order_items oi JOIN orders o ON o.id = oi.order_id
+		LEFT JOIN game_returns target_return ON target_return.order_item_id = oi.id
 		WHERE oi.id = $1 AND oi.order_id = $2
-	`, itemID, orderID).Scan(&tGame, &tPlatform, &tZarfiat, &orderStatus)
+		FOR UPDATE OF oi, o
+	`, itemID, orderID).Scan(&tGame, &tPlatform, &tZarfiat, &orderStatus, &targetReturned)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrItemNotInOrder
+		return nil, ErrItemNotInOrder
 	}
 	if err != nil {
-		return fmt.Errorf("reuseReturnedAccount target: %w", err)
+		return nil, fmt.Errorf("reuseReturnedAccount target: %w", err)
 	}
 	if orderStatus != "paid" && orderStatus != "fulfilled" {
-		return ErrNotFulfillable
+		return nil, ErrNotFulfillable
+	}
+	if targetReturned {
+		return nil, ErrReturnedItemImmutable
 	}
 
 	// Source returned account (locked), with its credentials + match key.
 	var (
 		status                     string
-		reusedAt                   *time.Time
+		reusedAt, disabledAt       *time.Time
 		email, pass, code          *string
 		sGame, sPlatform, sZarfiat string
 	)
 	err = tx.QueryRow(ctx, `
-		SELECT gr.status, gr.reused_at, src.email, src.password, src.passcode,
+		SELECT gr.status, gr.reused_at, gr.inventory_disabled_at,
+		       src.email, src.password, src.passcode,
 		       src.game_id, src.platform, src.zarfiat
 		FROM game_returns gr JOIN order_items src ON src.id = gr.order_item_id
 		WHERE gr.id = $1
 		FOR UPDATE OF gr
-	`, returnID).Scan(&status, &reusedAt, &email, &pass, &code, &sGame, &sPlatform, &sZarfiat)
+	`, returnID).Scan(&status, &reusedAt, &disabledAt, &email, &pass, &code, &sGame, &sPlatform, &sZarfiat)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrReturnNotFound
+		return nil, ErrReturnNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("reuseReturnedAccount source: %w", err)
+		return nil, fmt.Errorf("reuseReturnedAccount source: %w", err)
 	}
-	if status != "approved" || reusedAt != nil {
-		return ErrReturnUnavailable
+	if status != "approved" || reusedAt != nil || disabledAt != nil {
+		return nil, ErrReturnUnavailable
 	}
 	// Defensive: an approved return always comes from a fully delivered account, but
 	// never copy a partial/blank credential set onto the new item (which would
 	// consume inventory without actually delivering).
 	if email == nil || pass == nil || code == nil {
-		return ErrReturnUnavailable
+		return nil, ErrReturnUnavailable
 	}
 	if sGame != tGame || sPlatform != tPlatform || sZarfiat != tZarfiat {
-		return ErrReturnMismatch
+		return nil, ErrReturnMismatch
+	}
+
+	plainEmail, err := cred.DecryptPtr(email)
+	if err != nil {
+		return nil, fmt.Errorf("reuseReturnedAccount decrypt email: %w", err)
+	}
+	if plainEmail == nil {
+		return nil, ErrReturnUnavailable
+	}
+	identity := credentialstate.AccountIdentity(*plainEmail, tPlatform)
+	holders, err := credentialstate.ActiveHolders(ctx, tx, cred,
+		map[string]struct{}{identity: {}}, map[string]struct{}{itemID: {}})
+	if err != nil {
+		return nil, err
+	}
+	var warnings []CredentialWarning
+	if active := holders[identity]; len(active) > 0 {
+		matches := make([]CredentialMatch, 0, len(active))
+		for _, holder := range active {
+			matches = append(matches, CredentialMatch{
+				OrderID: holder.OrderID, OrderNumber: holder.OrderNumber, ItemID: holder.ItemID,
+				GameName: holder.GameName, Console: holder.Console, Capacity: holder.Capacity,
+			})
+		}
+		warnings = []CredentialWarning{{ItemID: itemID, Email: *plainEmail, Matches: matches}}
+		if !allowDuplicate {
+			return warnings, nil
+		}
 	}
 
 	// Copy the (already-encrypted, same-key) credentials onto the new item.
 	if _, err := tx.Exec(ctx,
 		"UPDATE order_items SET email = $1, password = $2, passcode = $3 WHERE id = $4 AND order_id = $5",
 		email, pass, code, itemID, orderID); err != nil {
-		return fmt.Errorf("reuseReturnedAccount copy creds: %w", err)
+		return nil, fmt.Errorf("reuseReturnedAccount copy creds: %w", err)
 	}
 
-	// Consume the inventory (guarded so a concurrent reuse can't double-use it).
-	tag, err := tx.Exec(ctx, `
-		UPDATE game_returns SET reused_at = NOW(), reused_for_item_id = $1, updated_at = NOW()
-		WHERE id = $2 AND status = 'approved' AND reused_at IS NULL
-	`, itemID, returnID)
+	consumed, err := consumeReturnedAccountsByIdentity(ctx, tx, cred, adminID, orderID,
+		map[string]string{identity: itemID}, "inventory_button")
 	if err != nil {
-		return fmt.Errorf("reuseReturnedAccount consume: %w", err)
+		return nil, err
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrReturnUnavailable
+	if consumed == 0 {
+		return nil, ErrReturnUnavailable
 	}
 
 	// Recompute fulfillment: fulfilled once every item has all three credentials.
@@ -815,7 +1068,7 @@ func reuseReturnedAccount(ctx context.Context, db *pgxpool.Pool, adminID, orderI
 		SELECT COUNT(*) FROM order_items
 		WHERE order_id = $1 AND (email IS NULL OR password IS NULL OR passcode IS NULL)
 	`, orderID).Scan(&incomplete); err != nil {
-		return fmt.Errorf("reuseReturnedAccount completeness: %w", err)
+		return nil, fmt.Errorf("reuseReturnedAccount completeness: %w", err)
 	}
 	newStatus := "paid"
 	if incomplete == 0 {
@@ -824,27 +1077,27 @@ func reuseReturnedAccount(ctx context.Context, db *pgxpool.Pool, adminID, orderI
 	if _, err := tx.Exec(ctx,
 		"UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 AND status IN ('paid','fulfilled')",
 		newStatus, orderID); err != nil {
-		return fmt.Errorf("reuseReturnedAccount status: %w", err)
+		return nil, fmt.Errorf("reuseReturnedAccount status: %w", err)
 	}
-
-	if err := audit.Record(ctx, tx, audit.Entry{
-		AdminID:    adminID,
-		Action:     audit.ActionReturnReuse,
-		TargetType: "return",
-		TargetID:   returnID,
-		Metadata:   map[string]any{"order_id": orderID, "order_item_id": itemID, "order_status": newStatus},
-	}); err != nil {
-		return fmt.Errorf("reuseReturnedAccount: %w", err)
+	if len(warnings) > 0 {
+		if err := audit.Record(ctx, tx, audit.Entry{
+			AdminID: adminID, Action: audit.ActionOrderFulfill, TargetType: "order", TargetID: orderID,
+			Metadata: map[string]any{"status": newStatus, "items": 1, "duplicate_override": len(warnings)},
+		}); err != nil {
+			return nil, fmt.Errorf("reuseReturnedAccount duplicate audit: %w", err)
+		}
 	}
-	return tx.Commit(ctx)
+	return nil, tx.Commit(ctx)
 }
 
-func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cipher, orderIDs []string, add func(orderID string, it OrderItemView)) error {
+func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cipher, orderIDs []string, includeReturnedCredentials bool, add func(orderID string, it OrderItemView)) error {
 	rows, err := db.Query(ctx, `
-		SELECT order_id, id, game_id, game_name, platform, zarfiat, quantity, pre_order, email, password, passcode
-		FROM order_items
-		WHERE order_id = ANY($1)
-		ORDER BY game_name
+		SELECT oi.order_id, oi.id, oi.game_id, oi.game_name, oi.platform, oi.zarfiat,
+		       oi.quantity, oi.pre_order, oi.email, oi.password, oi.passcode, gr.status
+		FROM order_items oi
+		LEFT JOIN game_returns gr ON gr.order_item_id = oi.id
+		WHERE oi.order_id = ANY($1)
+		ORDER BY oi.game_name
 	`, orderIDs)
 	if err != nil {
 		return fmt.Errorf("attachOrderItems: %w", err)
@@ -853,8 +1106,9 @@ func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credentials.C
 	for rows.Next() {
 		var orderID string
 		var it OrderItemView
+		var returnStatus *string
 		if err := rows.Scan(&orderID, &it.ID, &it.GameID, &it.GameName, &it.Platform, &it.Zarfiat, &it.Quantity,
-			&it.PreOrder, &it.Email, &it.Password, &it.Passcode); err != nil {
+			&it.PreOrder, &it.Email, &it.Password, &it.Passcode, &returnStatus); err != nil {
 			return fmt.Errorf("attachOrderItems scan: %w", err)
 		}
 
@@ -867,6 +1121,10 @@ func attachOrderItems(ctx context.Context, db *pgxpool.Pool, cred *credentials.C
 		}
 		if it.Passcode, err = cred.DecryptPtr(it.Passcode); err != nil {
 			return fmt.Errorf("attachOrderItems decrypt passcode: %w", err)
+		}
+		it.CredentialsReturned = returnStatus != nil && (*returnStatus == "approved" || *returnStatus == "refused")
+		if it.CredentialsReturned && !includeReturnedCredentials {
+			it.Email, it.Password, it.Passcode = nil, nil, nil
 		}
 
 		add(orderID, it)

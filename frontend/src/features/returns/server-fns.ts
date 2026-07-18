@@ -7,6 +7,8 @@ import type {
   MyReturnsPage,
   OwnedItem,
   OwnedPage,
+  ReturnedAccountsPage,
+  ReturnedAccountsQuery,
   Wallet,
 } from "./types"
 
@@ -81,4 +83,18 @@ export const getAdminReturnFn = createServerFn({ method: "GET" })
     if (res.status === 404) return null
     if (!res.ok) throw new Error("FETCH_ADMIN_RETURN_FAILED")
     return (await res.json()) as AdminReturnDetail
+  })
+
+export const getReturnedAccountsFn = createServerFn({ method: "GET" })
+  .validator((q: ReturnedAccountsQuery) => q)
+  .handler(async ({ data }) => {
+    const params = new URLSearchParams()
+    if (data.page) params.set("page", String(data.page))
+    if (data.status) params.set("status", data.status)
+    if (data.search) params.set("search", data.search)
+    const res = await fetch(`${API_URL}/admin/returned-accounts?${params}`, {
+      headers: cookieHeader(),
+    })
+    if (!res.ok) throw new Error("FETCH_RETURNED_ACCOUNTS_FAILED")
+    return (await res.json()) as ReturnedAccountsPage
   })

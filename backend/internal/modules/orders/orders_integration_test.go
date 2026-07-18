@@ -157,13 +157,13 @@ func TestFulfillOrder_EncryptsAtRestAndCompletes(t *testing.T) {
 	itemID := ao.Items[0].ID
 
 	// Partial credentials → order stays paid (not yet deliverable).
-	if err := fulfillOrder(ctx, db, cred, "u1", orderID, []credInput{{ItemID: itemID, Email: "a@psn.com"}}); err != nil {
+	if _, err := fulfillOrder(ctx, db, cred, "u1", orderID, []credInput{{ItemID: itemID, Email: "a@psn.com"}}, false); err != nil {
 		t.Fatal(err)
 	}
 	assertStatus(t, ctx, db, orderID, "paid")
 
 	// Complete credentials → order becomes fulfilled.
-	if err := fulfillOrder(ctx, db, cred, "u1", orderID, []credInput{{ItemID: itemID, Email: "a@psn.com", Password: "pw", Passcode: "psn"}}); err != nil {
+	if _, err := fulfillOrder(ctx, db, cred, "u1", orderID, []credInput{{ItemID: itemID, Email: "a@psn.com", Password: "pw", Passcode: "psn"}}, false); err != nil {
 		t.Fatal(err)
 	}
 	assertStatus(t, ctx, db, orderID, "fulfilled")

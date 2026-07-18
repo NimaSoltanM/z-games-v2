@@ -22,6 +22,8 @@ import { Route as DashboardWalletRouteImport } from './routes/dashboard/wallet'
 import { Route as DashboardReturnsRouteImport } from './routes/dashboard/returns'
 import { Route as DashboardProfileRouteImport } from './routes/dashboard/profile'
 import { Route as DashboardOrderIdRouteImport } from './routes/dashboard/$orderId'
+import { Route as AdminVerificationCodesRouteImport } from './routes/admin/verification-codes'
+import { Route as AdminInventoryRouteImport } from './routes/admin/inventory'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as GamesSlugIndexRouteImport } from './routes/games/$slug/index'
 import { Route as DashboardGamesIndexRouteImport } from './routes/dashboard/games/index'
@@ -100,6 +102,16 @@ const DashboardOrderIdRoute = DashboardOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const AdminVerificationCodesRoute = AdminVerificationCodesRouteImport.update({
+  id: '/verification-codes',
+  path: '/verification-codes',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminInventoryRoute = AdminInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminAuditRoute = AdminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -167,6 +179,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/verification-codes': typeof AdminVerificationCodesRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/returns': typeof DashboardReturnsRoute
@@ -193,6 +207,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/verification-codes': typeof AdminVerificationCodesRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/returns': typeof DashboardReturnsRoute
@@ -221,6 +237,8 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/verification-codes': typeof AdminVerificationCodesRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/returns': typeof DashboardReturnsRoute
@@ -250,6 +268,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/admin/audit'
+    | '/admin/inventory'
+    | '/admin/verification-codes'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
     | '/dashboard/returns'
@@ -276,6 +296,8 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin/audit'
+    | '/admin/inventory'
+    | '/admin/verification-codes'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
     | '/dashboard/returns'
@@ -303,6 +325,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/admin/audit'
+    | '/admin/inventory'
+    | '/admin/verification-codes'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
     | '/dashboard/returns'
@@ -431,6 +455,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardOrderIdRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/admin/verification-codes': {
+      id: '/admin/verification-codes'
+      path: '/verification-codes'
+      fullPath: '/admin/verification-codes'
+      preLoaderRoute: typeof AdminVerificationCodesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/inventory': {
+      id: '/admin/inventory'
+      path: '/inventory'
+      fullPath: '/admin/inventory'
+      preLoaderRoute: typeof AdminInventoryRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/audit': {
       id: '/admin/audit'
       path: '/audit'
@@ -520,6 +558,8 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
+  AdminInventoryRoute: typeof AdminInventoryRoute
+  AdminVerificationCodesRoute: typeof AdminVerificationCodesRoute
   AdminGamesNewRoute: typeof AdminGamesNewRoute
   AdminGamesPricingRoute: typeof AdminGamesPricingRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
@@ -532,6 +572,8 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
+  AdminInventoryRoute: AdminInventoryRoute,
+  AdminVerificationCodesRoute: AdminVerificationCodesRoute,
   AdminGamesNewRoute: AdminGamesNewRoute,
   AdminGamesPricingRoute: AdminGamesPricingRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,

@@ -10,9 +10,24 @@ export type OrderItem = {
   zarfiat: Zarfiat
   quantity: number
   pre_order: boolean
+  credentials_returned: boolean
   email: string | null
   password: string | null
   passcode: string | null
+  verification_code: {
+    eligible: boolean
+    can_request: boolean
+    blocked_reason?: "pending" | "active" | "cooldown"
+    next_request_at: string | null
+    request: {
+      id: string
+      status: "pending" | "delivered" | "expired"
+      code: string | null
+      requested_at: string
+      delivered_at: string | null
+      expires_at: string | null
+    } | null
+  } | null
 }
 
 export type Order = {

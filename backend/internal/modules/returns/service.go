@@ -16,19 +16,23 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/shared/audit"
 	"github.com/soltanmohammdi/z-games/internal/shared/credentials"
+	"github.com/soltanmohammdi/z-games/internal/shared/credentialstate"
 	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
 )
 
 var (
-	ErrItemNotFound     = errors.New("RETURN_ITEM_NOT_FOUND")    // not owned / not delivered
-	ErrNotReturnable    = errors.New("RETURN_NOT_RETURNABLE")    // admin disabled returns for the game
-	ErrAlreadyRequested = errors.New("RETURN_ALREADY_REQUESTED") // a return row already exists for the item
-	ErrReturnNotFound   = errors.New("RETURN_NOT_FOUND")
-	ErrNotResubmittable = errors.New("RETURN_NOT_RESUBMITTABLE") // status != rejected
-	ErrNotReviewable    = errors.New("RETURN_NOT_REVIEWABLE")    // status != pending
-	ErrInvalidCredit    = errors.New("RETURN_INVALID_CREDIT")
-	ErrCreditTooLarge   = errors.New("RETURN_CREDIT_TOO_LARGE")
-	ErrReasonRequired   = errors.New("RETURN_REASON_REQUIRED")
+	ErrItemNotFound         = errors.New("RETURN_ITEM_NOT_FOUND")    // not owned / not delivered
+	ErrNotReturnable        = errors.New("RETURN_NOT_RETURNABLE")    // admin disabled returns for the game
+	ErrAlreadyRequested     = errors.New("RETURN_ALREADY_REQUESTED") // a return row already exists for the item
+	ErrReturnNotFound       = errors.New("RETURN_NOT_FOUND")
+	ErrNotResubmittable     = errors.New("RETURN_NOT_RESUBMITTABLE") // status != rejected
+	ErrNotReviewable        = errors.New("RETURN_NOT_REVIEWABLE")    // status != pending
+	ErrInvalidCredit        = errors.New("RETURN_INVALID_CREDIT")
+	ErrCreditTooLarge       = errors.New("RETURN_CREDIT_TOO_LARGE")
+	ErrReasonRequired       = errors.New("RETURN_REASON_REQUIRED")
+	ErrInventoryUnavailable = errors.New("RETURN_INVENTORY_UNAVAILABLE")
+	ErrInventoryReused      = errors.New("RETURN_INVENTORY_ALREADY_REUSED")
+	ErrInventoryActive      = errors.New("RETURN_INVENTORY_ACCOUNT_ACTIVE")
 )
 
 const maxReasonLen = 1000
@@ -496,23 +500,223 @@ func listAdminReturns(ctx context.Context, db *pgxpool.Pool, f adminFilter) ([]A
 	return out, total, rows.Err()
 }
 
+// --- admin: returned-account inventory --------------------------------------
+
+type ReturnedAccountRow struct {
+	ReturnID             string     `json:"return_id"`
+	GameID               string     `json:"game_id"`
+	GameName             string     `json:"game_name"`
+	Console              string     `json:"console"`
+	Capacity             string     `json:"capacity"`
+	AccountEmail         *string    `json:"account_email"`
+	ReturnedAt           time.Time  `json:"returned_at"`
+	SourceOrderID        string     `json:"source_order_id"`
+	SourceOrderNumber    int64      `json:"source_order_number"`
+	Available            bool       `json:"available"`
+	InventoryDisabledAt  *time.Time `json:"inventory_disabled_at"`
+	ReusedAt             *time.Time `json:"reused_at"`
+	ReusedForOrderID     *string    `json:"reused_for_order_id"`
+	ReusedForOrderNumber *int64     `json:"reused_for_order_number"`
+}
+
+type returnedAccountFilter struct {
+	status string
+	search string
+	limit  int
+	offset int
+}
+
+// listReturnedAccounts is the durable inventory/history view for every approved
+// return. Rows are never deleted: available, manually unavailable, and reused
+// accounts are all visible, with reuse linked to its destination order.
+func listReturnedAccounts(ctx context.Context, db *pgxpool.Pool, cipher *credentials.Cipher, f returnedAccountFilter) ([]ReturnedAccountRow, int, error) {
+	conds := []string{"gr.status = 'approved'"}
+	var args []any
+	switch f.status {
+	case "available":
+		conds = append(conds, "gr.reused_at IS NULL AND gr.inventory_disabled_at IS NULL")
+	case "disabled":
+		conds = append(conds, "gr.reused_at IS NULL AND gr.inventory_disabled_at IS NOT NULL")
+	case "reused":
+		conds = append(conds, "gr.reused_at IS NOT NULL")
+	}
+	if f.search != "" {
+		args = append(args, "%"+f.search+"%")
+		n := len(args)
+		conds = append(conds, fmt.Sprintf(
+			"(src.game_name ILIKE $%d OR CAST(source_order.order_number AS TEXT) ILIKE $%d OR CAST(reused_order.order_number AS TEXT) ILIKE $%d)",
+			n, n, n))
+	}
+	where := "WHERE " + strings.Join(conds, " AND ")
+	base := `
+		FROM game_returns gr
+		JOIN order_items src ON src.id = gr.order_item_id
+		JOIN orders source_order ON source_order.id = src.order_id
+		LEFT JOIN order_items reused_item ON reused_item.id = gr.reused_for_item_id
+		LEFT JOIN orders reused_order ON reused_order.id = reused_item.order_id
+		` + where
+
+	var total int
+	if err := db.QueryRow(ctx, "SELECT COUNT(*) "+base, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("listReturnedAccounts count: %w", err)
+	}
+	if total == 0 {
+		return []ReturnedAccountRow{}, 0, nil
+	}
+
+	q := fmt.Sprintf(`
+		SELECT gr.id, src.game_id, src.game_name, src.platform, src.zarfiat, src.email,
+		       COALESCE(gr.reviewed_at, gr.updated_at, gr.created_at),
+		       source_order.id, source_order.order_number,
+		       gr.inventory_disabled_at, gr.reused_at,
+		       reused_order.id, reused_order.order_number
+		%s
+		ORDER BY
+		  CASE
+		    WHEN gr.reused_at IS NULL AND gr.inventory_disabled_at IS NULL THEN 0
+		    WHEN gr.reused_at IS NULL THEN 1
+		    ELSE 2
+		  END,
+		  gr.reviewed_at DESC NULLS LAST,
+		  gr.created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, base, len(args)+1, len(args)+2)
+	rows, err := db.Query(ctx, q, append(args, f.limit, f.offset)...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("listReturnedAccounts: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]ReturnedAccountRow, 0)
+	for rows.Next() {
+		var (
+			r              ReturnedAccountRow
+			encryptedEmail *string
+		)
+		if err := rows.Scan(&r.ReturnID, &r.GameID, &r.GameName, &r.Console, &r.Capacity,
+			&encryptedEmail, &r.ReturnedAt, &r.SourceOrderID, &r.SourceOrderNumber,
+			&r.InventoryDisabledAt, &r.ReusedAt, &r.ReusedForOrderID, &r.ReusedForOrderNumber); err != nil {
+			return nil, 0, fmt.Errorf("listReturnedAccounts scan: %w", err)
+		}
+		if r.AccountEmail, err = cipher.DecryptPtr(encryptedEmail); err != nil {
+			return nil, 0, fmt.Errorf("listReturnedAccounts decrypt email: %w", err)
+		}
+		r.Available = r.ReusedAt == nil && r.InventoryDisabledAt == nil
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("listReturnedAccounts rows: %w", err)
+	}
+	return out, total, nil
+}
+
+// setReturnedAccountAvailability toggles only the manual availability flag.
+// Automatically reused rows are immutable history. Re-enabling is rejected if
+// the same account identity is currently held by any customer.
+func setReturnedAccountAvailability(ctx context.Context, db *pgxpool.Pool, cipher *credentials.Cipher, adminID, returnID string, available bool) error {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("setReturnedAccountAvailability begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", credentialstate.FulfillmentAdvisoryLockKey); err != nil {
+		return fmt.Errorf("setReturnedAccountAvailability lock: %w", err)
+	}
+
+	var (
+		status         string
+		encryptedEmail *string
+		platform       string
+		reusedAt       *time.Time
+		disabledAt     *time.Time
+	)
+	err = tx.QueryRow(ctx, `
+		SELECT gr.status, src.email, src.platform, gr.reused_at, gr.inventory_disabled_at
+		FROM game_returns gr
+		JOIN order_items src ON src.id = gr.order_item_id
+		WHERE gr.id = $1
+		FOR UPDATE OF gr
+	`, returnID).Scan(&status, &encryptedEmail, &platform, &reusedAt, &disabledAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrReturnNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("setReturnedAccountAvailability load: %w", err)
+	}
+	if status != "approved" || encryptedEmail == nil {
+		return ErrInventoryUnavailable
+	}
+	if reusedAt != nil {
+		return ErrInventoryReused
+	}
+	if (available && disabledAt == nil) || (!available && disabledAt != nil) {
+		return tx.Commit(ctx)
+	}
+
+	if available {
+		email, err := cipher.DecryptPtr(encryptedEmail)
+		if err != nil {
+			return fmt.Errorf("setReturnedAccountAvailability decrypt email: %w", err)
+		}
+		if email == nil {
+			return ErrInventoryUnavailable
+		}
+		identity := credentialstate.AccountIdentity(*email, platform)
+		holders, err := credentialstate.ActiveHolders(ctx, tx, cipher,
+			map[string]struct{}{identity: {}}, nil)
+		if err != nil {
+			return err
+		}
+		if len(holders[identity]) > 0 {
+			return ErrInventoryActive
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE game_returns
+			SET inventory_disabled_at = NULL, inventory_disabled_by = NULL, updated_at = NOW()
+			WHERE id = $1 AND reused_at IS NULL
+		`, returnID); err != nil {
+			return fmt.Errorf("setReturnedAccountAvailability enable: %w", err)
+		}
+	} else {
+		if _, err := tx.Exec(ctx, `
+			UPDATE game_returns
+			SET inventory_disabled_at = NOW(), inventory_disabled_by = $1, updated_at = NOW()
+			WHERE id = $2 AND reused_at IS NULL
+		`, adminID, returnID); err != nil {
+			return fmt.Errorf("setReturnedAccountAvailability disable: %w", err)
+		}
+	}
+
+	action := audit.ActionReturnInventoryDisable
+	if available {
+		action = audit.ActionReturnInventoryEnable
+	}
+	if err := audit.Record(ctx, tx, audit.Entry{
+		AdminID: adminID, Action: action, TargetType: "return", TargetID: returnID,
+		Metadata: map[string]any{"available": available},
+	}); err != nil {
+		return fmt.Errorf("setReturnedAccountAvailability audit: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
 // --- admin: detail -----------------------------------------------------------
 
 // AdminReturnDetail is everything an admin needs to judge a return: the account
 // credentials (decrypted), what/when it was bought, who bought it, the video, and
 // the suggested credit.
 type AdminReturnDetail struct {
-	ID           string         `json:"id"`
-	Status       string         `json:"status"`
-	Reason       *string        `json:"reason"`
-	CreditAmount *int           `json:"credit_amount"`
-	HasVideo     bool           `json:"has_video"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	ReviewedAt   *time.Time     `json:"reviewed_at"`
+	ID           string     `json:"id"`
+	Status       string     `json:"status"`
+	Reason       *string    `json:"reason"`
+	CreditAmount *int       `json:"credit_amount"`
+	HasVideo     bool       `json:"has_video"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	ReviewedAt   *time.Time `json:"reviewed_at"`
 	// ReusedAt is set once an approved return's account has been reused to fulfill a
 	// new order, so the admin knows that stock is already spent.
-	ReusedAt *time.Time `json:"reused_at"`
+	ReusedAt     *time.Time     `json:"reused_at"`
 	GameID       string         `json:"game_id"`
 	GameName     string         `json:"game_name"`
 	Console      string         `json:"console"`

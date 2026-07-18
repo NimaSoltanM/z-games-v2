@@ -10,6 +10,10 @@ export type AuditActionKey =
   | "game.alert"
   | "exchange_rate.set"
   | "order.fulfill"
+  | "return.reuse"
+  | "return.inventory_disable"
+  | "return.inventory_enable"
+  | "verification_code.send"
   | "image.upload"
 
 // Audit metadata only ever holds JSON scalars, which keeps the server-fn return
@@ -40,6 +44,13 @@ export type AuditMetadata = {
   status?: string
   items?: number
   usd_to_toman?: number
+  available?: boolean
+  order_id?: string
+  order_item_id?: string
+  mode?: string
+  duplicate_override?: number
+  returned_accounts_consumed?: number
+  expires_at?: string
 }
 
 export type AuditRow = {

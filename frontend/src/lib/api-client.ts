@@ -1,5 +1,16 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3002"
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly data: unknown
+  ) {
+    super(message)
+    this.name = "ApiError"
+  }
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit
@@ -33,7 +44,7 @@ export async function apiFetch<T>(
       typeof data.message === "string"
         ? data.message
         : "خطایی رخ داده است"
-    throw new Error(message)
+    throw new ApiError(message, res.status, data)
   }
   return data as T
 }

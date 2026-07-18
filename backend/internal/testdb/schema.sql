@@ -192,6 +192,8 @@ CREATE TABLE public.game_returns (
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
     reused_at timestamp without time zone,
     reused_for_item_id uuid,
+    inventory_disabled_at timestamp without time zone,
+    inventory_disabled_by character varying,
     CONSTRAINT game_returns_credit_amount_check CHECK (((credit_amount IS NULL) OR (credit_amount >= 0))),
     CONSTRAINT game_returns_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'refused'::text])))
 );
@@ -319,6 +321,30 @@ CREATE TABLE public.users (
     wallet_balance integer DEFAULT 0 NOT NULL,
     CONSTRAINT users_wallet_balance_check CHECK ((wallet_balance >= 0))
 );
+
+
+--
+-- Name: verification_code_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.verification_code_requests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    order_item_id uuid NOT NULL REFERENCES public.order_items(id) ON DELETE CASCADE,
+    user_id character varying NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    status text DEFAULT 'pending'::text NOT NULL CHECK (status = ANY (ARRAY['pending'::text, 'delivered'::text, 'expired'::text])),
+    code text,
+    requested_at timestamp without time zone DEFAULT now() NOT NULL,
+    delivered_at timestamp without time zone,
+    expires_at timestamp without time zone,
+    delivered_by character varying REFERENCES public.users(id) ON DELETE SET NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT verification_code_delivery_fields_check CHECK (((status = 'pending'::text AND code IS NULL AND delivered_at IS NULL AND expires_at IS NULL AND delivered_by IS NULL) OR (status = 'delivered'::text AND code IS NOT NULL AND delivered_at IS NOT NULL AND expires_at IS NOT NULL AND delivered_by IS NOT NULL) OR (status = 'expired'::text AND code IS NULL AND delivered_at IS NOT NULL AND expires_at IS NOT NULL)))
+);
+
+CREATE UNIQUE INDEX verification_code_requests_one_pending_user_idx ON public.verification_code_requests USING btree (user_id) WHERE (status = 'pending'::text);
+CREATE INDEX verification_code_requests_user_time_idx ON public.verification_code_requests USING btree (user_id, requested_at DESC);
+CREATE INDEX verification_code_requests_admin_queue_idx ON public.verification_code_requests USING btree (status, requested_at DESC);
+CREATE INDEX verification_code_requests_expiry_idx ON public.verification_code_requests USING btree (expires_at) WHERE (status = 'delivered'::text);
 
 
 --
@@ -670,7 +696,7 @@ CREATE INDEX admin_actions_target_idx ON public.admin_actions USING btree (targe
 -- Name: game_returns_available_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX game_returns_available_idx ON public.game_returns USING btree (order_item_id) WHERE ((status = 'approved'::text) AND (reused_at IS NULL));
+CREATE INDEX game_returns_available_idx ON public.game_returns USING btree (order_item_id) WHERE ((status = 'approved'::text) AND (reused_at IS NULL) AND (inventory_disabled_at IS NULL));
 
 
 --
@@ -838,6 +864,14 @@ ALTER TABLE ONLY public.game_prices
 
 ALTER TABLE ONLY public.game_returns
     ADD CONSTRAINT game_returns_order_item_id_fkey FOREIGN KEY (order_item_id) REFERENCES public.order_items(id) ON DELETE CASCADE;
+
+
+--
+-- Name: game_returns game_returns_inventory_disabled_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.game_returns
+    ADD CONSTRAINT game_returns_inventory_disabled_by_fkey FOREIGN KEY (inventory_disabled_by) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --

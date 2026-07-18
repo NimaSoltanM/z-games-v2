@@ -162,6 +162,45 @@ func (h *handler) adminGet(c fiber.Ctx) error {
 	return c.JSON(d)
 }
 
+func (h *handler) adminListReturnedAccounts(c fiber.Ctx) error {
+	page, limit, offset := pageParams(c)
+	rows, total, err := listReturnedAccounts(c.Context(), h.db, h.cred, returnedAccountFilter{
+		status: c.Query("status"),
+		search: strings.TrimSpace(c.Query("search")),
+		limit:  limit,
+		offset: offset,
+	})
+	if err != nil {
+		return err
+	}
+	return c.JSON(fiber.Map{"accounts": rows, "pagination": pagination(page, limit, total)})
+}
+
+func (h *handler) adminSetReturnedAccountAvailability(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+	var body struct {
+		Available *bool `json:"available"`
+	}
+	if err := c.Bind().JSON(&body); err != nil || body.Available == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
+	}
+
+	err := setReturnedAccountAvailability(c.Context(), h.db, h.cred, adminID, c.Params("id"), *body.Available)
+	switch {
+	case errors.Is(err, ErrReturnNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "حساب بازگردانده‌شده یافت نشد"})
+	case errors.Is(err, ErrInventoryUnavailable):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "این حساب در فهرست موجودی قابل مدیریت نیست"})
+	case errors.Is(err, ErrInventoryReused):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این حساب قبلاً برای یک سفارش دیگر استفاده شده و سابقهٔ آن قابل بازگردانی نیست"})
+	case errors.Is(err, ErrInventoryActive):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این حساب اکنون در اختیار یک مشتری است و نمی‌توان آن را دوباره موجود کرد"})
+	case err != nil:
+		return err
+	}
+	return c.JSON(fiber.Map{"available": *body.Available})
+}
+
 // adminVideo streams a return's video to an admin. Videos are private (never on
 // the public uploads mount); only this admin-guarded route serves them.
 func (h *handler) adminVideo(c fiber.Ctx) error {

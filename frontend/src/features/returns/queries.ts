@@ -6,8 +6,9 @@ import {
   getOwnedFn,
   getOwnedItemFn,
   getWalletFn,
+  getReturnedAccountsFn,
 } from "./server-fns"
-import type { AdminReturnsQuery } from "./types"
+import type { AdminReturnsQuery, ReturnedAccountsQuery } from "./types"
 
 export const ownedQueryOptions = (page = 1) =>
   queryOptions({
@@ -43,4 +44,12 @@ export const adminReturnQueryOptions = (id: string) =>
   queryOptions({
     queryKey: ["admin", "returns", id],
     queryFn: () => getAdminReturnFn({ data: id }),
+  })
+
+export const returnedAccountsQueryOptions = (
+  query: ReturnedAccountsQuery = {}
+) =>
+  queryOptions({
+    queryKey: ["admin", "returned-accounts", "list", query],
+    queryFn: () => getReturnedAccountsFn({ data: query }),
   })

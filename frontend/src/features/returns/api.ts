@@ -111,3 +111,13 @@ export function refuseReturn(id: string, reason: string) {
 export function returnVideoUrl(id: string): string {
   return `${API_URL}/admin/returns/${id}/video`
 }
+
+export function setReturnedAccountAvailability(id: string, available: boolean) {
+  return apiFetch<{ available: boolean }>(
+    `/admin/returned-accounts/${id}/availability`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ available }),
+    }
+  )
+}

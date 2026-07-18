@@ -28,8 +28,8 @@ func deliverAndReturn(t *testing.T, ctx context.Context, db *pgxpool.Pool, cred 
 		t.Fatal(err)
 	}
 	itemID = ao.Items[0].ID
-	if err := fulfillOrder(ctx, db, cred, "admin", orderID,
-		[]credInput{{ItemID: itemID, Email: email, Password: pass, Passcode: code}}); err != nil {
+	if _, err := fulfillOrder(ctx, db, cred, "admin", orderID,
+		[]credInput{{ItemID: itemID, Email: email, Password: pass, Passcode: code}}, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRow(ctx, `
@@ -74,7 +74,7 @@ func TestReuseReturnedAccount(t *testing.T) {
 	}
 
 	// Reuse it.
-	if err := reuseReturnedAccount(ctx, db, "admin", o2, item2, retID); err != nil {
+	if _, err := reuseReturnedAccount(ctx, db, cred, "admin", o2, item2, retID, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -104,8 +104,61 @@ func TestReuseReturnedAccount(t *testing.T) {
 	}
 
 	// Reusing again is rejected.
-	if err := reuseReturnedAccount(ctx, db, "admin", o2, item2, retID); !errors.Is(err, ErrReturnUnavailable) {
+	if _, err := reuseReturnedAccount(ctx, db, cred, "admin", o2, item2, retID, false); !errors.Is(err, ErrReturnUnavailable) {
 		t.Fatalf("second reuse err = %v, want ErrReturnUnavailable", err)
+	}
+}
+
+func TestReuseReturnedAccount_CanBeReturnedAndReusedAgain(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	cred := newTestCipher(t)
+	seedUser(t, ctx, db, "buyer1", "09120000001")
+	seedUser(t, ctx, db, "buyer2", "09120000002")
+	seedUser(t, ctx, db, "buyer3", "09120000003")
+	seedUser(t, ctx, db, "admin", "09120000009")
+	seedGame(t, ctx, db, "g1", "dynamic", true)
+
+	_, firstReturnID := deliverAndReturn(t, ctx, db, cred, "buyer1", oneItem(), "repeat@psn.com", "pw", "code")
+
+	secondOrderID, secondItemID := newPaidOrderItem(t, ctx, db, cred, "buyer2", oneItem())
+	if warnings, err := reuseReturnedAccount(ctx, db, cred, "admin", secondOrderID, secondItemID, firstReturnID, false); err != nil || len(warnings) != 0 {
+		t.Fatalf("first reuse warnings=%+v err=%v", warnings, err)
+	}
+
+	// Buyer 2 returns the same login. This is a new inventory cycle tied to the
+	// second order item; the consumed first return remains immutable history.
+	var secondReturnID string
+	if err := db.QueryRow(ctx, `
+		INSERT INTO game_returns (order_item_id, user_id, status, video_filename, agreed_terms, credit_amount)
+		VALUES ($1, 'buyer2', 'approved', 'v2.mp4', true, 1000)
+		RETURNING id
+	`, secondItemID).Scan(&secondReturnID); err != nil {
+		t.Fatal(err)
+	}
+
+	thirdOrderID, thirdItemID := newPaidOrderItem(t, ctx, db, cred, "buyer3", oneItem())
+	thirdOrder, err := getAdminOrder(ctx, db, cred, thirdOrderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := thirdOrder.Inventory[thirdItemID]; len(got) != 1 || got[0].ReturnID != secondReturnID {
+		t.Fatalf("next-cycle inventory = %+v, want only %s", got, secondReturnID)
+	}
+	if warnings, err := reuseReturnedAccount(ctx, db, cred, "admin", thirdOrderID, thirdItemID, secondReturnID, false); err != nil || len(warnings) != 0 {
+		t.Fatalf("second reuse warnings=%+v err=%v", warnings, err)
+	}
+
+	var firstTarget, secondTarget *string
+	if err := db.QueryRow(ctx, `
+		SELECT
+		  (SELECT reused_for_item_id FROM game_returns WHERE id = $1),
+		  (SELECT reused_for_item_id FROM game_returns WHERE id = $2)
+	`, firstReturnID, secondReturnID).Scan(&firstTarget, &secondTarget); err != nil {
+		t.Fatal(err)
+	}
+	if firstTarget == nil || *firstTarget != secondItemID || secondTarget == nil || *secondTarget != thirdItemID {
+		t.Fatalf("reuse chain targets first=%v second=%v", firstTarget, secondTarget)
 	}
 }
 
@@ -140,7 +193,7 @@ func TestReuse_StrictCapacityMatch(t *testing.T) {
 		t.Fatalf("inventory for z3 item = %+v, want empty (z2 account must not match)", got)
 	}
 	// And the server rejects a forced cross-capacity reuse.
-	if err := reuseReturnedAccount(ctx, db, "admin", o2, item3, retID); !errors.Is(err, ErrReturnMismatch) {
+	if _, err := reuseReturnedAccount(ctx, db, cred, "admin", o2, item3, retID, false); !errors.Is(err, ErrReturnMismatch) {
 		t.Fatalf("cross-capacity reuse err = %v, want ErrReturnMismatch", err)
 	}
 }

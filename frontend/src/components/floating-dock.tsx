@@ -16,7 +16,7 @@ export function FloatingDock({
 }) {
   return (
     <div className="fixed inset-x-0 bottom-5 z-30 flex justify-center px-4 lg:hidden">
-      <nav className="flex items-center gap-1 rounded-full border border-border/60 bg-background/80 p-1.5 shadow-lg shadow-black/20 backdrop-blur-xl dark:shadow-black/40">
+      <nav className="flex max-w-full scrollbar-none items-center gap-1 overflow-x-auto rounded-full border border-border/60 bg-background/80 p-1.5 shadow-lg shadow-black/20 backdrop-blur-xl dark:shadow-black/40">
         {items.map((item) => {
           const active = item.to === activeTo
           const Icon = item.icon
@@ -27,7 +27,7 @@ export function FloatingDock({
               search={item.search}
               aria-label={item.label}
               className={cn(
-                "flex min-w-16 flex-col items-center gap-1 rounded-full px-4 py-2 transition-colors active:scale-95",
+                "flex min-w-14 flex-col items-center gap-1 rounded-full px-3 py-2 transition-colors active:scale-95",
                 active
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"

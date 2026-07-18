@@ -127,6 +127,36 @@ func (h *handler) getOrder(c fiber.Ctx) error {
 	return c.JSON(order)
 }
 
+func (h *handler) requestVerificationCode(c fiber.Ctx) error {
+	userID := c.Locals(middleware.LocalUserID).(string)
+	var body struct {
+		OrderItemID string `json:"order_item_id"`
+	}
+	if err := c.Bind().JSON(&body); err != nil || strings.TrimSpace(body.OrderItemID) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "حساب موردنظر مشخص نشده است"})
+	}
+	request, err := requestVerificationCode(c.Context(), h.db, userID, strings.TrimSpace(body.OrderItemID))
+	var cooldown *verificationCooldownError
+	switch {
+	case errors.Is(err, ErrVerificationItemNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "حساب تحویل‌شده موردنظر یافت نشد"})
+	case errors.Is(err, ErrVerificationIneligible):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "درخواست کد ورود مجدد برای این نوع حساب فعال نیست"})
+	case errors.Is(err, ErrVerificationPending):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "یک درخواست کد در انتظار پاسخ پشتیبانی دارید"})
+	case errors.Is(err, ErrVerificationActive):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "کد فعلی شما هنوز معتبر است"})
+	case errors.As(err, &cooldown):
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+			"message":  "در هر ۲۴ ساعت فقط یک درخواست کد ورود می‌توانید ثبت کنید",
+			"retry_at": cooldown.RetryAt,
+		})
+	case err != nil:
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(request)
+}
+
 // --- admin ------------------------------------------------------------------
 
 func (h *handler) adminListOrders(c fiber.Ctx) error {
@@ -178,12 +208,54 @@ func (h *handler) adminGetOrder(c fiber.Ctx) error {
 	return c.JSON(order)
 }
 
+func (h *handler) adminListVerificationCodes(c fiber.Ctx) error {
+	page, limit, offset := pageParams(c)
+	requests, total, err := listAdminVerificationRequests(c.Context(), h.db, h.cred, verificationFilter{
+		status: c.Query("status"), search: strings.TrimSpace(c.Query("search")), limit: limit, offset: offset,
+	})
+	if err != nil {
+		return err
+	}
+	return c.JSON(fiber.Map{"requests": requests, "pagination": pagination(page, limit, total)})
+}
+
+func (h *handler) adminSendVerificationCode(c fiber.Ctx) error {
+	adminID := c.Locals(middleware.LocalUserID).(string)
+	var body struct {
+		Code           string `json:"code"`
+		AllowDuplicate bool   `json:"allow_duplicate"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
+	}
+	matches, err := sendVerificationCode(c.Context(), h.db, h.cred, adminID, c.Params("id"), body.Code, body.AllowDuplicate)
+	switch {
+	case errors.Is(err, ErrVerificationCodeInvalid):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "کد ورود معتبر نیست"})
+	case errors.Is(err, ErrVerificationRequestNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "درخواست کد یافت نشد"})
+	case errors.Is(err, ErrVerificationRequestNotPending):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این درخواست قبلاً پاسخ داده شده است"})
+	case err != nil:
+		return err
+	}
+	if len(matches) > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"code":    "DUPLICATE_VERIFICATION_CODE",
+			"message": "این کد ورود در ۲۴ ساعت گذشته برای مشتری دیگری ارسال شده است",
+			"matches": matches,
+		})
+	}
+	return c.JSON(fiber.Map{"message": "کد ورود ارسال شد"})
+}
+
 func (h *handler) adminFulfill(c fiber.Ctx) error {
 	adminID := c.Locals(middleware.LocalUserID).(string)
 	orderID := c.Params("id")
 
 	var body struct {
-		Items []struct {
+		AllowDuplicate bool `json:"allow_duplicate"`
+		Items          []struct {
 			ID       string `json:"id"`
 			Email    string `json:"email"`
 			Password string `json:"password"`
@@ -207,7 +279,7 @@ func (h *handler) adminFulfill(c fiber.Ctx) error {
 		}
 	}
 
-	err := fulfillOrder(c.Context(), h.db, h.cred, adminID, orderID, creds)
+	warnings, err := fulfillOrder(c.Context(), h.db, h.cred, adminID, orderID, creds, body.AllowDuplicate)
 	switch {
 	case errors.Is(err, ErrOrderNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "سفارش مورد نظر یافت نشد"})
@@ -215,8 +287,17 @@ func (h *handler) adminFulfill(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "این سفارش قابل تکمیل نیست"})
 	case errors.Is(err, ErrItemNotInOrder):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "موردی نامعتبر برای این سفارش ارسال شده است"})
+	case errors.Is(err, ErrReturnedItemImmutable):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "اطلاعات حساب بازگردانده‌شده قابل ویرایش نیست"})
 	case err != nil:
 		return err
+	}
+	if len(warnings) > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"code":     "DUPLICATE_CREDENTIALS",
+			"message":  "این اطلاعات اکانت قبلاً برای سفارش دیگری ثبت شده است",
+			"warnings": warnings,
+		})
 	}
 
 	order, err := getAdminOrder(c.Context(), h.db, h.cred, orderID)
@@ -235,7 +316,8 @@ func (h *handler) adminReuseReturn(c fiber.Ctx) error {
 	itemID := c.Params("itemId")
 
 	var body struct {
-		ReturnID string `json:"return_id"`
+		ReturnID       string `json:"return_id"`
+		AllowDuplicate bool   `json:"allow_duplicate"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
@@ -245,7 +327,7 @@ func (h *handler) adminReuseReturn(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "حساب بازگردانده‌شده انتخاب نشده است"})
 	}
 
-	err := reuseReturnedAccount(c.Context(), h.db, adminID, orderID, itemID, returnID)
+	warnings, err := reuseReturnedAccount(c.Context(), h.db, h.cred, adminID, orderID, itemID, returnID, body.AllowDuplicate)
 	switch {
 	case errors.Is(err, ErrItemNotInOrder):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "مورد سفارش یافت نشد"})
@@ -257,8 +339,17 @@ func (h *handler) adminReuseReturn(c fiber.Ctx) error {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "این حساب دیگر در دسترس نیست"})
 	case errors.Is(err, ErrReturnMismatch):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "این حساب با بازی، کنسول یا ظرفیت این سفارش همخوانی ندارد"})
+	case errors.Is(err, ErrReturnedItemImmutable):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "اطلاعات حساب بازگردانده‌شده قابل ویرایش نیست"})
 	case err != nil:
 		return err
+	}
+	if len(warnings) > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"code":     "DUPLICATE_CREDENTIALS",
+			"message":  "این اطلاعات اکانت قبلاً برای سفارش دیگری ثبت شده است",
+			"warnings": warnings,
+		})
 	}
 	return h.adminGetOrder(c)
 }

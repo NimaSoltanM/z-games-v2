@@ -122,3 +122,33 @@ export type AdminReturnsQuery = {
   status?: ReturnStatus | ""
   search?: string
 }
+
+export type ReturnedAccountStatus = "available" | "disabled" | "reused"
+
+export type ReturnedAccount = {
+  return_id: string
+  game_id: string
+  game_name: string
+  console: string
+  capacity: string
+  account_email: string | null
+  returned_at: string
+  source_order_id: string
+  source_order_number: number
+  available: boolean
+  inventory_disabled_at: string | null
+  reused_at: string | null
+  reused_for_order_id: string | null
+  reused_for_order_number: number | null
+}
+
+export type ReturnedAccountsPage = {
+  accounts: ReturnedAccount[]
+  pagination: Pagination
+}
+
+export type ReturnedAccountsQuery = {
+  page?: number
+  status?: ReturnedAccountStatus | ""
+  search?: string
+}

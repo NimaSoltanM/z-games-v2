@@ -22,6 +22,8 @@ import {
   Activity,
   ChevronDown,
   ScrollText,
+  ArchiveRestore,
+  ArchiveX,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -73,6 +75,18 @@ const ACTION_VISUAL: Record<string, { icon: LucideIcon; className: string }> = {
   },
   "order.fulfill": {
     icon: PackageCheck,
+    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  },
+  "return.reuse": {
+    icon: ArchiveRestore,
+    className: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  },
+  "return.inventory_disable": {
+    icon: ArchiveX,
+    className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  },
+  "return.inventory_enable": {
+    icon: ArchiveRestore,
     className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   },
   "image.upload": {

@@ -6,4 +6,7 @@ export type {
   AdminOrdersPage,
   AdminOrdersQuery,
   InventoryAccount,
+  CredentialMatch,
+  CredentialWarning,
+  DuplicateCredentialsError,
 } from "./types"

@@ -34,3 +34,24 @@ export type FulfillItem = {
   password: string
   passcode: string
 }
+
+export type CredentialMatch = {
+  order_id: string
+  order_number: number
+  item_id: string
+  game_name: string
+  console: string
+  capacity: string
+}
+
+export type CredentialWarning = {
+  item_id: string
+  email: string
+  matches: CredentialMatch[]
+}
+
+export type DuplicateCredentialsError = {
+  code: "DUPLICATE_CREDENTIALS"
+  message: string
+  warnings: CredentialWarning[]
+}

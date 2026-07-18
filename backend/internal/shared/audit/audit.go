@@ -13,20 +13,23 @@ import (
 
 // Action keys. Add new ones here as new admin actions are built.
 const (
-	ActionOrderFulfill = "order.fulfill"
-	ActionGamePreorder = "game.preorder"
-	ActionGameAlert    = "game.alert"
-	ActionImageUpload  = "image.upload"
-	ActionGameCreate   = "game.create"
-	ActionGameUpdate   = "game.update"
-	ActionGameDelete   = "game.delete"
-	ActionGameDiscount = "game.discount"
-	ActionGameReturnFee = "game.return_fee"
-	ActionExchangeRate  = "exchange_rate.set"
-	ActionReturnApprove = "return.approve"
-	ActionReturnReject  = "return.reject"
-	ActionReturnRefuse  = "return.refuse"
-	ActionReturnReuse   = "return.reuse" // an approved return reused to fulfill a new order
+	ActionOrderFulfill           = "order.fulfill"
+	ActionGamePreorder           = "game.preorder"
+	ActionGameAlert              = "game.alert"
+	ActionImageUpload            = "image.upload"
+	ActionGameCreate             = "game.create"
+	ActionGameUpdate             = "game.update"
+	ActionGameDelete             = "game.delete"
+	ActionGameDiscount           = "game.discount"
+	ActionGameReturnFee          = "game.return_fee"
+	ActionExchangeRate           = "exchange_rate.set"
+	ActionReturnApprove          = "return.approve"
+	ActionReturnReject           = "return.reject"
+	ActionReturnRefuse           = "return.refuse"
+	ActionReturnReuse            = "return.reuse" // an approved return reused to fulfill a new order
+	ActionReturnInventoryDisable = "return.inventory_disable"
+	ActionReturnInventoryEnable  = "return.inventory_enable"
+	ActionVerificationCodeSend   = "verification_code.send"
 )
 
 // execer is satisfied by both *pgxpool.Pool and pgx.Tx.

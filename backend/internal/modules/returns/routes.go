@@ -43,6 +43,8 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 
 	admin := middleware.RequireAdmin(db)
 	app.Get("/admin/returns", admin, h.adminList)
+	app.Get("/admin/returned-accounts", admin, h.adminListReturnedAccounts)
+	app.Patch("/admin/returned-accounts/:id/availability", admin, h.adminSetReturnedAccountAvailability)
 	app.Get("/admin/returns/:id", admin, h.adminGet)
 	app.Get("/admin/returns/:id/video", admin, h.adminVideo)
 	app.Post("/admin/returns/:id/approve", admin, h.adminApprove)

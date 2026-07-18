@@ -10,6 +10,10 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "game.alert": "اعلان بازی",
   "exchange_rate.set": "قیمت‌گذاری",
   "order.fulfill": "تکمیل سفارش",
+  "return.reuse": "استفاده از حساب برگشتی",
+  "return.inventory_disable": "خروج از موجودی",
+  "return.inventory_enable": "بازگشت به موجودی",
+  "verification_code.send": "ارسال کد ورود",
   "image.upload": "آپلود تصویر",
 }
 
@@ -190,11 +194,57 @@ export function describeAction(row: AuditRow): AuditDescription {
 
     case "order.fulfill": {
       const fulfilled = meta.status === "fulfilled"
+      const details =
+        typeof meta.items === "number" ? [`${faNum(meta.items)} آیتم`] : []
+      if (
+        typeof meta.duplicate_override === "number" &&
+        meta.duplicate_override > 0
+      ) {
+        details.push(
+          `ثبت آگاهانه با ${faNum(meta.duplicate_override)} هشدار تکراری`
+        )
+      }
+      if (
+        typeof meta.returned_accounts_consumed === "number" &&
+        meta.returned_accounts_consumed > 0
+      ) {
+        details.push(
+          `${faNum(meta.returned_accounts_consumed)} حساب برگشتی مصرف شد`
+        )
+      }
       return {
         text: fulfilled ? "سفارشی را تحویل داد" : "اطلاعات سفارشی را ذخیره کرد",
-        details:
-          typeof meta.items === "number" ? [`${faNum(meta.items)} آیتم`] : [],
+        details,
       }
+    }
+
+    case "return.reuse":
+      return {
+        text: "یک حساب برگشتی را برای سفارش جدید استفاده کرد",
+        details: [],
+      }
+
+    case "return.inventory_disable":
+      return {
+        text: "یک حساب برگشتی را بدون حذف سابقه از موجودی خارج کرد",
+        details: [],
+      }
+
+    case "return.inventory_enable":
+      return {
+        text: "یک حساب برگشتی را دوباره به موجودی اضافه کرد",
+        details: [],
+      }
+
+    case "verification_code.send": {
+      const details: string[] = []
+      if (
+        typeof meta.duplicate_override === "number" &&
+        meta.duplicate_override > 0
+      ) {
+        details.push("با تأیید هشدار کد تکراری")
+      }
+      return { text: "یک کد ورود مجدد برای مشتری ارسال کرد", details }
     }
 
     case "image.upload":
