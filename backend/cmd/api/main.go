@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -24,12 +25,6 @@ func main() {
 
 	if err := validateEnvironment(); err != nil {
 		log.Fatal(err)
-	}
-	if os.Getenv("APP_ENV") == "production" {
-		// Login is deliberately unavailable in production until an SMS provider is
-		// selected and integrated. The auth endpoint returns an honest 503 instead
-		// of claiming an OTP was sent when it was not.
-		log.Print("WARNING: production OTP delivery is disabled until an SMS provider is integrated")
 	}
 
 	db, err := database.Connect()
@@ -86,6 +81,18 @@ func validateEnvironment() error {
 		}
 		if os.Getenv("ZARINPAL_SANDBOX") != "false" {
 			return errors.New("ZARINPAL_SANDBOX must be false in production")
+		}
+		for _, key := range []string{"PAYAMAK_PANEL_USERNAME", "PAYAMAK_PANEL_API_KEY", "PAYAMAK_PANEL_BODY_ID"} {
+			if strings.TrimSpace(os.Getenv(key)) == "" {
+				return fmt.Errorf("%s must be set in production", key)
+			}
+		}
+	}
+
+	if rawBodyID := strings.TrimSpace(os.Getenv("PAYAMAK_PANEL_BODY_ID")); rawBodyID != "" {
+		bodyID, err := strconv.Atoi(rawBodyID)
+		if err != nil || bodyID <= 0 {
+			return errors.New("PAYAMAK_PANEL_BODY_ID must be a positive integer")
 		}
 	}
 

@@ -1,11 +1,17 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
-import { useRef, useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import type { FormEvent } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { REGEXP_ONLY_DIGITS } from "input-otp"
 import { Phone, KeyRound, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp"
 import { Label } from "@/components/ui/label"
 import { requestOtp, verifyOtp, registerUser, getMeFn } from "@/features/auth"
 import {
@@ -89,7 +95,7 @@ function LoginPage() {
 
   const [step, setStep] = useState<Step>("phone")
   const [phone, setPhone] = useState("")
-  const [otp, setOtp] = useState(["", "", "", "", ""])
+  const [otp, setOtp] = useState("")
   const [devCode, setDevCode] = useState<string | null>(null)
   const [registrationToken, setRegistrationToken] = useState("")
   const [firstName, setFirstName] = useState("")
@@ -97,8 +103,6 @@ function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [countdown, setCountdown] = useState(0)
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([])
-
   useEffect(() => {
     if (countdown <= 0) return
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
@@ -109,7 +113,7 @@ function LoginPage() {
   useEffect(() => {
     if (step === "otp" && devCode) {
       const digits = devCode.replace(/\D/g, "").slice(0, 5)
-      setOtp(Array.from({ length: 5 }, (_, i) => digits[i] ?? ""))
+      setOtp(digits)
     }
   }, [step, devCode])
 
@@ -131,7 +135,6 @@ function LoginPage() {
       setDevCode(res.dev_code ?? null)
       goToStep("otp")
       setCountdown(60)
-      setTimeout(() => otpRefs.current[0]?.focus(), 50)
     } catch (err: any) {
       setError(err.message ?? "خطایی رخ داد")
     } finally {
@@ -146,9 +149,8 @@ function LoginPage() {
     try {
       const res = await requestOtp(phone)
       setDevCode(res.dev_code ?? null)
-      setOtp(["", "", "", "", ""])
+      setOtp("")
       setCountdown(60)
-      setTimeout(() => otpRefs.current[0]?.focus(), 50)
     } catch (err: any) {
       setError(err.message ?? "خطایی رخ داد")
     } finally {
@@ -158,7 +160,7 @@ function LoginPage() {
 
   async function handleVerifyOtp(e: FormEvent) {
     e.preventDefault()
-    const code = otp.join("")
+    const code = otp
     if (code.length !== 5) {
       setError("لطفاً کد ۵ رقمی را کامل وارد کنید")
       return
@@ -175,8 +177,7 @@ function LoginPage() {
       }
     } catch (err: any) {
       setError(err.message ?? "خطایی رخ داد")
-      setOtp(["", "", "", "", ""])
-      setTimeout(() => otpRefs.current[0]?.focus(), 50)
+      setOtp("")
     } finally {
       setLoading(false)
     }
@@ -203,33 +204,6 @@ function LoginPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleOtpChange(index: number, value: string) {
-    const digit = value.replace(/\D/g, "").slice(-1)
-    const next = [...otp]
-    next[index] = digit
-    setOtp(next)
-    if (digit && index < 4) otpRefs.current[index + 1]?.focus()
-  }
-
-  function handleOtpKeyDown(
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement>
-  ) {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus()
-    }
-  }
-
-  function handleOtpPaste(e: React.ClipboardEvent) {
-    e.preventDefault()
-    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 5)
-    if (!text) return
-    const next = Array.from({ length: 5 }, (_, i) => text[i] ?? "")
-    setOtp(next)
-    const firstEmpty = next.findIndex((v) => !v)
-    otpRefs.current[firstEmpty === -1 ? 4 : firstEmpty]?.focus()
   }
 
   const stepIndex = step === "phone" ? 0 : step === "otp" ? 1 : 2
@@ -321,32 +295,32 @@ function LoginPage() {
               </div>
 
               {/* OTP boxes */}
-              <div
+              <InputOTP
                 dir="ltr"
-                className="flex justify-center gap-2.5"
-                onPaste={handleOtpPaste}
+                name="otp"
+                aria-label="کد تأیید پنج رقمی"
+                aria-invalid={Boolean(error)}
+                autoComplete="one-time-code"
+                autoFocus
+                inputMode="numeric"
+                pattern={REGEXP_ONLY_DIGITS}
+                maxLength={5}
+                value={otp}
+                onChange={setOtp}
+                textAlign="center"
+                containerClassName="justify-center"
+                disabled={loading}
               >
-                {otp.map((digit, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => {
-                      otpRefs.current[i] = el
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    className={`h-14 w-12 rounded-xl border bg-transparent text-center text-2xl font-bold tabular-nums transition-all outline-none ${
-                      digit
-                        ? "border-primary/60 bg-primary/5 text-foreground"
-                        : "border-input text-foreground"
-                    } focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-50`}
-                    disabled={loading}
-                  />
-                ))}
-              </div>
+                <InputOTPGroup className="gap-2.5 rounded-none">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <InputOTPSlot
+                      key={i}
+                      index={i}
+                      className="h-14 w-12 rounded-xl border border-input bg-transparent text-2xl font-bold text-foreground tabular-nums first:rounded-xl first:border last:rounded-xl data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/30 dark:bg-transparent"
+                    />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
 
               {devCode && (
                 <p className="text-center text-xs text-muted-foreground/60">
@@ -364,7 +338,7 @@ function LoginPage() {
               <Button
                 type="submit"
                 className="h-11 w-full"
-                disabled={loading || otp.join("").length !== 5}
+                disabled={loading || otp.length !== 5}
               >
                 {loading ? "در حال بررسی..." : "تأیید"}
               </Button>

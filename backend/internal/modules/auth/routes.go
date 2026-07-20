@@ -9,7 +9,7 @@ import (
 )
 
 func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
-	h := &handler{db: db}
+	h := &handler{db: db, otpSender: payamakPanelSenderFromEnv()}
 
 	// Per-IP throttle on the unauthenticated, abuse-prone auth writes (shared
 	// budget) on top of the per-phone/per-OTP limits in the service layer.

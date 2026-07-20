@@ -63,22 +63,27 @@ func validIranianMobile(phone string) bool {
 	return iranianMobilePattern.MatchString(normalizePhone(phone))
 }
 
-func requestOTP(ctx context.Context, db *pgxpool.Pool, rawPhone string) (string, error) {
+type issuedOTP struct {
+	id   string
+	code string
+}
+
+func requestOTP(ctx context.Context, db *pgxpool.Pool, rawPhone string) (issuedOTP, error) {
 	phone := normalizePhone(rawPhone)
 	code, err := generateOTPCode()
 	if err != nil {
-		return "", fmt.Errorf("generate otp code: %w", err)
+		return issuedOTP{}, fmt.Errorf("generate otp code: %w", err)
 	}
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
-		return "", fmt.Errorf("begin tx: %w", err)
+		return issuedOTP{}, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
 	// Advisory lock prevents race condition on rate limit count for same phone
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", phone); err != nil {
-		return "", fmt.Errorf("advisory lock: %w", err)
+		return issuedOTP{}, fmt.Errorf("advisory lock: %w", err)
 	}
 
 	windowStart := time.Now().Add(-otpRateLimitWindowMins * time.Minute)
@@ -88,22 +93,47 @@ func requestOTP(ctx context.Context, db *pgxpool.Pool, rawPhone string) (string,
 		phone, windowStart,
 	).Scan(&count)
 	if err != nil {
-		return "", fmt.Errorf("rate limit check: %w", err)
+		return issuedOTP{}, fmt.Errorf("rate limit check: %w", err)
 	}
 	if count >= otpRateLimit {
-		return "", ErrRateLimited
+		return issuedOTP{}, ErrRateLimited
 	}
 
+	// A newly requested code supersedes every older unclaimed code for the same
+	// phone. This also prevents an older code from becoming valid again if SMS
+	// delivery of the new code fails and the new row is removed.
+	if _, err := tx.Exec(ctx,
+		"UPDATE otp_codes SET used_at = NOW() WHERE phone = $1 AND used_at IS NULL",
+		phone,
+	); err != nil {
+		return issuedOTP{}, fmt.Errorf("invalidate previous otp codes: %w", err)
+	}
+
+	id := generateID()
 	expiresAt := time.Now().Add(otpExpiryMinutes * time.Minute)
 	_, err = tx.Exec(ctx,
 		"INSERT INTO otp_codes (id, phone, code, expires_at) VALUES ($1, $2, $3, $4)",
-		generateID(), phone, code, expiresAt,
+		id, phone, code, expiresAt,
 	)
 	if err != nil {
-		return "", fmt.Errorf("insert otp: %w", err)
+		return issuedOTP{}, fmt.Errorf("insert otp: %w", err)
 	}
 
-	return code, tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return issuedOTP{}, fmt.Errorf("commit otp: %w", err)
+	}
+	return issuedOTP{id: id, code: code}, nil
+}
+
+func discardOTP(ctx context.Context, db *pgxpool.Pool, id string) error {
+	result, err := db.Exec(ctx, "DELETE FROM otp_codes WHERE id = $1 AND used_at IS NULL", id)
+	if err != nil {
+		return fmt.Errorf("delete undelivered otp: %w", err)
+	}
+	if result.RowsAffected() != 1 {
+		return errors.New("delete undelivered otp: issued code not found")
+	}
+	return nil
 }
 
 type verifyResult struct {

@@ -85,9 +85,10 @@ Customers and admins authenticate by Iranian mobile number and a five-digit OTP.
 `SUPER_ADMIN_PHONE` promotes the matching user on successful verification.
 
 Development and test environments return `dev_code` for local use. Production
-OTP delivery is intentionally unavailable until an SMS provider is selected and
-integrated; the endpoint returns a Persian `503` instead of pretending a code was
-sent. Never expose `dev_code` in production.
+OTP delivery uses Payamak Panel's shared service-line template endpoint. It
+requires `PAYAMAK_PANEL_USERNAME`, `PAYAMAK_PANEL_API_KEY`, and the approved
+`PAYAMAK_PANEL_BODY_ID`; delivery failures return a Persian `503` and remove the
+undelivered code. Never expose `dev_code` in production.
 
 ## Technology and architecture
 
