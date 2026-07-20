@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query"
-import { getGames, getGame } from "./api"
+import { getGames, getGame, getRelatedGames } from "./api"
 import {
   getAdminGamesFn,
   getAdminGameFn,
@@ -17,6 +17,12 @@ export const gameQueryOptions = (id: string) =>
   queryOptions({
     queryKey: ["games", id],
     queryFn: () => getGame(id),
+  })
+
+export const relatedGamesQueryOptions = (id: string) =>
+  queryOptions({
+    queryKey: ["games", id, "related"],
+    queryFn: () => getRelatedGames(id),
   })
 
 // Full catalog (active + inactive) plus the exchange rate, for admin screens.

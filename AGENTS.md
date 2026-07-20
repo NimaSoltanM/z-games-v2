@@ -44,6 +44,18 @@ Rules: reuse the shadcn components already in `src/components/ui` (never hand-ro
 
 ---
 
+## MANDATORY: SEO for every frontend route
+
+Before adding or changing a frontend route, public content, metadata, structured
+data, or navigation, read [`frontend/SEO.md`](./frontend/SEO.md). Every route must
+explicitly be either indexable or `noindex`; public routes require server-rendered
+metadata and content, while private, transactional, search, filter, and sort pages
+must stay out of the index and sitemap. Clean catalog pagination uses crawlable
+links and a self-canonical URL for each page. Use the shared helpers in
+`frontend/src/features/seo` rather than hand-writing route-specific SEO tags.
+
+---
+
 ## MANDATORY: Fiber middleware — check before coding
 
 Fiber v3 has built-in middleware that may already solve what you're about to write manually. Before implementing any cross-cutting concern (auth, logging, CORS, rate limiting, compression, etc.), check this list first.

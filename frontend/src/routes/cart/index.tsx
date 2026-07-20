@@ -46,12 +46,14 @@ import {
 import { useCart, cartTotal } from "@/features/cart"
 import type { CartItem, GamePricing } from "@/features/cart"
 import { walletQueryOptions } from "@/features/returns"
+import { noIndexHead } from "@/features/seo"
 
 function CartError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
 }
 
 export const Route = createFileRoute("/cart/")({
+  head: () => noIndexHead("سبد خرید | زد گیمز"),
   component: CartPage,
   errorComponent: CartError,
 })

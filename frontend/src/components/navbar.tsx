@@ -85,6 +85,9 @@ export function Navbar() {
             <img
               src="/logo.png"
               alt="Z-Games"
+              width={32}
+              height={32}
+              decoding="async"
               className="size-8 object-contain"
             />
             Z-Games

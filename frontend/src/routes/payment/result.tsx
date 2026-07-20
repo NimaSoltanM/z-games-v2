@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, Clock } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { GAMES_DEFAULT_SEARCH } from "@/features/games"
+import { noIndexHead } from "@/features/seo"
 
 type ResultStatus = "success" | "failed" | "pending"
 
@@ -43,6 +44,7 @@ const RESULT_META: Record<
 }
 
 export const Route = createFileRoute("/payment/result")({
+  head: () => noIndexHead("نتیجه پرداخت | زد گیمز"),
   validateSearch: (
     search: Record<string, unknown>
   ): { status: ResultStatus; order: string | undefined } => ({

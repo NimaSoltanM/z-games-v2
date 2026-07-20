@@ -41,6 +41,7 @@ import {
   normalizeCatalogFilters,
 } from "@/features/games"
 import type { CatalogFilterGroup, Game, ExchangeRate } from "@/features/games"
+import { catalogJsonLd, jsonLdScript, seoHead } from "@/features/seo"
 
 // Params for the "منتخب" rail — a stable object so its query key never churns.
 const FEATURED_PARAMS = { featured: true } as const
@@ -65,9 +66,41 @@ export const Route = createFileRoute("/games/")({
     sort: String(search.sort || "-created_at"),
   }),
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => {
-    context.queryClient.prefetchQuery(gamesQueryOptions(deps))
-    context.queryClient.prefetchQuery(gamesQueryOptions(FEATURED_PARAMS))
+  loader: async ({ context, deps }) => {
+    const catalogOptions = gamesQueryOptions(deps)
+    await Promise.all([
+      context.queryClient.prefetchQuery(catalogOptions),
+      context.queryClient.prefetchQuery(gamesQueryOptions(FEATURED_PARAMS)),
+    ])
+    return context.queryClient.ensureQueryData(catalogOptions)
+  },
+  head: ({ match, loaderData }) => {
+    const search = match.search
+    const faceted = Boolean(
+      search.platform ||
+      search.zarfiat ||
+      search.search ||
+      search.sort !== "-created_at"
+    )
+    const pagePath = search.page > 1 ? `/games?page=${search.page}` : "/games"
+    const head = seoHead({
+      title:
+        search.page > 1 && !faceted
+          ? `خرید اکانت بازی؛ صفحه ${search.page.toLocaleString("fa-IR")} | زد گیمز`
+          : "خرید اکانت بازی PS4، PS5 و Xbox | زد گیمز",
+      description:
+        "خرید اکانت قانونی بازی برای PS4، PS5، Xbox One و Xbox Series؛ مقایسه ظرفیت‌ها، مشاهده قیمت روز و بازی‌های قابل بازخرید.",
+      path: pagePath,
+      noIndex: faceted,
+      keepCanonicalSearch: search.page > 1 && !faceted,
+    })
+    return {
+      ...head,
+      scripts:
+        !faceted && search.page === 1 && loaderData
+          ? [jsonLdScript(catalogJsonLd(loaderData.games))]
+          : [],
+    }
   },
   component: GamesPage,
   errorComponent: GamesError,
@@ -188,7 +221,38 @@ function GamesPage() {
           <GamesToolbar />
         </Suspense>
 
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <header className="relative z-10 mx-auto max-w-7xl px-4 pt-7 sm:px-6 lg:px-8">
+          <h1 className="text-2xl leading-snug font-bold sm:text-3xl">
+            خرید اکانت قانونی بازی‌های PlayStation و Xbox
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
+            بازی مورد نظرت را برای PS4، PS5، Xbox One یا Xbox Series پیدا کن،
+            ظرفیت مناسب را مقایسه کن و قیمت روز هر گزینه را پیش از خرید ببین.
+          </p>
+          <nav
+            aria-label="فهرست بازی بر اساس پلتفرم"
+            className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm"
+          >
+            {[
+              ["ps4", "بازی‌های PS4"],
+              ["ps5", "بازی‌های PS5"],
+              ["xbox_one", "بازی‌های Xbox One"],
+              ["xbox_series", "بازی‌های Xbox Series X|S"],
+            ].map(([platform, label]) => (
+              <Link
+                key={platform}
+                to="/games/platform/$platform"
+                params={{ platform }}
+                search={{ page: 1 }}
+                className="font-medium text-primary hover:underline"
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </header>
+
+        <div className="mx-auto max-w-7xl px-4 pt-5 pb-6 sm:px-6 lg:px-8">
           <Suspense fallback={<GamesGridSkeleton />}>
             <GamesContent />
           </Suspense>
@@ -352,7 +416,6 @@ function GamesToolbarSkeleton() {
 
 function GamesContent() {
   const search = Route.useSearch()
-  const navigate = useNavigate({ from: "/games/" })
   const { data } = useSuspenseQuery(gamesQueryOptions(search))
   const { games, exchange_rate, pagination } = data
   const { page, total, total_pages, limit } = pagination
@@ -389,16 +452,22 @@ function GamesContent() {
 
       {total_pages > 1 && (
         <div className="flex items-center justify-center gap-1 pt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === 1}
-            onClick={() =>
-              navigate({ search: (prev) => ({ ...prev, page: page - 1 }) })
-            }
-          >
-            قبلی
-          </Button>
+          {page === 1 ? (
+            <Button variant="outline" size="sm" disabled>
+              قبلی
+            </Button>
+          ) : (
+            <Button
+              render={
+                <Link to="/games" search={{ ...search, page: page - 1 }} />
+              }
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+            >
+              قبلی
+            </Button>
+          )}
 
           {/* Full page numbers on sm+ */}
           <div className="hidden items-center gap-1 sm:flex">
@@ -413,14 +482,18 @@ function GamesContent() {
               ) : (
                 <Button
                   key={p}
+                  render={
+                    p === page ? undefined : (
+                      <Link to="/games" search={{ ...search, page: p }} />
+                    )
+                  }
+                  nativeButton={p === page}
                   variant={p === page ? "default" : "outline"}
                   size="sm"
                   className="min-w-9"
-                  onClick={() =>
-                    navigate({ search: (prev) => ({ ...prev, page: p }) })
-                  }
+                  aria-current={p === page ? "page" : undefined}
                 >
-                  {p}
+                  {p.toLocaleString("fa-IR")}
                 </Button>
               )
             )}
@@ -431,16 +504,22 @@ function GamesContent() {
             {page} / {total_pages}
           </span>
 
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === total_pages}
-            onClick={() =>
-              navigate({ search: (prev) => ({ ...prev, page: page + 1 }) })
-            }
-          >
-            بعدی
-          </Button>
+          {page === total_pages ? (
+            <Button variant="outline" size="sm" disabled>
+              بعدی
+            </Button>
+          ) : (
+            <Button
+              render={
+                <Link to="/games" search={{ ...search, page: page + 1 }} />
+              }
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+            >
+              بعدی
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -476,9 +555,12 @@ function GameCard({
         <div className="relative overflow-hidden">
           <img
             src={gameCoverSrc(game.cover_image)}
-            alt={game.name}
+            alt={`کاور بازی ${game.name}`}
+            width={600}
+            height={800}
             className="aspect-3/4 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
+            decoding="async"
             style={{ viewTransitionName: `game-cover-${game.id}` }}
           />
           {/* Bottom scrim so the console dots stay legible over any art. */}
@@ -516,7 +598,15 @@ function GameCard({
 // A wide, landscape "featured" card: a large cover beside the title, badges, tags,
 // and price. Deliberately bigger and a different shape than the portrait grid cards
 // so the gradient-framed featured items read as a standout, not just taller tiles.
-function FeaturedCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
+function FeaturedCard({
+  game,
+  rate,
+  priority = false,
+}: {
+  game: Game
+  rate: ExchangeRate
+  priority?: boolean
+}) {
   const minPrice = cheapestPrice(game, rate)
   const finalMin = discountedPrice(minPrice, game)
   const hasDiscount =
@@ -531,9 +621,13 @@ function FeaturedCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
               card owns the shared-element transition. */}
           <img
             src={gameCoverSrc(game.cover_image)}
-            alt={game.name}
+            alt={`کاور بازی ${game.name}`}
+            width={600}
+            height={800}
             className="h-full min-h-44 w-28 object-cover transition-transform duration-300 group-hover:scale-[1.04] sm:w-32"
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/55 to-transparent" />
           <ConsoleDots
@@ -595,13 +689,13 @@ function FeaturedRail({ rate }: { rate: ExchangeRate }) {
           reclaim that padding so spacing stays normal and cards align with the title
           (full-bleed) instead of being indented. */}
       <div className="-mx-4 -my-3 flex scrollbar-none gap-6 overflow-x-auto px-4 py-8">
-        {featured.map((game) => (
+        {featured.map((game, index) => (
           <BackgroundGradient
             key={game.id}
             containerClassName="w-[20rem] shrink-0 sm:w-[24rem]"
             className="overflow-hidden rounded-[20px] bg-card"
           >
-            <FeaturedCard game={game} rate={rate} />
+            <FeaturedCard game={game} rate={rate} priority={index === 0} />
           </BackgroundGradient>
         ))}
       </div>

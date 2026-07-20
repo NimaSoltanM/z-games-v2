@@ -10,7 +10,6 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 
 const STEPS = [
   {
@@ -124,11 +123,11 @@ export function BuyBack() {
 
             <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               <Button
-                render={<Link to="/games" search={GAMES_DEFAULT_SEARCH} />}
+                render={<Link to="/buyback" search={{ page: 1 }} />}
                 nativeButton={false}
                 className="h-10 gap-2 px-5"
               >
-                دیدن همه‌ی بازی‌ها
+                جزئیات و بازی‌های قابل بازخرید
                 <ArrowLeft className="size-4" />
               </Button>
               <p className="max-w-md text-xs leading-5 text-muted-foreground">

@@ -7,6 +7,7 @@ import type {
   PaginatedGamesResponse,
   ReleaseStatus,
   AlertVariant,
+  GamesListResponse,
 } from "./types"
 
 export function getGames(params: GamesParams = {}) {
@@ -17,6 +18,7 @@ export function getGames(params: GamesParams = {}) {
   if (params.search) q.set("search", params.search)
   if (params.sort) q.set("sort", params.sort)
   if (params.featured) q.set("featured", "true")
+  if (params.returnable) q.set("returnable", "true")
   const qs = q.toString()
   return apiFetch<PaginatedGamesResponse>(`/games${qs ? `?${qs}` : ""}`)
 }
@@ -24,6 +26,10 @@ export function getGames(params: GamesParams = {}) {
 // Accepts a slug or an id — the backend resolves either.
 export function getGame(idOrSlug: string) {
   return apiFetch<GameDetailResponse>(`/games/${idOrSlug}`)
+}
+
+export function getRelatedGames(idOrSlug: string) {
+  return apiFetch<GamesListResponse>(`/games/${idOrSlug}/related`)
 }
 
 // Checks whether a slug is free (admin live-uniqueness check). `exclude` is the id

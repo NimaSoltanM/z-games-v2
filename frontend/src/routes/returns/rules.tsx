@@ -1,11 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { ShieldAlert, Film, LogOut, Ban } from "lucide-react"
 
+import { seoHead } from "@/features/seo"
+
 // Public terms & conditions for the game buy-back. For now it carries the two core
 // rules; expand with the full guide later.
 export const Route = createFileRoute("/returns/rules")({
   component: RulesPage,
-  head: () => ({ meta: [{ title: "قوانین بازگشت بازی | Z-Games" }] }),
+  head: () =>
+    seoHead({
+      title: "قوانین بازخرید و بازگشت بازی | زد گیمز",
+      description:
+        "شرایط بازخرید بازی در زد گیمز، نحوه ضبط ویدیوی خروج از اکانت و قوانین واریز اعتبار به کیف پول را پیش از ثبت درخواست بخوانید.",
+      path: "/returns/rules",
+    }),
 })
 
 const RULES = [

@@ -4,6 +4,7 @@ import { Package, User, Gamepad2, RotateCcw, Wallet } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-shell"
 import type { DashNavItem } from "@/components/dashboard-shell"
 import { getMeFn } from "@/features/auth"
+import { noIndexHead } from "@/features/seo"
 
 const NAV: readonly DashNavItem[] = [
   {
@@ -29,6 +30,7 @@ const NAV: readonly DashNavItem[] = [
 ]
 
 export const Route = createFileRoute("/dashboard")({
+  head: () => noIndexHead("حساب کاربری | زد گیمز"),
   // Single login guard for the whole dashboard. Children inherit it, so they no
   // longer guard individually; the redirect returns to the exact page visited.
   beforeLoad: async ({ location }) => {

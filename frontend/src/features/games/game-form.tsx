@@ -60,6 +60,9 @@ type FormValues = {
   consoles: string[]
   price_mode: PriceMode
   cover_image: string | null
+  description_markdown: string
+  seo_title: string
+  seo_description: string
   featured: boolean
   returnable: boolean
   tags: string[]
@@ -115,6 +118,9 @@ function initialValues(catalog: Catalog, game?: Game): FormValues {
     consoles: game?.consoles ?? [],
     price_mode: game?.price_mode ?? "dynamic",
     cover_image: game?.cover_image ?? null,
+    description_markdown: game?.description_markdown ?? "",
+    seo_title: game?.seo_title ?? "",
+    seo_description: game?.seo_description ?? "",
     featured: game?.featured ?? false,
     returnable: game?.returnable ?? true,
     tags: game?.tags ?? [],
@@ -151,6 +157,11 @@ const schema = z
     consoles: z.array(z.string()),
     price_mode: z.enum(["dynamic", "fixed"]),
     cover_image: z.string().nullable(),
+    description_markdown: z
+      .string()
+      .max(50000, "توضیحات بازی بیش از حد طولانی است"),
+    seo_title: z.string().max(120, "عنوان سئو بیش از حد طولانی است"),
+    seo_description: z.string().max(320, "توضیح سئو بیش از حد طولانی است"),
     featured: z.boolean(),
     returnable: z.boolean(),
     tags: z.array(z.string()),
@@ -297,6 +308,9 @@ function toPayload(v: FormValues, active: boolean): GameFormPayload {
     consoles: v.consoles,
     price_mode: v.price_mode,
     cover_image: v.cover_image,
+    description_markdown: v.description_markdown.trim(),
+    seo_title: v.seo_title.trim() || null,
+    seo_description: v.seo_description.trim() || null,
     active,
     featured: v.featured,
     returnable: v.returnable,
@@ -499,6 +513,82 @@ export function GameForm({ game }: { game?: Game }) {
               </div>
             )
           }}
+        </form.Field>
+      </Card>
+
+      <Card className="space-y-5">
+        <div>
+          <p className="text-sm font-semibold">محتوای صفحه و سئو</p>
+          <p className="text-xs text-muted-foreground">
+            توضیح کامل و اختصاصی هر بازی را با Markdown بنویسید. عنوان و توضیح
+            سئو اختیاری‌اند؛ اگر خالی باشند، متن مناسب به‌صورت خودکار ساخته
+            می‌شود.
+          </p>
+        </div>
+
+        <form.Field name="description_markdown">
+          {(field) => (
+            <div className="space-y-1.5">
+              <Label htmlFor="game-description">توضیحات کامل بازی</Label>
+              <Textarea
+                id="game-description"
+                dir="rtl"
+                className="min-h-56 font-sans leading-7"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder={
+                  "## درباره بازی\n\nمعرفی، سبک بازی، ویژگی‌ها و نکات خرید را اینجا بنویسید."
+                }
+                maxLength={50000}
+              />
+              <p className="text-xs text-muted-foreground">
+                HTML اجرا نمی‌شود. برای تیتر از ##، برای فهرست از - و برای لینک
+                از قالب Markdown استفاده کنید.
+              </p>
+            </div>
+          )}
+        </form.Field>
+
+        <form.Field name="seo_title">
+          {(field) => (
+            <div className="space-y-1.5">
+              <Label htmlFor="game-seo-title">عنوان سئو (اختیاری)</Label>
+              <Input
+                id="game-seo-title"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder="خالی = عنوان خودکار بر اساس نام و پلتفرم"
+                maxLength={120}
+              />
+              <p className="text-xs text-muted-foreground">
+                {field.state.value.length.toLocaleString("fa-IR")} از ۱۲۰ نویسه
+              </p>
+            </div>
+          )}
+        </form.Field>
+
+        <form.Field name="seo_description">
+          {(field) => (
+            <div className="space-y-1.5">
+              <Label htmlFor="game-seo-description">
+                توضیح نتایج جست‌وجو (اختیاری)
+              </Label>
+              <Textarea
+                id="game-seo-description"
+                className="min-h-24"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder="خلاصه‌ای دقیق و مفید از همین صفحه"
+                maxLength={320}
+              />
+              <p className="text-xs text-muted-foreground">
+                {field.state.value.length.toLocaleString("fa-IR")} از ۳۲۰ نویسه
+              </p>
+            </div>
+          )}
         </form.Field>
       </Card>
 

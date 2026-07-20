@@ -1,4 +1,5 @@
 export * from "./types"
+export * from "./catalog-game-card"
 export * from "./api"
 export * from "./queries"
 export * from "./notices"

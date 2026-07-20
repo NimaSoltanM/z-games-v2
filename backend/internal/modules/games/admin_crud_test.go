@@ -3,6 +3,7 @@ package games
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -122,8 +123,11 @@ func TestCreateGame_Dynamic(t *testing.T) {
 	margin := 20
 	id, err := createGame(ctx, db, "a1", normalizedGame{
 		Name: "New Game", Consoles: []string{"ps4", "ps5"}, PriceMode: "dynamic", Active: true,
-		CoverImage:      sptr("/uploads/cover.jpg"),
-		ProfitMarginPct: &margin,
+		CoverImage:          sptr("/uploads/cover.jpg"),
+		DescriptionMarkdown: "## Story\n\nOriginal product copy.",
+		SEOTitle:            sptr("Custom search title"),
+		SEODescription:      sptr("Custom search description"),
+		ProfitMarginPct:     &margin,
 		BasePrices: []normalizedBasePrice{
 			{Platform: "ps4", BaseUSD: 50},
 			{Platform: "ps5", BaseUSD: 60},
@@ -140,6 +144,11 @@ func TestCreateGame_Dynamic(t *testing.T) {
 	}
 	if g.ProfitMarginPct == nil || *g.ProfitMarginPct != 20 {
 		t.Fatalf("margin = %v, want 20", g.ProfitMarginPct)
+	}
+	if g.DescriptionMarkdown != "## Story\n\nOriginal product copy." ||
+		g.SEOTitle == nil || *g.SEOTitle != "Custom search title" ||
+		g.SEODescription == nil || *g.SEODescription != "Custom search description" {
+		t.Fatalf("editorial fields did not round-trip: description=%q title=%v descriptionMeta=%v", g.DescriptionMarkdown, g.SEOTitle, g.SEODescription)
 	}
 	if len(g.Consoles) != 2 || !hasConsole(g.Consoles, "ps4") || !hasConsole(g.Consoles, "ps5") {
 		t.Fatalf("consoles = %v, want [ps4 ps5]", g.Consoles)
@@ -310,6 +319,62 @@ func TestListGames_FilterByConsole(t *testing.T) {
 	}
 	if total != 1 || len(games) != 1 || games[0].Name != "Xbox only" {
 		t.Fatalf("xbox filter = %d games (total %d), want just 'Xbox only'", len(games), total)
+	}
+}
+
+func TestListGames_FilterReturnable(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	for _, game := range []normalizedGame{
+		{Name: "Returnable", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true, Returnable: true,
+			BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}}},
+		{Name: "Final sale", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true, Returnable: false,
+			BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}}},
+	} {
+		if _, err := createGame(ctx, db, "a1", game); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, total, err := listGames(ctx, db, listFilter{onlyActive: true, onlyReturnable: true}, "created_at DESC", 50, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 1 || len(got) != 1 || got[0].Name != "Returnable" {
+		t.Fatalf("returnable filter = %#v (total %d), want only Returnable", got, total)
+	}
+}
+
+func TestListRelatedGames_PrefersSharedTagsAndConsole(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	ids := map[string]string{}
+	for _, game := range []normalizedGame{
+		{Name: "Source", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true, Tags: []string{"اکشن", "داستانی"}, BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 50}}},
+		{Name: "Best match", Consoles: []string{"ps5"}, PriceMode: "dynamic", Active: true, Tags: []string{"اکشن", "داستانی"}, BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 40}}},
+		{Name: "Other", Consoles: []string{"xbox_series"}, PriceMode: "dynamic", Active: true, Tags: []string{"ورزشی"}, BasePrices: []normalizedBasePrice{{Platform: "xbox_series", BaseUSD: 30}}},
+	} {
+		id, err := createGame(ctx, db, "a1", game)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[game.Name] = id
+	}
+
+	source, err := getGameByID(ctx, db, ids["Source"], true)
+	if err != nil || source == nil {
+		t.Fatalf("get source: game=%v err=%v", source, err)
+	}
+	related, err := listRelatedGames(ctx, db, *source, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(related) != 2 || related[0].Name != "Best match" {
+		t.Fatalf("related order = %#v, want Best match first", related)
 	}
 }
 
@@ -576,6 +641,10 @@ func TestValidateGameInput(t *testing.T) {
 			Prices: []priceInput{{Platform: "ps5", Zarfiat: "z9", PriceToman: iptr(100)}}}},
 		{"bad link", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "dynamic",
 			Links: []string{"ftp://nope"}}},
+		{"seo title too long", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "dynamic",
+			SEOTitle: sptr(strings.Repeat("x", maxSEOTitleLen+1))}},
+		{"description too long", gameInput{Name: "X", Consoles: []string{"ps5"}, PriceMode: "dynamic",
+			DescriptionMarkdown: strings.Repeat("x", maxDescriptionMarkdownLen+1)}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

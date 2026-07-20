@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -36,6 +37,9 @@ func main() {
 		log.Fatalf("database connection failed: %v", err)
 	}
 	defer db.Close()
+	if err := database.ValidateSchema(context.Background(), db); err != nil {
+		log.Fatalf("database schema validation failed: %v", err)
+	}
 
 	app := server.NewApp(db)
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -134,6 +135,13 @@ func purgeExpiredVerificationCodes(ctx context.Context, db verificationExecer) (
 // The global transaction lock makes the rolling limit and single-active-request
 // checks race-free across all accounts owned by the same customer.
 func requestVerificationCode(ctx context.Context, db *pgxpool.Pool, userID, itemID string) (*VerificationRequestView, error) {
+	// Persist cleanup independently from the request transaction. Business-rule
+	// rejections below intentionally roll their transaction back, which must not
+	// restore already-expired secret codes.
+	if _, err := purgeExpiredVerificationCodes(ctx, db); err != nil {
+		return nil, err
+	}
+
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("requestVerificationCode begin: %w", err)
@@ -142,10 +150,6 @@ func requestVerificationCode(ctx context.Context, db *pgxpool.Pool, userID, item
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", verificationAdvisoryLockKey); err != nil {
 		return nil, fmt.Errorf("requestVerificationCode lock: %w", err)
 	}
-	if _, err := purgeExpiredVerificationCodes(ctx, tx); err != nil {
-		return nil, err
-	}
-
 	var platform, capacity string
 	err = tx.QueryRow(ctx, `
 		SELECT oi.platform, oi.zarfiat
@@ -168,15 +172,23 @@ func requestVerificationCode(ctx context.Context, db *pgxpool.Pool, userID, item
 	}
 
 	var latestStatus string
-	var latestRequested time.Time
-	var latestExpires *time.Time
+	var latestIsActive bool
+	var retryAfterSeconds float64
 	err = tx.QueryRow(ctx, `
-		SELECT status, requested_at, expires_at
+		SELECT status,
+		       status = 'delivered' AND expires_at IS NOT NULL AND expires_at > NOW(),
+		       EXTRACT(EPOCH FROM (
+		         requested_at + ($2 * INTERVAL '1 second') - NOW()
+		       ))
 		FROM verification_code_requests
 		WHERE user_id = $1
 		ORDER BY requested_at DESC
 		LIMIT 1
-	`, userID).Scan(&latestStatus, &latestRequested, &latestExpires)
+	`, userID, int64(verificationRequestWindow/time.Second)).Scan(
+		&latestStatus,
+		&latestIsActive,
+		&retryAfterSeconds,
+	)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("requestVerificationCode latest: %w", err)
 	}
@@ -184,11 +196,11 @@ func requestVerificationCode(ctx context.Context, db *pgxpool.Pool, userID, item
 		if latestStatus == "pending" {
 			return nil, ErrVerificationPending
 		}
-		if latestStatus == "delivered" && latestExpires != nil && latestExpires.After(time.Now()) {
+		if latestIsActive {
 			return nil, ErrVerificationActive
 		}
-		retryAt := latestRequested.Add(verificationRequestWindow)
-		if retryAt.After(time.Now()) {
+		if retryAfterSeconds > 0 {
+			retryAt := time.Now().Add(time.Duration(math.Ceil(retryAfterSeconds)) * time.Second)
 			return nil, &verificationCooldownError{RetryAt: retryAt}
 		}
 	}

@@ -11,15 +11,18 @@ import (
 // oldGameState is the pre-update snapshot of a game's scalar columns, used to
 // compute a field-level diff for the audit log.
 type oldGameState struct {
-	Name            string
-	CoverImage      *string
-	PriceMode       string
-	Active          bool
-	ReleaseStatus   string
-	ReleaseDate     *time.Time
-	AlertMessage    *string
-	AlertVariant    *string
-	ProfitMarginPct *int
+	Name                string
+	CoverImage          *string
+	DescriptionMarkdown string
+	SEOTitle            *string
+	SEODescription      *string
+	PriceMode           string
+	Active              bool
+	ReleaseStatus       string
+	ReleaseDate         *time.Time
+	AlertMessage        *string
+	AlertVariant        *string
+	ProfitMarginPct     *int
 }
 
 // loadOldGameState locks the row (FOR UPDATE) and returns its current scalar
@@ -27,10 +30,10 @@ type oldGameState struct {
 func loadOldGameState(ctx context.Context, tx pgx.Tx, id string) (oldGameState, error) {
 	var s oldGameState
 	err := tx.QueryRow(ctx, `
-		SELECT name, cover_image, price_mode, active,
+		SELECT name, cover_image, description_markdown, seo_title, seo_description, price_mode, active,
 		       release_status, release_date, alert_message, alert_variant, profit_margin_pct
 		FROM games WHERE id = $1 FOR UPDATE
-	`, id).Scan(&s.Name, &s.CoverImage, &s.PriceMode, &s.Active,
+	`, id).Scan(&s.Name, &s.CoverImage, &s.DescriptionMarkdown, &s.SEOTitle, &s.SEODescription, &s.PriceMode, &s.Active,
 		&s.ReleaseStatus, &s.ReleaseDate, &s.AlertMessage, &s.AlertVariant, &s.ProfitMarginPct)
 	return s, err
 }
@@ -132,6 +135,15 @@ func buildUpdateMetadata(old oldGameState, in normalizedGame, oldFixed map[strin
 	}
 	if !eqStrPtr(old.CoverImage, in.CoverImage) {
 		set("cover_image", ptrStrVal(old.CoverImage), ptrStrVal(in.CoverImage))
+	}
+	if old.DescriptionMarkdown != in.DescriptionMarkdown {
+		set("description_markdown", old.DescriptionMarkdown, in.DescriptionMarkdown)
+	}
+	if !eqStrPtr(old.SEOTitle, in.SEOTitle) {
+		set("seo_title", ptrStrVal(old.SEOTitle), ptrStrVal(in.SEOTitle))
+	}
+	if !eqStrPtr(old.SEODescription, in.SEODescription) {
+		set("seo_description", ptrStrVal(old.SEODescription), ptrStrVal(in.SEODescription))
 	}
 
 	meta := map[string]any{"name": in.Name, "changes": changes}

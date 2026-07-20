@@ -9,6 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
+import { Route as LegalAccountsRouteImport } from './routes/legal-accounts'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as BuybackRouteImport } from './routes/buyback'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -30,6 +37,7 @@ import { Route as DashboardGamesIndexRouteImport } from './routes/dashboard/game
 import { Route as AdminReturnsIndexRouteImport } from './routes/admin/returns/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
 import { Route as AdminGamesIndexRouteImport } from './routes/admin/games/index'
+import { Route as GamesPlatformPlatformRouteImport } from './routes/games/platform/$platform'
 import { Route as AdminReturnsIdRouteImport } from './routes/admin/returns/$id'
 import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin/orders/$orderId'
 import { Route as AdminGamesPricingRouteImport } from './routes/admin/games/pricing'
@@ -37,6 +45,41 @@ import { Route as AdminGamesNewRouteImport } from './routes/admin/games/new'
 import { Route as DashboardGamesItemIdReturnRouteImport } from './routes/dashboard/games/$itemId/return'
 import { Route as AdminGamesIdEditRouteImport } from './routes/admin/games/$id/edit'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalAccountsRoute = LegalAccountsRouteImport.update({
+  id: '/legal-accounts',
+  path: '/legal-accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BuybackRoute = BuybackRouteImport.update({
+  id: '/buyback',
+  path: '/buyback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRouteRoute = DashboardRouteRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -142,6 +185,11 @@ const AdminGamesIndexRoute = AdminGamesIndexRouteImport.update({
   path: '/games/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const GamesPlatformPlatformRoute = GamesPlatformPlatformRouteImport.update({
+  id: '/games/platform/$platform',
+  path: '/games/platform/$platform',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminReturnsIdRoute = AdminReturnsIdRouteImport.update({
   id: '/returns/$id',
   path: '/returns/$id',
@@ -178,6 +226,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/about': typeof AboutRoute
+  '/buyback': typeof BuybackRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/legal-accounts': typeof LegalAccountsRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
@@ -195,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
+  '/games/platform/$platform': typeof GamesPlatformPlatformRoute
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/returns/': typeof AdminReturnsIndexRoute
@@ -206,6 +262,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/about': typeof AboutRoute
+  '/buyback': typeof BuybackRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/legal-accounts': typeof LegalAccountsRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
@@ -223,6 +286,7 @@ export interface FileRoutesByTo {
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
+  '/games/platform/$platform': typeof GamesPlatformPlatformRoute
   '/admin/games': typeof AdminGamesIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/admin/returns': typeof AdminReturnsIndexRoute
@@ -236,6 +300,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/about': typeof AboutRoute
+  '/buyback': typeof BuybackRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/legal-accounts': typeof LegalAccountsRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
@@ -253,6 +324,7 @@ export interface FileRoutesById {
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
+  '/games/platform/$platform': typeof GamesPlatformPlatformRoute
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/returns/': typeof AdminReturnsIndexRoute
@@ -267,6 +339,13 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/dashboard'
+    | '/about'
+    | '/buyback'
+    | '/how-it-works'
+    | '/legal-accounts'
+    | '/llms.txt'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/admin/audit'
     | '/admin/inventory'
     | '/admin/verification-codes'
@@ -284,6 +363,7 @@ export interface FileRouteTypes {
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
+    | '/games/platform/$platform'
     | '/admin/games/'
     | '/admin/orders/'
     | '/admin/returns/'
@@ -295,6 +375,13 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/about'
+    | '/buyback'
+    | '/how-it-works'
+    | '/legal-accounts'
+    | '/llms.txt'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/admin/audit'
     | '/admin/inventory'
     | '/admin/verification-codes'
@@ -312,6 +399,7 @@ export interface FileRouteTypes {
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
+    | '/games/platform/$platform'
     | '/admin/games'
     | '/admin/orders'
     | '/admin/returns'
@@ -324,6 +412,13 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/dashboard'
+    | '/about'
+    | '/buyback'
+    | '/how-it-works'
+    | '/legal-accounts'
+    | '/llms.txt'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/admin/audit'
     | '/admin/inventory'
     | '/admin/verification-codes'
@@ -341,6 +436,7 @@ export interface FileRouteTypes {
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
+    | '/games/platform/$platform'
     | '/admin/games/'
     | '/admin/orders/'
     | '/admin/returns/'
@@ -354,16 +450,73 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  AboutRoute: typeof AboutRoute
+  BuybackRoute: typeof BuybackRoute
+  HowItWorksRoute: typeof HowItWorksRoute
+  LegalAccountsRoute: typeof LegalAccountsRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   PaymentResultRoute: typeof PaymentResultRoute
   ReturnsRulesRoute: typeof ReturnsRulesRoute
   AuthIndexRoute: typeof AuthIndexRoute
   CartIndexRoute: typeof CartIndexRoute
   GamesIndexRoute: typeof GamesIndexRoute
+  GamesPlatformPlatformRoute: typeof GamesPlatformPlatformRoute
   GamesSlugIndexRoute: typeof GamesSlugIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal-accounts': {
+      id: '/legal-accounts'
+      path: '/legal-accounts'
+      fullPath: '/legal-accounts'
+      preLoaderRoute: typeof LegalAccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/buyback': {
+      id: '/buyback'
+      path: '/buyback'
+      fullPath: '/buyback'
+      preLoaderRoute: typeof BuybackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -511,6 +664,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGamesIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/games/platform/$platform': {
+      id: '/games/platform/$platform'
+      path: '/games/platform/$platform'
+      fullPath: '/games/platform/$platform'
+      preLoaderRoute: typeof GamesPlatformPlatformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/returns/$id': {
       id: '/admin/returns/$id'
       path: '/returns/$id'
@@ -616,11 +776,19 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  AboutRoute: AboutRoute,
+  BuybackRoute: BuybackRoute,
+  HowItWorksRoute: HowItWorksRoute,
+  LegalAccountsRoute: LegalAccountsRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   PaymentResultRoute: PaymentResultRoute,
   ReturnsRulesRoute: ReturnsRulesRoute,
   AuthIndexRoute: AuthIndexRoute,
   CartIndexRoute: CartIndexRoute,
   GamesIndexRoute: GamesIndexRoute,
+  GamesPlatformPlatformRoute: GamesPlatformPlatformRoute,
   GamesSlugIndexRoute: GamesSlugIndexRoute,
 }
 export const routeTree = rootRouteImport

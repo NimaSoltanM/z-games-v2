@@ -13,6 +13,10 @@ export function Footer() {
             <img
               src="/logo.png"
               alt="Z-Games"
+              width={36}
+              height={36}
+              loading="lazy"
+              decoding="async"
               className="size-9 object-contain"
             />
             <div>
@@ -31,12 +35,29 @@ export function Footer() {
             >
               همه‌ی بازی‌ها
             </Link>
-            <a
-              href="#buy-back"
+            <Link
+              to="/buyback"
+              search={{ page: 1 }}
               className="transition-colors hover:text-foreground"
             >
               بازخرید
-            </a>
+            </Link>
+            <Link
+              to="/games/platform/$platform"
+              params={{ platform: "ps5" }}
+              search={{ page: 1 }}
+              className="transition-colors hover:text-foreground"
+            >
+              بازی‌های PS5
+            </Link>
+            <Link
+              to="/games/platform/$platform"
+              params={{ platform: "xbox_series" }}
+              search={{ page: 1 }}
+              className="transition-colors hover:text-foreground"
+            >
+              بازی‌های Xbox
+            </Link>
             <Link
               to="/returns/rules"
               className="transition-colors hover:text-foreground"
@@ -49,6 +70,18 @@ export function Footer() {
               className="transition-colors hover:text-foreground"
             >
               ورود
+            </Link>
+            <Link
+              to="/about"
+              className="transition-colors hover:text-foreground"
+            >
+              درباره ما
+            </Link>
+            <Link
+              to="/how-it-works"
+              className="transition-colors hover:text-foreground"
+            >
+              راهنمای خرید
             </Link>
           </nav>
         </div>

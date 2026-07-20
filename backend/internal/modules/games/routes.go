@@ -39,5 +39,6 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 	admin.Patch("/:id/return-fee", h.adminSetReturnFee)
 
 	// Public single-game lookup — kept last so it never shadows /games/admin/*.
+	g.Get("/:id/related", h.relatedGamesHandler)
 	g.Get("/:id", h.getGameHandler)
 }

@@ -37,6 +37,9 @@ export type Game = {
   slug: string
   name: string
   cover_image: string | null
+  description_markdown: string
+  seo_title: string | null
+  seo_description: string | null
   // Consoles the game is sold on (ps5, xbox_series, …), ordered for display.
   // Availability is this set; the old single `platform` enum is gone.
   consoles: string[]
@@ -106,6 +109,7 @@ export type GamesParams = {
   search?: string
   sort?: string
   featured?: boolean
+  returnable?: boolean
 }
 
 export type GamesListResponse = {
@@ -154,6 +158,9 @@ export type GameFormPayload = {
   consoles: string[]
   price_mode: PriceMode
   cover_image: string | null
+  description_markdown: string
+  seo_title: string | null
+  seo_description: string | null
   active: boolean
   featured: boolean
   returnable: boolean

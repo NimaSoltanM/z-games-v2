@@ -8,21 +8,17 @@ import { Features } from "@/components/landing/features"
 import { Faq } from "@/components/landing/faq"
 import { FinalCta } from "@/components/landing/final-cta"
 import { Footer } from "@/components/landing/footer"
+import { seoHead } from "@/features/seo"
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
-  head: () => ({
-    meta: [
-      {
-        title: "Z-Games | بازی‌های PlayStation و Xbox با امکان بازخرید",
-      },
-      {
-        name: "description",
-        content:
-          "خرید بازی‌های PS4، PS5، Xbox One و Xbox Series با پشتیبانی واقعی، کاتالوگ رو‌به‌رشد و امکان بازخرید بازی‌های واجد شرایط.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: "خرید اکانت قانونی بازی PS5 و Xbox | زد گیمز",
+      description:
+        "خرید اکانت قانونی بازی‌های PS4، PS5 و Xbox با پشتیبانی واقعی، کاتالوگ رو‌به‌رشد و امکان بازخرید بازی‌های واجد شرایط.",
+      path: "/",
+    }),
 })
 
 function LandingPage() {

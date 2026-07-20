@@ -132,11 +132,11 @@ func createGame(ctx context.Context, db *pgxpool.Pool, adminID string, in normal
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO games (id, slug, name, cover_image, price_mode, active, featured, tags,
+		INSERT INTO games (id, slug, name, cover_image, description_markdown, seo_title, seo_description, price_mode, active, featured, tags,
 		                   release_status, release_date, alert_message, alert_variant, profit_margin_pct,
 		                   returnable)
-		VALUES ($1, $2, $3, $4, $5::price_mode, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-	`, id, slug, in.Name, in.CoverImage, in.PriceMode, in.Active, in.Featured, tagsOrEmpty(in.Tags),
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8::price_mode, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+	`, id, slug, in.Name, in.CoverImage, in.DescriptionMarkdown, in.SEOTitle, in.SEODescription, in.PriceMode, in.Active, in.Featured, tagsOrEmpty(in.Tags),
 		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant,
 		in.ProfitMarginPct, in.Returnable); err != nil {
 		if isSlugViolation(err) {
@@ -201,12 +201,13 @@ func updateGame(ctx context.Context, db *pgxpool.Pool, adminID, id string, in no
 
 	if _, err := tx.Exec(ctx, `
 		UPDATE games SET name = $2, cover_image = $3,
-		       price_mode = $4::price_mode, active = $5, release_status = $6,
-		       release_date = $7, alert_message = $8, alert_variant = $9,
-		       profit_margin_pct = $10, slug = $11, featured = $12, tags = $13,
-		       returnable = $14, updated_at = NOW()
+		       description_markdown = $4, seo_title = $5, seo_description = $6,
+		       price_mode = $7::price_mode, active = $8, release_status = $9,
+		       release_date = $10, alert_message = $11, alert_variant = $12,
+		       profit_margin_pct = $13, slug = $14, featured = $15, tags = $16,
+		       returnable = $17, updated_at = NOW()
 		WHERE id = $1
-	`, id, in.Name, in.CoverImage, in.PriceMode, in.Active,
+	`, id, in.Name, in.CoverImage, in.DescriptionMarkdown, in.SEOTitle, in.SEODescription, in.PriceMode, in.Active,
 		releaseStatusOrDefault(in.ReleaseStatus), in.ReleaseDate, in.AlertMessage, in.AlertVariant,
 		in.ProfitMarginPct, slug, in.Featured, tagsOrEmpty(in.Tags), in.Returnable); err != nil {
 		if isSlugViolation(err) {

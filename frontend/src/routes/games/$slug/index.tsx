@@ -1,6 +1,8 @@
 import {
   createFileRoute,
   ErrorComponent,
+  Link,
+  notFound,
   useRouter,
 } from "@tanstack/react-router"
 import type { ErrorComponentProps } from "@tanstack/react-router"
@@ -15,8 +17,10 @@ import { ArrowRight, ExternalLink, ShoppingCart } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { MarkdownContent } from "@/components/markdown-content"
 import {
   gameQueryOptions,
+  relatedGamesQueryOptions,
   calcPrice,
   discountedPrice,
   formatToman,
@@ -31,20 +35,82 @@ import {
   DiscountBadge,
   GameTags,
   gameCoverSrc,
+  GAMES_DEFAULT_SEARCH,
+  cheapestPrice,
 } from "@/features/games"
 import type { ExchangeRate, Game } from "@/features/games"
 import { useCart } from "@/features/cart"
+import { ApiError } from "@/lib/api-client"
+import {
+  gameJsonLd,
+  gameSeoDescription,
+  gameSeoTitle,
+  jsonLdScript,
+  seoHead,
+} from "@/features/seo"
 
 function GameError({ error }: ErrorComponentProps) {
   return <ErrorComponent error={error} />
 }
 
 export const Route = createFileRoute("/games/$slug/")({
-  loader: ({ context, params }) =>
-    context.queryClient.prefetchQuery(gameQueryOptions(params.slug)),
+  loader: async ({ context, params }) => {
+    const options = gameQueryOptions(params.slug)
+    await context.queryClient.prefetchQuery(options)
+    try {
+      const data = await context.queryClient.ensureQueryData(options)
+      await context.queryClient.prefetchQuery(
+        relatedGamesQueryOptions(params.slug)
+      )
+      return data
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) throw notFound()
+      throw error
+    }
+  },
+  head: ({ params, loaderData }) => {
+    if (!loaderData) {
+      return seoHead({
+        title: "بازی یافت نشد | زد گیمز",
+        description: "بازی مورد نظر در کاتالوگ زد گیمز یافت نشد.",
+        path: `/games/${params.slug}`,
+        noIndex: true,
+      })
+    }
+
+    const { game, exchange_rate } = loaderData
+    const head = seoHead({
+      title: gameSeoTitle(game, exchange_rate),
+      description: gameSeoDescription(game, exchange_rate),
+      path: `/games/${game.slug}`,
+      image: gameCoverSrc(game.cover_image),
+      type: "product",
+    })
+    return {
+      ...head,
+      scripts: [jsonLdScript(gameJsonLd(game, exchange_rate))],
+    }
+  },
   component: GameDetailPage,
   errorComponent: GameError,
+  notFoundComponent: GameNotFound,
 })
+
+function GameNotFound() {
+  return (
+    <main className="relative min-h-[calc(100vh-57px)] bg-background bg-grid-lines">
+      <div className="mx-auto flex max-w-4xl flex-col items-center px-4 py-24 text-center sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-bold">این بازی پیدا نشد</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          ممکن است بازی غیرفعال شده باشد یا نشانی آن تغییر کرده باشد.
+        </p>
+        <Link to="/games" search={GAMES_DEFAULT_SEARCH} className="mt-6">
+          <Button>مشاهده بازی‌ها</Button>
+        </Link>
+      </div>
+    </main>
+  )
+}
 
 function GameDetailPage() {
   const { reset } = useQueryErrorResetBoundary()
@@ -109,87 +175,206 @@ function GameDetail() {
   const glow = families.length === 1 ? families[0].glow : "bg-primary"
 
   return (
-    <div className="flex flex-col gap-10 sm:flex-row sm:gap-12">
-      {/* Cover — the art is the hero; subtle brand halo + small console dots. */}
-      <div className="relative w-44 shrink-0 self-center sm:sticky sm:top-24 sm:w-56 sm:self-start">
-        <div
-          className={`pointer-events-none absolute inset-4 rounded-2xl opacity-20 blur-2xl ${glow}`}
-        />
-        <img
-          src={imgSrc}
-          alt={game.name}
-          className="relative aspect-3/4 w-full rounded-2xl object-cover shadow-2xl shadow-black/40"
-          style={{ viewTransitionName: `game-cover-${game.id}` }}
-        />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />
-        <ConsoleDots
-          consoles={game.consoles}
-          rate={exchange_rate}
-          className="absolute bottom-3 left-3 z-10"
-        />
-        {game.discount && (
-          <DiscountBadge
-            percent={game.discount}
-            className="absolute top-3 left-3 z-10 shadow-sm"
+    <div className="space-y-12">
+      <div className="flex flex-col gap-10 sm:flex-row sm:gap-12">
+        {/* Cover — the art is the hero; subtle brand halo + small console dots. */}
+        <div className="relative w-44 shrink-0 self-center sm:sticky sm:top-24 sm:w-56 sm:self-start">
+          <div
+            className={`pointer-events-none absolute inset-4 rounded-2xl opacity-20 blur-2xl ${glow}`}
           />
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="flex flex-1 animate-in flex-col gap-6 duration-500 fade-in-0 slide-in-from-bottom-2">
-        <div className="space-y-2.5">
-          <h1 className="text-2xl leading-snug font-bold">{game.name}</h1>
-          <div className="flex flex-wrap items-center gap-2">
-            {game.consoles.map((c) => {
-              const fam = gameFamilies([c], exchange_rate)[0]
-              return (
-                <span
-                  key={c}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-xs"
-                >
-                  <span className={`size-2 rounded-full ${fam.glow}`} />
-                  {consoleLabel(c, exchange_rate)}
-                </span>
-              )
-            })}
-            {game.phase === "pre_order" && <PreOrderBadge />}
-          </div>
-          <GameTags tags={game.tags} />
+          <img
+            src={imgSrc}
+            alt={`کاور بازی ${game.name}`}
+            width={600}
+            height={800}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            className="relative aspect-3/4 w-full rounded-2xl object-cover shadow-2xl shadow-black/40"
+            style={{ viewTransitionName: `game-cover-${game.id}` }}
+          />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />
+          <ConsoleDots
+            consoles={game.consoles}
+            rate={exchange_rate}
+            className="absolute bottom-3 left-3 z-10"
+          />
+          {game.discount && (
+            <DiscountBadge
+              percent={game.discount}
+              className="absolute top-3 left-3 z-10 shadow-sm"
+            />
+          )}
         </div>
 
-        <GameNotices game={game} />
-
-        <Separator />
-
-        {game.phase === "closing_soon" ? (
-          <ClosingSoonNotice game={game} />
-        ) : game.prices.length > 0 ? (
-          <BuyCard game={game} rate={exchange_rate} />
-        ) : null}
-
-        {game.links.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              لینک‌ها
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {game.links.map((link) => (
-                <a
-                  key={link.id}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm transition-colors hover:border-primary/40 hover:text-primary"
-                >
-                  <ExternalLink className="size-3" />
-                  {hostLabel(link.url)}
-                </a>
-              ))}
+        {/* Info */}
+        <div className="flex flex-1 animate-in flex-col gap-6 duration-500 fade-in-0 slide-in-from-bottom-2">
+          <div className="space-y-2.5">
+            <h1 className="text-2xl leading-snug font-bold">{game.name}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              {game.consoles.map((c) => {
+                const fam = gameFamilies([c], exchange_rate)[0]
+                return (
+                  <span
+                    key={c}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-xs"
+                  >
+                    <span className={`size-2 rounded-full ${fam.glow}`} />
+                    {consoleLabel(c, exchange_rate)}
+                  </span>
+                )
+              })}
+              {game.phase === "pre_order" && <PreOrderBadge />}
             </div>
+            <GameTags tags={game.tags} />
+            <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
+              {gameSeoDescription(game, exchange_rate)}
+            </p>
           </div>
-        )}
+
+          <GameNotices game={game} />
+
+          <Separator />
+
+          <section
+            aria-labelledby="purchase-options-heading"
+            className="space-y-3"
+          >
+            <h2 id="purchase-options-heading" className="text-lg font-semibold">
+              انتخاب کنسول و ظرفیت
+            </h2>
+            {game.phase === "closing_soon" ? (
+              <ClosingSoonNotice game={game} />
+            ) : game.prices.length > 0 ? (
+              <BuyCard game={game} rate={exchange_rate} />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                در حال حاضر گزینه‌ای برای خرید این بازی موجود نیست.
+              </p>
+            )}
+          </section>
+
+          {game.links.length > 0 && (
+            <section className="space-y-2">
+              <h2 className="text-sm font-semibold text-foreground">لینک‌ها</h2>
+              <div className="flex flex-wrap gap-2">
+                {game.links.map((link) => (
+                  <a
+                    key={link.id}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm transition-colors hover:border-primary/40 hover:text-primary"
+                  >
+                    <ExternalLink className="size-3" />
+                    {hostLabel(link.url)}
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       </div>
+
+      {game.description_markdown && (
+        <section
+          aria-labelledby="game-description-heading"
+          className="rounded-2xl border border-border/60 bg-card/65 p-5 backdrop-blur-sm sm:p-7"
+        >
+          <h2 id="game-description-heading" className="mb-5 text-xl font-bold">
+            درباره {game.name}
+          </h2>
+          <MarkdownContent content={game.description_markdown} />
+        </section>
+      )}
+
+      <ErrorBoundary fallback={null}>
+        <Suspense fallback={<RelatedGamesSkeleton />}>
+          <RelatedGames slug={slug} />
+        </Suspense>
+      </ErrorBoundary>
     </div>
+  )
+}
+
+function RelatedGamesSkeleton() {
+  return (
+    <section aria-label="در حال بارگذاری بازی‌های مشابه" className="space-y-5">
+      <Skeleton className="h-7 w-32" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton key={index} className="aspect-3/4 rounded-2xl" />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function RelatedGames({ slug }: { slug: string }) {
+  const { data } = useSuspenseQuery(relatedGamesQueryOptions(slug))
+  if (data.games.length === 0) return null
+
+  return (
+    <section aria-labelledby="related-games-heading" className="space-y-5">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 id="related-games-heading" className="text-xl font-bold">
+            بازی‌های مشابه
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            پیشنهادهای نزدیک بر اساس پلتفرم و برچسب‌های همین بازی
+          </p>
+        </div>
+        <Link
+          to="/games"
+          search={GAMES_DEFAULT_SEARCH}
+          className="shrink-0 text-sm font-medium text-primary hover:underline"
+        >
+          همه بازی‌ها
+        </Link>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {data.games.map((game) => {
+          const price = discountedPrice(
+            cheapestPrice(game, data.exchange_rate),
+            game
+          )
+          return (
+            <Link
+              key={game.id}
+              to="/games/$slug"
+              params={{ slug: game.slug }}
+              className="group overflow-hidden rounded-2xl border border-border/60 bg-card/70 transition-colors hover:border-primary/40"
+            >
+              <img
+                src={gameCoverSrc(game.cover_image)}
+                alt={`کاور بازی ${game.name}`}
+                width={300}
+                height={400}
+                loading="lazy"
+                decoding="async"
+                className="aspect-3/4 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              />
+              <div className="space-y-1 p-3">
+                <h3 className="line-clamp-1 text-sm font-semibold">
+                  {game.name}
+                </h3>
+                <p className="line-clamp-1 text-xs text-muted-foreground">
+                  {game.consoles
+                    .map((code) => consoleLabel(code, data.exchange_rate))
+                    .join("، ")}
+                </p>
+                <p className="pt-1 text-xs font-bold text-primary">
+                  {price == null
+                    ? "برای قیمت وارد شوید"
+                    : `از ${formatToman(price)}`}
+                </p>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 

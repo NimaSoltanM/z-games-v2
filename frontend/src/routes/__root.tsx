@@ -16,6 +16,7 @@ import { meQueryOptions } from "@/features/auth"
 import { serverCartQueryOptions } from "@/features/cart"
 import { captureReferral } from "@/features/referral"
 import { Toaster } from "@/components/ui/sonner"
+import { jsonLdScript, robotsDirective, siteJsonLd } from "@/features/seo"
 
 import appCss from "../styles.css?url"
 
@@ -29,7 +30,14 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "theme-color", content: "#171717" },
-      { title: "Z-Games | بازی‌های کنسولی" },
+      { title: "زد گیمز | خرید اکانت قانونی بازی‌های کنسول" },
+      {
+        name: "description",
+        content:
+          "خرید اکانت قانونی بازی‌های PlayStation و Xbox با قیمت روز، پشتیبانی و امکان بازخرید بازی‌های واجد شرایط.",
+      },
+      { name: "robots", content: robotsDirective(false) },
+      { name: "googlebot", content: robotsDirective(false) },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -37,6 +45,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { rel: "apple-touch-icon", href: "/logo.png" },
       { rel: "manifest", href: "/manifest.json" },
     ],
+    scripts: [jsonLdScript(siteJsonLd())],
   }),
   // Prefetch auth + (when logged in) the server cart so the navbar badge and
   // cart page render correct data on first paint with no flash.
@@ -72,7 +81,7 @@ function RootLayout() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning>
+    <html lang="fa-IR" dir="rtl" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>

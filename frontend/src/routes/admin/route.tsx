@@ -12,6 +12,7 @@ import {
 import { DashboardLayout } from "@/components/dashboard-shell"
 import type { DashNavItem } from "@/components/dashboard-shell"
 import { getMeFn } from "@/features/auth"
+import { noIndexHead } from "@/features/seo"
 
 const NAV: readonly DashNavItem[] = [
   {
@@ -49,6 +50,7 @@ const NAV: readonly DashNavItem[] = [
 ]
 
 export const Route = createFileRoute("/admin")({
+  head: () => noIndexHead("مدیریت فروشگاه | زد گیمز"),
   // Single admin guard for every /admin/* route. Children inherit it, so they no
   // longer guard individually; non-admins are bounced home, guests to login.
   beforeLoad: async ({ location }) => {

@@ -32,11 +32,12 @@ func (h *handler) listGamesHandler(c fiber.Ctx) error {
 	}
 
 	filter := listFilter{
-		platform:     strings.TrimSpace(c.Query("platform")),
-		zarfiat:      strings.TrimSpace(c.Query("zarfiat")),
-		search:       strings.TrimSpace(c.Query("search")),
-		onlyActive:   true,
-		onlyFeatured: c.Query("featured") == "true",
+		platform:       strings.TrimSpace(c.Query("platform")),
+		zarfiat:        strings.TrimSpace(c.Query("zarfiat")),
+		search:         strings.TrimSpace(c.Query("search")),
+		onlyActive:     true,
+		onlyFeatured:   c.Query("featured") == "true",
+		onlyReturnable: c.Query("returnable") == "true",
 	}
 
 	orderBy := buildOrderBy(pageInfo.Sort)
@@ -96,6 +97,32 @@ func (h *handler) getGameHandler(c fiber.Ctx) error {
 		"game":          game,
 		"exchange_rate": rate,
 	})
+}
+
+func (h *handler) relatedGamesHandler(c fiber.Ctx) error {
+	idOrSlug := c.Params("id")
+	if idOrSlug == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "شناسه بازی الزامی است"})
+	}
+
+	game, err := getGameByIDOrSlug(c.Context(), h.db, idOrSlug, true)
+	if err != nil {
+		return fmt.Errorf("get related source game: %w", err)
+	}
+	if game == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "بازی مورد نظر یافت نشد"})
+	}
+
+	related, err := listRelatedGames(c.Context(), h.db, *game, 4)
+	if err != nil {
+		return fmt.Errorf("list related games: %w", err)
+	}
+	rate, err := getPricingResponse(c.Context(), h.db)
+	if err != nil {
+		return fmt.Errorf("get exchange rate for related games: %w", err)
+	}
+
+	return c.JSON(fiber.Map{"games": related, "exchange_rate": rate})
 }
 
 // slugAvailableHandler powers the admin form's live uniqueness check. It normalizes

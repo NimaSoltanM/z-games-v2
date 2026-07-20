@@ -59,6 +59,17 @@ Get-ChildItem backend/migrations/*.sql | Sort-Object Name | ForEach-Object {
 See [`backend/migrations/README.md`](./backend/migrations/README.md) before
 running this against an existing environment.
 
+Verify that the configured database matches the schema required by the current
+backend before starting it:
+
+```powershell
+Set-Location backend
+go run ./cmd/schema-check
+```
+
+The API performs this same check at startup and exits with the missing schema
+objects and latest required migration instead of serving broken endpoints.
+
 Start each application in its own terminal:
 
 ```powershell
@@ -106,3 +117,9 @@ required production URLs and storage paths, a valid encryption key, and
 Production authentication remains unavailable until an SMS provider is
 integrated. The API deliberately returns `503` for OTP requests in production so
 it can never report a code as sent when no delivery occurred.
+
+Set `VITE_SITE_URL` to the final canonical HTTPS frontend origin. Set
+`VITE_ALLOW_INDEXING=true` only in the production deployment after that domain is
+live; staging and local builds intentionally emit `noindex` and block crawlers.
+The production sitemap reads the active catalog from `VITE_API_URL`, so the
+frontend server must be able to reach that API origin.

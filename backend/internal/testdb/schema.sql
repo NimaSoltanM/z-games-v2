@@ -227,6 +227,9 @@ CREATE TABLE public.games (
     return_fee_pct smallint,
     return_fee_starts_at timestamp without time zone,
     return_fee_ends_at timestamp without time zone,
+    description_markdown text DEFAULT ''::text NOT NULL,
+    seo_title character varying(120),
+    seo_description character varying(320),
     CONSTRAINT games_alert_variant_check CHECK (((alert_variant IS NULL) OR (alert_variant = ANY (ARRAY['info'::text, 'warning'::text])))),
     CONSTRAINT games_discount_pct_check CHECK (((discount_pct IS NULL) OR ((discount_pct >= 1) AND (discount_pct <= 99)))),
     CONSTRAINT games_discount_window_check CHECK ((((discount_pct IS NULL) AND (discount_starts_at IS NULL) AND (discount_ends_at IS NULL)) OR ((discount_pct IS NOT NULL) AND (discount_starts_at IS NOT NULL) AND (discount_ends_at IS NOT NULL) AND (discount_ends_at > discount_starts_at)))),
@@ -329,14 +332,14 @@ CREATE TABLE public.users (
 
 CREATE TABLE public.verification_code_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
-    order_item_id uuid NOT NULL REFERENCES public.order_items(id) ON DELETE CASCADE,
-    user_id character varying NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    order_item_id uuid NOT NULL,
+    user_id character varying NOT NULL,
     status text DEFAULT 'pending'::text NOT NULL CHECK (status = ANY (ARRAY['pending'::text, 'delivered'::text, 'expired'::text])),
     code text,
     requested_at timestamp without time zone DEFAULT now() NOT NULL,
     delivered_at timestamp without time zone,
     expires_at timestamp without time zone,
-    delivered_by character varying REFERENCES public.users(id) ON DELETE SET NULL,
+    delivered_by character varying,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
     CONSTRAINT verification_code_delivery_fields_check CHECK (((status = 'pending'::text AND code IS NULL AND delivered_at IS NULL AND expires_at IS NULL AND delivered_by IS NULL) OR (status = 'delivered'::text AND code IS NOT NULL AND delivered_at IS NOT NULL AND expires_at IS NOT NULL AND delivered_by IS NOT NULL) OR (status = 'expired'::text AND code IS NULL AND delivered_at IS NOT NULL AND expires_at IS NOT NULL)))
 );
@@ -920,6 +923,30 @@ ALTER TABLE ONLY public.orders
 
 ALTER TABLE ONLY public.wallet_transactions
     ADD CONSTRAINT wallet_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: verification_code_requests verification_code_requests_order_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.verification_code_requests
+    ADD CONSTRAINT verification_code_requests_order_item_id_fkey FOREIGN KEY (order_item_id) REFERENCES public.order_items(id) ON DELETE CASCADE;
+
+
+--
+-- Name: verification_code_requests verification_code_requests_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.verification_code_requests
+    ADD CONSTRAINT verification_code_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: verification_code_requests verification_code_requests_delivered_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.verification_code_requests
+    ADD CONSTRAINT verification_code_requests_delivered_by_fkey FOREIGN KEY (delivered_by) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --

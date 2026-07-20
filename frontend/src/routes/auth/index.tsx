@@ -15,8 +15,10 @@ import {
   SERVER_CART_KEY,
 } from "@/features/cart"
 import { getReferral } from "@/features/referral"
+import { noIndexHead } from "@/features/seo"
 
 export const Route = createFileRoute("/auth/")({
+  head: () => noIndexHead("ورود به حساب کاربری | زد گیمز"),
   validateSearch: (search: Record<string, unknown>) => ({
     redirect: typeof search.redirect === "string" ? search.redirect : undefined,
   }),

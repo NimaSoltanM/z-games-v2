@@ -3,6 +3,7 @@ package games
 import (
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
 	"github.com/soltanmohammdi/z-games/internal/shared/release"
@@ -13,31 +14,34 @@ import (
 // Dynamic games carry base_prices (one USD price per console) + an optional margin
 // override; fixed games carry per-capacity Toman prices.
 type gameInput struct {
-	Name            string           `json:"name"`
-	Slug            string           `json:"slug"`
-	Consoles        []string         `json:"consoles"`
-	PriceMode       string           `json:"price_mode"`
-	CoverImage      *string          `json:"cover_image"`
-	Active          bool             `json:"active"`
-	Featured        bool             `json:"featured"`
-	Tags            []string         `json:"tags"`
-	ReleaseStatus   string           `json:"release_status"`
-	ReleaseDate     *string          `json:"release_date"`
-	AlertMessage    *string          `json:"alert_message"`
-	AlertVariant    *string          `json:"alert_variant"`
-	ProfitMarginPct *int             `json:"profit_margin_pct"`
+	Name                string   `json:"name"`
+	Slug                string   `json:"slug"`
+	Consoles            []string `json:"consoles"`
+	PriceMode           string   `json:"price_mode"`
+	CoverImage          *string  `json:"cover_image"`
+	DescriptionMarkdown string   `json:"description_markdown"`
+	SEOTitle            *string  `json:"seo_title"`
+	SEODescription      *string  `json:"seo_description"`
+	Active              bool     `json:"active"`
+	Featured            bool     `json:"featured"`
+	Tags                []string `json:"tags"`
+	ReleaseStatus       string   `json:"release_status"`
+	ReleaseDate         *string  `json:"release_date"`
+	AlertMessage        *string  `json:"alert_message"`
+	AlertVariant        *string  `json:"alert_variant"`
+	ProfitMarginPct     *int     `json:"profit_margin_pct"`
 	// Returnable controls whether a customer can return (buy back) accounts of this
 	// game. Omitted/nil defaults to true — all games are returnable unless an admin
 	// turns it off. The reduced-fee window itself is set via a separate endpoint.
-	Returnable      *bool            `json:"returnable"`
-	BasePrices      []basePriceInput `json:"base_prices"`
-	Prices          []priceInput     `json:"prices"`
-	Links           []string         `json:"links"`
+	Returnable *bool            `json:"returnable"`
+	BasePrices []basePriceInput `json:"base_prices"`
+	Prices     []priceInput     `json:"prices"`
+	Links      []string         `json:"links"`
 }
 
 type basePriceInput struct {
-	Platform string   `json:"platform"`
-	BaseUSD  float64  `json:"base_usd"`
+	Platform string  `json:"platform"`
+	BaseUSD  float64 `json:"base_usd"`
 	// Capacities sold for this console (dynamic mode). Empty/omitted = all of the
 	// console's catalog capacities.
 	Capacities []string `json:"capacities"`
@@ -52,23 +56,26 @@ type priceInput struct {
 
 // normalizedGame is the cleaned, validated form ready for the DB.
 type normalizedGame struct {
-	Name            string
-	Slug            string
-	Consoles        []string
-	PriceMode       string
-	CoverImage      *string
-	Active          bool
-	Featured        bool
-	Tags            []string
-	ReleaseStatus   string
-	ReleaseDate     *time.Time
-	AlertMessage    *string
-	AlertVariant    *string
-	ProfitMarginPct *int
-	Returnable      bool
-	BasePrices      []normalizedBasePrice // dynamic only
-	Prices          []normalizedPrice     // fixed only
-	Links           []string
+	Name                string
+	Slug                string
+	Consoles            []string
+	PriceMode           string
+	CoverImage          *string
+	DescriptionMarkdown string
+	SEOTitle            *string
+	SEODescription      *string
+	Active              bool
+	Featured            bool
+	Tags                []string
+	ReleaseStatus       string
+	ReleaseDate         *time.Time
+	AlertMessage        *string
+	AlertVariant        *string
+	ProfitMarginPct     *int
+	Returnable          bool
+	BasePrices          []normalizedBasePrice // dynamic only
+	Prices              []normalizedPrice     // fixed only
+	Links               []string
 }
 
 type normalizedBasePrice struct {
@@ -85,14 +92,17 @@ type normalizedPrice struct {
 }
 
 const (
-	maxNameLen    = 200
-	maxCoverLen   = 500
-	maxAlertLen   = 500
-	maxLinkLen    = 500
-	maxLinksCount = 20
-	maxMarginPct  = 1000
-	maxTagsCount  = 20
-	maxTagLen     = 40
+	maxNameLen                = 200
+	maxCoverLen               = 500
+	maxAlertLen               = 500
+	maxLinkLen                = 500
+	maxLinksCount             = 20
+	maxMarginPct              = 1000
+	maxTagsCount              = 20
+	maxTagLen                 = 40
+	maxDescriptionMarkdownLen = 50000
+	maxSEOTitleLen            = 120
+	maxSEODescriptionLen      = 320
 )
 
 // validateGameInput cleans and validates an admin payload against the live console/
@@ -106,7 +116,7 @@ func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, s
 	if out.Name == "" {
 		return out, "نام بازی الزامی است", false
 	}
-	if len(out.Name) > maxNameLen {
+	if utf8.RuneCountInString(out.Name) > maxNameLen {
 		return out, "نام بازی بیش از حد طولانی است", false
 	}
 
@@ -131,7 +141,7 @@ func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, s
 		if tag == "" {
 			continue
 		}
-		if len(tag) > maxTagLen {
+		if utf8.RuneCountInString(tag) > maxTagLen {
 			return out, "برچسب بیش از حد طولانی است", false
 		}
 		key := strings.ToLower(tag)
@@ -171,10 +181,33 @@ func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, s
 	if in.CoverImage != nil {
 		cover := strings.TrimSpace(*in.CoverImage)
 		if cover != "" {
-			if len(cover) > maxCoverLen {
+			if utf8.RuneCountInString(cover) > maxCoverLen {
 				return out, "آدرس تصویر نامعتبر است", false
 			}
 			out.CoverImage = &cover
+		}
+	}
+
+	out.DescriptionMarkdown = strings.TrimSpace(in.DescriptionMarkdown)
+	if utf8.RuneCountInString(out.DescriptionMarkdown) > maxDescriptionMarkdownLen {
+		return out, "توضیحات بازی بیش از حد طولانی است", false
+	}
+	if in.SEOTitle != nil {
+		value := strings.TrimSpace(*in.SEOTitle)
+		if utf8.RuneCountInString(value) > maxSEOTitleLen {
+			return out, "عنوان سئو بیش از حد طولانی است", false
+		}
+		if value != "" {
+			out.SEOTitle = &value
+		}
+	}
+	if in.SEODescription != nil {
+		value := strings.TrimSpace(*in.SEODescription)
+		if utf8.RuneCountInString(value) > maxSEODescriptionLen {
+			return out, "توضیحات سئو بیش از حد طولانی است", false
+		}
+		if value != "" {
+			out.SEODescription = &value
 		}
 	}
 
@@ -203,7 +236,7 @@ func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, s
 	// Optional admin alert.
 	if in.AlertMessage != nil && strings.TrimSpace(*in.AlertMessage) != "" {
 		msg := strings.TrimSpace(*in.AlertMessage)
-		if len(msg) > maxAlertLen {
+		if utf8.RuneCountInString(msg) > maxAlertLen {
 			return out, "متن اعلان بیش از حد طولانی است", false
 		}
 		variant := "info"
@@ -303,7 +336,7 @@ func validateGameInput(in gameInput, catalog pricing.Catalog) (normalizedGame, s
 		if url == "" {
 			continue
 		}
-		if len(url) > maxLinkLen || !(strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+		if utf8.RuneCountInString(url) > maxLinkLen || !(strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
 			return out, "آدرس لینک نامعتبر است", false
 		}
 		if linkSeen[url] {

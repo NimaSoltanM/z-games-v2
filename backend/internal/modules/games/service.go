@@ -249,14 +249,17 @@ type gamePriceRow struct {
 }
 
 type gameRow struct {
-	ID         string         `json:"id"`
-	Slug       string         `json:"slug"`
-	Name       string         `json:"name"`
-	CoverImage *string        `json:"cover_image"`
-	PriceMode  string         `json:"price_mode"`
-	Prices     []gamePriceRow `json:"prices"`
-	Active     bool           `json:"active"`
-	Links      []gameLinkRow  `json:"links"`
+	ID                  string         `json:"id"`
+	Slug                string         `json:"slug"`
+	Name                string         `json:"name"`
+	CoverImage          *string        `json:"cover_image"`
+	DescriptionMarkdown string         `json:"description_markdown"`
+	SEOTitle            *string        `json:"seo_title"`
+	SEODescription      *string        `json:"seo_description"`
+	PriceMode           string         `json:"price_mode"`
+	Prices              []gamePriceRow `json:"prices"`
+	Active              bool           `json:"active"`
+	Links               []gameLinkRow  `json:"links"`
 	// Consoles the game is sold on (ps5, xbox_series, …), ordered for display.
 	// Replaces the old single `platform` enum; availability is the set of consoles
 	// here, and every price/base price must target one of them.
@@ -335,16 +338,17 @@ type gameLinkRow struct {
 }
 
 type listFilter struct {
-	platform     string // a console code (ps5, xbox_series, …) the game must list on
-	zarfiat      string // a capacity code — games that have any price entry for it
-	search       string
-	onlyActive   bool
-	onlyFeatured bool
+	platform       string // a console code (ps5, xbox_series, …) the game must list on
+	zarfiat        string // a capacity code — games that have any price entry for it
+	search         string
+	onlyActive     bool
+	onlyFeatured   bool
+	onlyReturnable bool
 }
 
 // gameColumns is the shared SELECT list for a game row, kept in one place so the
 // list and single-game reads (and their Scan order in scanGameRow) never drift.
-const gameColumns = `id, slug, name, cover_image, price_mode::text, active,
+const gameColumns = `id, slug, name, cover_image, description_markdown, seo_title, seo_description, price_mode::text, active,
 	release_status, release_date, alert_message, alert_variant, profit_margin_pct,
 	featured, view_count, tags, discount_pct, discount_starts_at, discount_ends_at,
 	returnable, return_fee_pct, return_fee_starts_at, return_fee_ends_at,
@@ -353,7 +357,7 @@ const gameColumns = `id, slug, name, cover_image, price_mode::text, active,
 // scanGameRow scans one row selected with gameColumns (in that exact order).
 func scanGameRow(row pgx.Row, g *gameRow) error {
 	return row.Scan(
-		&g.ID, &g.Slug, &g.Name, &g.CoverImage, &g.PriceMode, &g.Active,
+		&g.ID, &g.Slug, &g.Name, &g.CoverImage, &g.DescriptionMarkdown, &g.SEOTitle, &g.SEODescription, &g.PriceMode, &g.Active,
 		&g.ReleaseStatus, &g.ReleaseDate, &g.AlertMessage, &g.AlertVariant, &g.ProfitMarginPct,
 		&g.Featured, &g.ViewCount, &g.Tags, &g.DiscountPct, &g.DiscountStartsAt, &g.DiscountEndsAt,
 		&g.Returnable, &g.ReturnFeePct, &g.ReturnFeeStartsAt, &g.ReturnFeeEndsAt,
@@ -371,6 +375,9 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 	}
 	if filter.onlyFeatured {
 		conds = append(conds, "featured = true")
+	}
+	if filter.onlyReturnable {
+		conds = append(conds, "returnable = true")
 	}
 	platformParam := 0
 	if filter.platform != "" {
@@ -530,6 +537,59 @@ func getGame(ctx context.Context, db *pgxpool.Pool, cond, arg string, onlyActive
 		return nil, err
 	}
 	return &games[0], nil
+}
+
+// listRelatedGames ranks active alternatives by shared tags and consoles, then
+// uses editorial prominence and recency as deterministic fallbacks. The result is
+// hydrated exactly like the main catalog so pricing and availability stay current.
+func listRelatedGames(ctx context.Context, db *pgxpool.Pool, source gameRow, limit int) ([]gameRow, error) {
+	rows, err := db.Query(ctx, fmt.Sprintf(`
+		SELECT %s
+		FROM games
+		WHERE active = true AND id <> $1
+		ORDER BY
+			cardinality(ARRAY(SELECT unnest(tags) INTERSECT SELECT unnest($2::text[]))) DESC,
+			(SELECT COUNT(*) FROM game_consoles gc
+			 WHERE gc.game_id = games.id AND gc.console_code = ANY($3::text[])) DESC,
+			featured DESC,
+			updated_at DESC,
+			id
+		LIMIT $4
+	`, gameColumns), source.ID, source.Tags, source.Consoles, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query related games: %w", err)
+	}
+	defer rows.Close()
+
+	now := time.Now().UTC()
+	result := make([]gameRow, 0, limit)
+	for rows.Next() {
+		var g gameRow
+		if err := scanGameRow(rows, &g); err != nil {
+			return nil, fmt.Errorf("scan related game: %w", err)
+		}
+		g.Prices = []gamePriceRow{}
+		g.Links = []gameLinkRow{}
+		g.Consoles = []string{}
+		g.derivePhase(now)
+		result = append(result, g)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("related games rows: %w", err)
+	}
+	if err := attachConsoles(ctx, db, result); err != nil {
+		return nil, err
+	}
+	if err := attachPrices(ctx, db, result); err != nil {
+		return nil, err
+	}
+	if err := attachLinks(ctx, db, result); err != nil {
+		return nil, err
+	}
+	if err := attachTrending(ctx, db, result, now); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // attachPrices fills each game's Prices (and BasePrices for dynamic games).
