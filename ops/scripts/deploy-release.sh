@@ -50,7 +50,11 @@ source "${frontend_env}"
 set +a
 pushd "${incoming_dir}/frontend" >/dev/null
 bun install --frozen-lockfile
-bun run build
+# Static image variants are generated with Sharp during local/CI asset work and
+# committed to the release. The production host only compiles those assets; this
+# also keeps deployment compatible with older x86-64 CPUs unsupported by Sharp's
+# current prebuilt Linux binary.
+bun run build:app
 popd >/dev/null
 
 install -d -m 0750 -o root -g zgames "$(dirname -- "${release_dir}")"

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 3000",
-    "build": "bun run images:build && vite build",
+    "build": "bun run images:build && bun run build:app",
+    "build:app": "vite build",
     "images:build": "node scripts/optimize-static-images.mjs",
     "start": "srvx serve --prod --static ./__disabled_static__ --entry ./production-server.mjs",
     "preview": "vite preview",
