@@ -67,8 +67,10 @@ chmod 0550 "${release_dir}/backend/api" "${release_dir}/backend/schema-check"
 set -a
 source "${api_env}"
 set +a
+pushd "${release_dir}/backend" >/dev/null
 runuser -u zgames -- env DATABASE_URL="${DATABASE_URL}" \
-  "${release_dir}/backend/schema-check"
+  ./schema-check
+popd >/dev/null
 
 install -m 0644 "${release_dir}/ops/systemd/z-games-api.service" \
   /etc/systemd/system/z-games-api.service
