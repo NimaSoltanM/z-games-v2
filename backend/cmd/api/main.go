@@ -42,9 +42,14 @@ func main() {
 	if port == "" {
 		port = "3002"
 	}
+	host := strings.TrimSpace(os.Getenv("HOST"))
+	address := ":" + port
+	if host != "" {
+		address = net.JoinHostPort(host, port)
+	}
 
-	log.Printf("Server running on :%s", port)
-	log.Fatal(app.Listen(":" + port))
+	log.Printf("Server running on %s", address)
+	log.Fatal(app.Listen(address))
 }
 
 func validateEnvironment() error {
@@ -55,6 +60,10 @@ func validateEnvironment() error {
 		return errors.New("APP_ENV must be set to development, test, or production")
 	default:
 		return fmt.Errorf("APP_ENV must be development, test, or production (got %q)", appEnv)
+	}
+	providerApprovalMode := os.Getenv("PROVIDER_APPROVAL_MODE") == "true"
+	if raw := os.Getenv("PROVIDER_APPROVAL_MODE"); raw != "" && raw != "true" && raw != "false" {
+		return errors.New("PROVIDER_APPROVAL_MODE must be true or false")
 	}
 
 	if os.Getenv("DATABASE_URL") == "" {
@@ -79,12 +88,18 @@ func validateEnvironment() error {
 				return fmt.Errorf("%s must be set in production", key)
 			}
 		}
-		if os.Getenv("ZARINPAL_SANDBOX") != "false" {
-			return errors.New("ZARINPAL_SANDBOX must be false in production")
-		}
-		for _, key := range []string{"PAYAMAK_PANEL_USERNAME", "PAYAMAK_PANEL_API_KEY", "PAYAMAK_PANEL_BODY_ID"} {
-			if strings.TrimSpace(os.Getenv(key)) == "" {
-				return fmt.Errorf("%s must be set in production", key)
+		if providerApprovalMode {
+			if os.Getenv("ZARINPAL_SANDBOX") != "true" {
+				return errors.New("ZARINPAL_SANDBOX must be true in provider approval mode")
+			}
+		} else {
+			if os.Getenv("ZARINPAL_SANDBOX") != "false" {
+				return errors.New("ZARINPAL_SANDBOX must be false in production")
+			}
+			for _, key := range []string{"PAYAMAK_PANEL_USERNAME", "PAYAMAK_PANEL_API_KEY", "PAYAMAK_PANEL_BODY_ID"} {
+				if strings.TrimSpace(os.Getenv(key)) == "" {
+					return fmt.Errorf("%s must be set in production", key)
+				}
 			}
 		}
 	}

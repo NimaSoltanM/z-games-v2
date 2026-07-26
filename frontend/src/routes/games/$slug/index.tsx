@@ -17,6 +17,7 @@ import { ArrowRight, ExternalLink, ShoppingCart } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { BeltSection } from "@/components/ui/card-belt/belt-section"
 import { MarkdownContent } from "@/components/markdown-content"
 import {
   gameQueryOptions,
@@ -36,7 +37,6 @@ import {
   GameTags,
   gameCoverSrc,
   GAMES_DEFAULT_SEARCH,
-  cheapestPrice,
 } from "@/features/games"
 import type { ExchangeRate, Game } from "@/features/games"
 import { useCart } from "@/features/cart"
@@ -312,69 +312,24 @@ function RelatedGamesSkeleton() {
 
 function RelatedGames({ slug }: { slug: string }) {
   const { data } = useSuspenseQuery(relatedGamesQueryOptions(slug))
-  if (data.games.length === 0) return null
 
   return (
-    <section aria-labelledby="related-games-heading" className="space-y-5">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h2 id="related-games-heading" className="text-xl font-bold">
-            بازی‌های مشابه
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            پیشنهادهای نزدیک بر اساس پلتفرم و برچسب‌های همین بازی
-          </p>
-        </div>
+    <BeltSection
+      id="related-games"
+      title="بازی‌های مشابه"
+      subtitle="پیشنهادهای نزدیک بر اساس پلتفرم و برچسب‌های همین بازی"
+      games={data.games}
+      rate={data.exchange_rate}
+      action={
         <Link
           to="/games"
           search={GAMES_DEFAULT_SEARCH}
           className="shrink-0 text-sm font-medium text-primary hover:underline"
         >
-          همه بازی‌ها
+          همه‌ی بازی‌ها
         </Link>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {data.games.map((game) => {
-          const price = discountedPrice(
-            cheapestPrice(game, data.exchange_rate),
-            game
-          )
-          return (
-            <Link
-              key={game.id}
-              to="/games/$slug"
-              params={{ slug: game.slug }}
-              className="group overflow-hidden rounded-2xl border border-border/60 bg-card/70 transition-colors hover:border-primary/40"
-            >
-              <img
-                src={gameCoverSrc(game.cover_image)}
-                alt={`کاور بازی ${game.name}`}
-                width={300}
-                height={400}
-                loading="lazy"
-                decoding="async"
-                className="aspect-3/4 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-              />
-              <div className="space-y-1 p-3">
-                <h3 className="line-clamp-1 text-sm font-semibold">
-                  {game.name}
-                </h3>
-                <p className="line-clamp-1 text-xs text-muted-foreground">
-                  {game.consoles
-                    .map((code) => consoleLabel(code, data.exchange_rate))
-                    .join("، ")}
-                </p>
-                <p className="pt-1 text-xs font-bold text-primary">
-                  {price == null
-                    ? "برای قیمت وارد شوید"
-                    : `از ${formatToman(price)}`}
-                </p>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
-    </section>
+      }
+    />
   )
 }
 
@@ -395,7 +350,6 @@ function BuyCard({ game, rate }: { game: Game; rate: ExchangeRate }) {
   const { items, addItem } = useCart()
   const isPreOrder = game.phase === "pre_order"
 
-  // Capacities that actually have a (non-null) price for a given console.
   const pricedCaps = (con: string): string[] =>
     game.prices
       .filter(

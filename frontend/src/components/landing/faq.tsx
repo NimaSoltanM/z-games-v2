@@ -40,13 +40,13 @@ const FAQ: QA[] = [
 
 export function Faq() {
   return (
-    <section className="relative bg-background py-20 sm:py-28">
+    <section className="relative bg-background py-16 sm:py-24">
       <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[0.75fr_1.25fr] lg:px-8">
         <div>
           <p className="text-sm font-semibold text-primary">
             شفاف، قبل از پرداخت
           </p>
-          <h2 className="mt-3 text-3xl leading-[1.45] font-black sm:text-5xl">
+          <h2 className="mt-3 text-3xl leading-[1.45] font-black sm:text-4xl">
             چیزی مبهم نمونه.
           </h2>
           <p className="mt-5 max-w-md text-base leading-8 text-muted-foreground">

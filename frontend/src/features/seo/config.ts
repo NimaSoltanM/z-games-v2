@@ -1,7 +1,6 @@
 const LOCAL_SITE_URL = "http://localhost:3000"
 
 export const SITE_NAME = "زد گیمز"
-export const SITE_NAME_LATIN = "Z-Games"
 
 function normalizeOrigin(value: string | undefined): string {
   const candidate = value?.trim() || LOCAL_SITE_URL
@@ -40,4 +39,4 @@ export function canonicalUrl(
   return url.toString()
 }
 
-export const DEFAULT_SOCIAL_IMAGE = absoluteUrl("/og-default.jpg")
+export const DEFAULT_SOCIAL_IMAGE = absoluteUrl("/brand/og-default.jpg")

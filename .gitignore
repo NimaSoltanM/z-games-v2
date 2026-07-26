@@ -6,9 +6,6 @@ dist
 *.log
 .seo-cache/
 
-# Machine-local Claude Code permissions
-.claude/settings.local.json
-
 # Go
 backend/tmp/
 backend/*.exe

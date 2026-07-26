@@ -1,24 +1,8 @@
 import type { Pagination } from "@/features/orders"
 
-// Known admin action keys (kept in sync with backend shared/audit). The row's
-// `action` stays a string so an unrecognized key still renders gracefully.
-export type AuditActionKey =
-  | "game.create"
-  | "game.update"
-  | "game.delete"
-  | "game.preorder"
-  | "game.alert"
-  | "exchange_rate.set"
-  | "order.fulfill"
-  | "return.reuse"
-  | "return.inventory_disable"
-  | "return.inventory_enable"
-  | "verification_code.send"
-  | "image.upload"
-
 // Audit metadata only ever holds JSON scalars, which keeps the server-fn return
 // type serializable.
-export type JsonScalar = string | number | boolean | null
+type JsonScalar = string | number | boolean | null
 
 export type ChangeEntry = { from: JsonScalar; to: JsonScalar }
 

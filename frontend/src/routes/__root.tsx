@@ -18,7 +18,7 @@ import { captureReferral } from "@/features/referral"
 import { Toaster } from "@/components/ui/sonner"
 import { jsonLdScript, robotsDirective, siteJsonLd } from "@/features/seo"
 
-import appCss from "../styles.css?url"
+import "../styles.css"
 
 interface RouterContext {
   queryClient: QueryClient
@@ -40,9 +40,13 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "googlebot", content: robotsDirective(false) },
     ],
     links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", href: "/logo.png" },
-      { rel: "apple-touch-icon", href: "/logo.png" },
+      {
+        rel: "icon",
+        type: "image/png",
+        sizes: "32x32",
+        href: "/brand/favicon-32.png",
+      },
+      { rel: "apple-touch-icon", href: "/brand/icon-192.png" },
       { rel: "manifest", href: "/manifest.json" },
     ],
     scripts: [jsonLdScript(siteJsonLd())],

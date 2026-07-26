@@ -1,6 +1,6 @@
 import type { ExchangeRate } from "./types"
 
-export type CatalogFilterOption = { value: string; label: string }
+type CatalogFilterOption = { value: string; label: string }
 export type CatalogFilterGroup = {
   family: string
   options: CatalogFilterOption[]

@@ -16,17 +16,13 @@ const XBOX_OPTIONS = [
 
 export function Tiers() {
   return (
-    <section className="relative overflow-hidden bg-background bg-grid-lines py-20 sm:py-28">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/8 blur-3xl" />
-      </div>
-
+    <section className="relative overflow-hidden bg-background bg-grid-lines py-16 sm:py-24">
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-semibold text-primary">
             انتخاب درست، قبل از خرید
           </p>
-          <h2 className="mt-3 text-3xl leading-[1.45] font-black sm:text-5xl">
+          <h2 className="mt-3 text-3xl leading-[1.45] font-black sm:text-4xl">
             هر کنسول، روش‌های دسترسی خودش رو داره.
           </h2>
           <p className="mt-5 text-base leading-8 text-muted-foreground">
@@ -75,7 +71,7 @@ type PlatformCardProps = {
 
 function PlatformCard({ family, title, consoles, options }: PlatformCardProps) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm sm:p-8">
+    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/85 p-6 sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-xl border border-border/60 bg-background/60">

@@ -108,6 +108,10 @@ bun run build
 
 ## Production requirements
 
+Production is deployed to Ubuntu with systemd, Nginx, and local PostgreSQL. See
+[`docs/VPS_DEPLOYMENT.md`](./docs/VPS_DEPLOYMENT.md) for bootstrap, migration,
+TLS, backup, and one-command release instructions.
+
 Set `APP_ENV=production` explicitly. The backend refuses to start without the
 required production URLs and storage paths, a valid encryption key, and
 `ZARINPAL_SANDBOX=false`. If traffic reaches Fiber through a reverse proxy, set

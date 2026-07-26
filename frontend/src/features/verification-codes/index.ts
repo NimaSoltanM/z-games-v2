@@ -5,6 +5,4 @@ export type {
   DuplicateVerificationCodeError,
   VerificationCodeMatch,
   VerificationRequestStatus,
-  VerificationRequestsPage,
-  VerificationRequestsQuery,
 } from "./types"

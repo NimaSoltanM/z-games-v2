@@ -13,6 +13,7 @@ import type {
 export function getGames(params: GamesParams = {}) {
   const q = new URLSearchParams()
   if (params.page) q.set("page", String(params.page))
+  if (params.limit) q.set("limit", String(params.limit))
   if (params.platform) q.set("platform", params.platform)
   if (params.zarfiat) q.set("zarfiat", params.zarfiat)
   if (params.search) q.set("search", params.search)
