@@ -64,8 +64,11 @@ export function CardBelt({
     el.scrollBy({
       // ~90% of a page so the last visible card stays as a landmark
       left: dir * (isRTL ? -1 : 1) * el.clientWidth * 0.9,
-      behavior: "smooth",
+      // Keep paging deterministic. A second click during smooth scrolling used
+      // to cancel the first movement and advance only a few pixels.
+      behavior: "auto",
     })
+    updateArrows()
   }
 
   return (
@@ -88,42 +91,52 @@ export function CardBelt({
       />
 
       {/* Prev button */}
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-lg"
-        aria-label={prevLabel}
-        disabled={!canPrev}
-        onClick={() => scrollByPage(-1)}
+      <div
         className={cn(
-          "absolute start-0 top-1/2 z-20 hidden -translate-y-1/2 rounded-full bg-card/95 shadow-lg md:flex",
-          "-translate-x-1/3 rtl:translate-x-1/3",
-          canPrev
-            ? "opacity-0 group-hover/belt:opacity-100 focus-visible:opacity-100"
-            : "pointer-events-none opacity-0"
+          "absolute start-0 top-1/2 z-20 hidden -translate-x-1/3 -translate-y-1/2 md:block rtl:translate-x-1/3"
         )}
       >
-        <ChevronLeft className="size-5 rtl:rotate-180" aria-hidden="true" />
-      </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-lg"
+          aria-label={prevLabel}
+          disabled={!canPrev}
+          onClick={() => scrollByPage(-1)}
+          className={cn(
+            "rounded-full bg-card/95 shadow-lg transition-none active:translate-y-0!",
+            canPrev
+              ? "opacity-0 group-hover/belt:opacity-100 focus-visible:opacity-100"
+              : "pointer-events-none opacity-0"
+          )}
+        >
+          <ChevronLeft className="size-5 rtl:rotate-180" aria-hidden="true" />
+        </Button>
+      </div>
 
       {/* Next button */}
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-lg"
-        aria-label={nextLabel}
-        disabled={!canNext}
-        onClick={() => scrollByPage(1)}
+      <div
         className={cn(
-          "absolute end-0 top-1/2 z-20 hidden -translate-y-1/2 rounded-full bg-card/95 shadow-lg md:flex",
-          "translate-x-1/3 rtl:-translate-x-1/3",
-          canNext
-            ? "opacity-0 group-hover/belt:opacity-100 focus-visible:opacity-100"
-            : "pointer-events-none opacity-0"
+          "absolute end-0 top-1/2 z-20 hidden translate-x-1/3 -translate-y-1/2 md:block rtl:-translate-x-1/3"
         )}
       >
-        <ChevronRight className="size-5 rtl:rotate-180" aria-hidden="true" />
-      </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-lg"
+          aria-label={nextLabel}
+          disabled={!canNext}
+          onClick={() => scrollByPage(1)}
+          className={cn(
+            "rounded-full bg-card/95 shadow-lg transition-none active:translate-y-0!",
+            canNext
+              ? "opacity-0 group-hover/belt:opacity-100 focus-visible:opacity-100"
+              : "pointer-events-none opacity-0"
+          )}
+        >
+          <ChevronRight className="size-5 rtl:rotate-180" aria-hidden="true" />
+        </Button>
+      </div>
 
       {/* Scroller */}
       <ul
