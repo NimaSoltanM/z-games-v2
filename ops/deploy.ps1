@@ -6,7 +6,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$releaseId = (Get-Date).ToUniversalTime().ToString("yyyyMMddHHmmss")
+$releaseId = (Get-Date).ToUniversalTime().ToString(
+  "yyyyMMddHHmmss",
+  [System.Globalization.CultureInfo]::InvariantCulture
+)
 $archive = Join-Path ([System.IO.Path]::GetTempPath()) "z-games-$releaseId.tar.gz"
 $remoteArchive = "/tmp/z-games-$releaseId.tar.gz"
 $remoteSource = "/opt/z-games/incoming/$releaseId/source"

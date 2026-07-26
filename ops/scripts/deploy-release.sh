@@ -36,7 +36,7 @@ fi
 
 export GOPROXY=https://mirror.abrha.net/repository/go/,direct
 export GOSUMDB=off
-export GOTOOLCHAIN=auto
+export GOTOOLCHAIN=local
 
 pushd "${incoming_dir}/backend" >/dev/null
 go mod download
