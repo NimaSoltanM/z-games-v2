@@ -134,6 +134,11 @@ certbot --nginx \
 certbot renew --dry-run
 ```
 
+After the first certificate is installed, future releases automatically use
+`ops/nginx/z-games-tls.conf`. Before a certificate exists, deployment uses the
+HTTP-only bootstrap configuration so Nginx validation cannot reference missing
+certificate files.
+
 Do not request certificates before DNS resolves to this server.
 
 ## Backups and rollback

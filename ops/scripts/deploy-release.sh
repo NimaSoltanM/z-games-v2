@@ -76,9 +76,27 @@ install -m 0644 "${release_dir}/ops/systemd/z-games-api.service" \
   /etc/systemd/system/z-games-api.service
 install -m 0644 "${release_dir}/ops/systemd/z-games-frontend.service" \
   /etc/systemd/system/z-games-frontend.service
-install -m 0644 "${release_dir}/ops/nginx/z-games.conf" \
-  /etc/nginx/sites-available/z-games.conf
-nginx -t
+nginx_template="${release_dir}/ops/nginx/z-games.conf"
+if [[ -f /etc/letsencrypt/live/z-games.store/fullchain.pem ]]; then
+  nginx_template="${release_dir}/ops/nginx/z-games-tls.conf"
+fi
+nginx_config=/etc/nginx/sites-available/z-games.conf
+nginx_backup="${nginx_config}.deploy-backup"
+nginx_had_previous=false
+rm -f -- "${nginx_backup}"
+if [[ -f ${nginx_config} ]]; then
+  cp -a -- "${nginx_config}" "${nginx_backup}"
+  nginx_had_previous=true
+fi
+install -m 0644 "${nginx_template}" "${nginx_config}"
+if ! nginx -t; then
+  if [[ ${nginx_had_previous} == true ]]; then
+    mv -f -- "${nginx_backup}" "${nginx_config}"
+  else
+    rm -f -- "${nginx_config}"
+  fi
+  exit 1
+fi
 systemctl daemon-reload
 
 previous_release=
@@ -90,6 +108,11 @@ mv -Tf "${current_link}.next" "${current_link}"
 
 rollback() {
   echo "Release health check failed; restoring the previous release" >&2
+  if [[ ${nginx_had_previous} == true && -f ${nginx_backup} ]]; then
+    mv -f -- "${nginx_backup}" "${nginx_config}"
+  elif [[ ${nginx_had_previous} == false ]]; then
+    rm -f -- "${nginx_config}"
+  fi
   if [[ -n ${previous_release} && -d ${previous_release} ]]; then
     ln -sfn "${previous_release}" "${current_link}.rollback"
     mv -Tf "${current_link}.rollback" "${current_link}"
@@ -125,6 +148,7 @@ if [[ ${api_ok} != true || ${frontend_ok} != true ]]; then
 fi
 
 systemctl reload nginx
+rm -f -- "${nginx_backup}"
 rm -f -- "/tmp/z-games-${release_id}.tar.gz"
 rmdir --ignore-fail-on-non-empty "/opt/z-games/incoming/${release_id}" || true
 
