@@ -47,15 +47,33 @@ export function CardBelt({
   useEffect(() => {
     const el = scrollerRef.current
     if (!el) return
-    updateArrows()
+
+    const frame = requestAnimationFrame(updateArrows)
     el.addEventListener("scroll", updateArrows, { passive: true })
+    window.addEventListener("resize", updateArrows)
+
     const ro = new ResizeObserver(updateArrows)
     ro.observe(el)
-    return () => {
-      el.removeEventListener("scroll", updateArrows)
-      ro.disconnect()
+
+    const observeItems = () => {
+      for (const item of el.children) ro.observe(item)
     }
-  }, [updateArrows])
+    observeItems()
+
+    const mo = new MutationObserver(() => {
+      observeItems()
+      updateArrows()
+    })
+    mo.observe(el, { childList: true })
+
+    return () => {
+      cancelAnimationFrame(frame)
+      el.removeEventListener("scroll", updateArrows)
+      window.removeEventListener("resize", updateArrows)
+      ro.disconnect()
+      mo.disconnect()
+    }
+  }, [children, updateArrows])
 
   const scrollByPage = (dir: 1 | -1) => {
     const el = scrollerRef.current
@@ -68,7 +86,7 @@ export function CardBelt({
       // to cancel the first movement and advance only a few pixels.
       behavior: "auto",
     })
-    updateArrows()
+    requestAnimationFrame(updateArrows)
   }
 
   return (
