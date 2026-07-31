@@ -1,4 +1,9 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router"
 import { useState, useEffect } from "react"
 import type { FormEvent } from "react"
 import { useQueryClient } from "@tanstack/react-query"
@@ -413,6 +418,16 @@ function LoginPage() {
             </form>
           )}
         </div>
+        <p className="mt-4 text-center text-xs leading-6 text-muted-foreground">
+          با ادامه،{" "}
+          <Link
+            to="/terms"
+            className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary"
+          >
+            قوانین و مقررات زد گیمز
+          </Link>{" "}
+          را می‌پذیرید.
+        </p>
       </div>
     </div>
   )

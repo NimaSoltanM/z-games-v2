@@ -50,6 +50,7 @@ function sitemapXml(games: Game[]): string {
     "/games/platform/xbox_series",
     "/buyback",
     "/returns/rules",
+    "/terms",
     "/about",
     "/how-it-works",
     "/legal-accounts",

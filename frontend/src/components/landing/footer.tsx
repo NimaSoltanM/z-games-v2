@@ -68,6 +68,12 @@ export function Footer() {
               قوانین بازگشت
             </Link>
             <Link
+              to="/terms"
+              className="transition-colors hover:text-foreground"
+            >
+              قوانین و مقررات
+            </Link>
+            <Link
               to="/auth"
               search={{ redirect: undefined }}
               className="transition-colors hover:text-foreground"

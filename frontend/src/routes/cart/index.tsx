@@ -132,7 +132,7 @@ function CartPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Items list — extra bottom padding on mobile so items aren't hidden behind sticky bar */}
-          <div className="space-y-3 pb-24 lg:col-span-2 lg:pb-0">
+          <div className="space-y-3 pb-32 lg:col-span-2 lg:pb-0">
             {items.map((item) => (
               <ErrorBoundary
                 key={`${item.gameId}:${item.platform}:${item.zarfiat}`}
@@ -513,6 +513,7 @@ function CartSummary({ items }: { items: CartItem[] }) {
           payLabel(allKnown, walletApplied, gateway)
         )}
       </Button>
+      <PurchaseTermsNotice />
       {error && <p className="text-center text-xs text-destructive">{error}</p>}
       <Link
         to="/games"
@@ -542,36 +543,56 @@ function CartMobileBar({ items }: { items: CartItem[] }) {
   const { checkout, pending, error } = useCheckout()
 
   return (
-    <div className="fixed right-0 bottom-0 left-0 z-20 flex items-center gap-4 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-md lg:hidden">
-      <div className="min-w-0 flex-1">
-        {error ? (
-          <p className="truncate text-xs text-destructive">{error}</p>
-        ) : usesWallet ? (
-          <p className="truncate text-xs text-emerald-600 dark:text-emerald-400">
-            با اعتبار کیف پول ({formatToman(walletApplied)})
+    <div className="fixed right-0 bottom-0 left-0 z-20 border-t border-border/60 bg-background/95 px-4 py-2.5 backdrop-blur-md lg:hidden">
+      <PurchaseTermsNotice />
+      <div className="mt-1.5 flex items-center gap-4">
+        <div className="min-w-0 flex-1">
+          {error ? (
+            <p className="truncate text-xs text-destructive">{error}</p>
+          ) : usesWallet ? (
+            <p className="truncate text-xs text-emerald-600 dark:text-emerald-400">
+              با اعتبار کیف پول ({formatToman(walletApplied)})
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {totalQuantity} کالا
+            </p>
+          )}
+          <p className="truncate text-sm font-bold text-primary">
+            {allKnown
+              ? formatToman(usesWallet ? gateway : total)
+              : "در حال محاسبه..."}
           </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">{totalQuantity} کالا</p>
-        )}
-        <p className="truncate text-sm font-bold text-primary">
-          {allKnown
-            ? formatToman(usesWallet ? gateway : total)
-            : "در حال محاسبه..."}
-        </p>
+        </div>
+        <Button
+          className="shrink-0 gap-1.5"
+          disabled={!allKnown || pending}
+          size="sm"
+          onClick={checkout}
+        >
+          {pending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            payLabel(allKnown, walletApplied, gateway)
+          )}
+        </Button>
       </div>
-      <Button
-        className="shrink-0 gap-1.5"
-        disabled={!allKnown || pending}
-        size="sm"
-        onClick={checkout}
-      >
-        {pending ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          payLabel(allKnown, walletApplied, gateway)
-        )}
-      </Button>
     </div>
+  )
+}
+
+function PurchaseTermsNotice() {
+  return (
+    <p className="text-center text-[11px] leading-5 text-muted-foreground">
+      با تکمیل خرید،{" "}
+      <Link
+        to="/terms"
+        className="font-medium text-foreground underline underline-offset-4"
+      >
+        قوانین و مقررات
+      </Link>{" "}
+      و شرایط همین محصول را می‌پذیرید.
+    </p>
   )
 }
 
