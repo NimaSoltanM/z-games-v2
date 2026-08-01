@@ -21,8 +21,8 @@ Here, you can configure everything from the default [preloading functionality](/
 
 ```tsx
 // src/router.tsx
-import { createRouter } from '@tanstack/react-router'
-import { routeTree } from './routeTree.gen'
+import { createRouter } from '@tanstack/react-router';
+import { routeTree } from './routeTree.gen';
 
 // You must export a getRouter function that
 // returns a new router instance each time
@@ -30,9 +30,9 @@ export function getRouter() {
   const router = createRouter({
     routeTree,
     scrollRestoration: true,
-  })
+  });
 
-  return router
+  return router;
 }
 ```
 
@@ -74,8 +74,8 @@ import {
   createRootRoute,
   HeadContent,
   Scripts,
-} from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+} from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 
 export const Route = createRootRoute({
   head: () => ({
@@ -93,14 +93,14 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootComponent,
-})
+});
 
 function RootComponent() {
   return (
     <RootDocument>
       <Outlet />
     </RootDocument>
-  )
+  );
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
@@ -114,7 +114,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <Scripts />
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -218,11 +218,11 @@ Then, define the route like this:
 
 ```tsx
 // src/routes/posts/$postId.tsx
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/posts/$postId')({
   component: PostComponent,
-})
+});
 ```
 
 > [!NOTE]
@@ -233,8 +233,10 @@ export const Route = createFileRoute('/posts/$postId')({
 This has been just a high-level overview of how to configure routes using TanStack Router. For more detailed information, please refer to the [TanStack Router documentation](/router/latest/docs/framework/react/routing/file-based-routing).
 
 ---
+
 id: execution-model
 title: Execution Model
+
 ---
 
 Understanding where code runs is fundamental to building TanStack Start applications. This guide explains TanStack Start's execution model and how to control where your code executes.
@@ -249,17 +251,17 @@ function formatPrice(price: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(price)
+  }).format(price);
 }
 
 // ✅ Route loaders are ISOMORPHIC
 export const Route = createFileRoute('/products')({
   loader: async () => {
     // This runs on server during SSR AND on client during navigation
-    const response = await fetch('/api/products')
-    return response.json()
+    const response = await fetch('/api/products');
+    return response.json();
   },
-})
+});
 ```
 
 > **Critical Understanding**: Route `loader`s are isomorphic - they run on both server and client, not just the server.
@@ -292,18 +294,18 @@ TanStack Start applications run in two environments:
 | `createServerOnlyFn(fn)` | Utility functions         | Throws error              |
 
 ```tsx
-import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
+import { createServerFn, createServerOnlyFn } from '@tanstack/react-start';
 
 // RPC: Server execution, callable from client
 const updateUser = createServerFn({ method: 'POST' })
   .validator((data: UserData) => data)
   .handler(async ({ data }) => {
     // Only runs on server, but client can call it
-    return await db.users.update(data)
-  })
+    return await db.users.update(data);
+  });
 
 // Utility: Server-only, client crashes if called
-const getEnvVar = createServerOnlyFn(() => process.env.DATABASE_URL)
+const getEnvVar = createServerOnlyFn(() => process.env.DATABASE_URL);
 ```
 
 ### Client-Only Execution
@@ -314,13 +316,13 @@ const getEnvVar = createServerOnlyFn(() => process.env.DATABASE_URL)
 | `<ClientOnly>`           | Components needing browser APIs | Renders fallback |
 
 ```tsx
-import { createClientOnlyFn } from '@tanstack/react-start'
-import { ClientOnly } from '@tanstack/react-router'
+import { createClientOnlyFn } from '@tanstack/react-start';
+import { ClientOnly } from '@tanstack/react-router';
 
 // Utility: Client-only, server crashes if called
 const saveToStorage = createClientOnlyFn((key: string, value: any) => {
-  localStorage.setItem(key, JSON.stringify(value))
-})
+  localStorage.setItem(key, JSON.stringify(value));
+});
 
 // Component: Only renders children after hydration
 function Analytics() {
@@ -328,7 +330,7 @@ function Analytics() {
     <ClientOnly fallback={null}>
       <GoogleAnalyticsScript />
     </ClientOnly>
-  )
+  );
 }
 ```
 
@@ -337,15 +339,15 @@ function Analytics() {
 For more granular control over hydration-dependent behavior, use the `useHydrated` hook. It returns a boolean indicating whether the client has been hydrated:
 
 ```tsx
-import { useHydrated } from '@tanstack/react-router'
+import { useHydrated } from '@tanstack/react-router';
 
 function TimeZoneDisplay() {
-  const hydrated = useHydrated()
+  const hydrated = useHydrated();
   const timeZone = hydrated
     ? Intl.DateTimeFormat().resolvedOptions().timeZone
-    : 'UTC'
+    : 'UTC';
 
-  return <div>Your timezone: {timeZone}</div>
+  return <div>Your timezone: {timeZone}</div>;
 }
 ```
 
@@ -360,12 +362,12 @@ This is useful when you need to conditionally render content based on client-sid
 ### Environment-Specific Implementations
 
 ```tsx
-import { createIsomorphicFn } from '@tanstack/react-start'
+import { createIsomorphicFn } from '@tanstack/react-start';
 
 // Different implementation per environment
 const getDeviceInfo = createIsomorphicFn()
   .server(() => ({ type: 'server', platform: process.platform }))
-  .client(() => ({ type: 'client', userAgent: navigator.userAgent }))
+  .client(() => ({ type: 'client', userAgent: navigator.userAgent }));
 ```
 
 ## Architectural Patterns
@@ -376,20 +378,20 @@ Build components that work without JavaScript and enhance with client-side funct
 
 ```tsx
 function SearchForm() {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState('');
 
   return (
-    <form action="/search" method="get">
+    <form action='/search' method='get'>
       <input
-        name="q"
+        name='q'
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <ClientOnly fallback={<button type="submit">Search</button>}>
+      <ClientOnly fallback={<button type='submit'>Search</button>}>
         <SearchButton onSearch={() => search(query)} />
       </ClientOnly>
     </form>
-  )
+  );
 }
 ```
 
@@ -399,13 +401,13 @@ function SearchForm() {
 const storage = createIsomorphicFn()
   .server((key: string) => {
     // Server: File-based cache
-    const fs = require('node:fs')
-    return JSON.parse(fs.readFileSync('.cache', 'utf-8'))[key]
+    const fs = require('node:fs');
+    return JSON.parse(fs.readFileSync('.cache', 'utf-8'))[key];
   })
   .client((key: string) => {
     // Client: localStorage
-    return JSON.parse(localStorage.getItem(key) || 'null')
-  })
+    return JSON.parse(localStorage.getItem(key) || 'null');
+  });
 ```
 
 ### RPC vs Direct Function Calls
@@ -414,16 +416,16 @@ Understanding when to use server functions vs server-only functions:
 
 ```tsx
 // createServerFn: RPC pattern - server execution, client callable
-const fetchUser = createServerFn().handler(async () => await db.users.find())
+const fetchUser = createServerFn().handler(async () => await db.users.find());
 
 // Usage from client component:
-const user = await fetchUser() // ✅ Network request
+const user = await fetchUser(); // ✅ Network request
 
 // createServerOnlyFn: Crashes if called from client
-const getSecret = createServerOnlyFn(() => process.env.SECRET)
+const getSecret = createServerOnlyFn(() => process.env.SECRET);
 
 // Usage from client:
-const secret = getSecret() // ❌ Throws error
+const secret = getSecret(); // ❌ Throws error
 ```
 
 ## Common Anti-Patterns
@@ -437,16 +439,16 @@ Reading `process.env` at module scope is wrong for **two** reasons, not one:
 
 ```tsx
 // ❌ Leaks to client AND is undefined under Worker SSR
-const apiKey = process.env.SECRET_KEY
+const apiKey = process.env.SECRET_KEY;
 
 // ✅ Wrap in a server-only function — read happens per call, on the server
-const apiKey = createServerOnlyFn(() => process.env.SECRET_KEY)
+const apiKey = createServerOnlyFn(() => process.env.SECRET_KEY);
 
 // ✅ Or read directly inside `.handler()` / middleware `.server()` / server-route handlers
 const fetchData = createServerFn().handler(async () => {
-  const apiKey = process.env.SECRET_KEY
+  const apiKey = process.env.SECRET_KEY;
   // ...
-})
+});
 ```
 
 ### Incorrect Loader Assumptions
@@ -456,20 +458,20 @@ const fetchData = createServerFn().handler(async () => {
 export const Route = createFileRoute('/users')({
   loader: () => {
     // This runs on BOTH server and client!
-    const secret = process.env.SECRET // Exposed to client
-    return fetch(`/api/users?key=${secret}`)
+    const secret = process.env.SECRET; // Exposed to client
+    return fetch(`/api/users?key=${secret}`);
   },
-})
+});
 
 // ✅ Use server function for server-only operations
 const getUsersSecurely = createServerFn().handler(() => {
-  const secret = process.env.SECRET // Server-only
-  return fetch(`/api/users?key=${secret}`)
-})
+  const secret = process.env.SECRET; // Server-only
+  return fetch(`/api/users?key=${secret}`);
+});
 
 export const Route = createFileRoute('/users')({
   loader: () => getUsersSecurely(), // Isomorphic call to server function
-})
+});
 ```
 
 ### Hydration Mismatches
@@ -477,18 +479,18 @@ export const Route = createFileRoute('/users')({
 ```tsx
 // ❌ Different content server vs client
 function CurrentTime() {
-  return <div>{new Date().toLocaleString()}</div>
+  return <div>{new Date().toLocaleString()}</div>;
 }
 
 // ✅ Consistent rendering
 function CurrentTime() {
-  const [time, setTime] = useState<string>()
+  const [time, setTime] = useState<string>();
 
   useEffect(() => {
-    setTime(new Date().toLocaleString())
-  }, [])
+    setTime(new Date().toLocaleString());
+  }, []);
 
-  return <div>{time || 'Loading...'}</div>
+  return <div>{time || 'Loading...'}</div>;
 }
 ```
 
@@ -498,16 +500,16 @@ function CurrentTime() {
 // Manual: You handle the logic
 function logMessage(msg: string) {
   if (typeof window === 'undefined') {
-    console.log(`[SERVER]: ${msg}`)
+    console.log(`[SERVER]: ${msg}`);
   } else {
-    console.log(`[CLIENT]: ${msg}`)
+    console.log(`[CLIENT]: ${msg}`);
   }
 }
 
 // API: Framework handles it
 const logMessage = createIsomorphicFn()
   .server((msg) => console.log(`[SERVER]: ${msg}`))
-  .client((msg) => console.log(`[CLIENT]: ${msg}`))
+  .client((msg) => console.log(`[CLIENT]: ${msg}`));
 ```
 
 ## Marking Whole Files Server- or Client-Only
@@ -516,19 +518,19 @@ The `.server.*` and `.client.*` filename suffixes opt a file into Start's import
 
 ```ts
 // src/lib/secrets.ts (filename can't be *.server.ts)
-import '@tanstack/react-start/server-only'
+import '@tanstack/react-start/server-only';
 
 export function getApiKey() {
-  return process.env.API_KEY
+  return process.env.API_KEY;
 }
 ```
 
 ```ts
 // src/lib/storage.ts
-import '@tanstack/react-start/client-only'
+import '@tanstack/react-start/client-only';
 
 export function savePreferences(prefs: Record<string, string>) {
-  localStorage.setItem('prefs', JSON.stringify(prefs))
+  localStorage.setItem('prefs', JSON.stringify(prefs));
 }
 ```
 
@@ -586,23 +588,24 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
       fallback={<div>Something went wrong</div>}
       onError={(error) => {
         if (typeof window === 'undefined') {
-          console.error('[SERVER ERROR]:', error)
+          console.error('[SERVER ERROR]:', error);
         } else {
-          console.error('[CLIENT ERROR]:', error)
+          console.error('[CLIENT ERROR]:', error);
         }
-      }}
-    >
+      }}>
       {children}
     </ErrorBoundaryComponent>
-  )
+  );
 }
 ```
 
 Understanding TanStack Start's execution model is crucial for building secure, performant, and maintainable applications. The isomorphic-by-default approach provides flexibility while the execution control APIs give you precise control when needed.
 
 ---
+
 id: code-execution-patterns
 title: Code Execution Patterns
+
 ---
 
 This guide covers patterns for controlling where code runs in your TanStack Start application - server-only, client-only, or isomorphic (both environments). For foundational concepts, see the [Execution Model](./execution-model.md) guide.
@@ -617,25 +620,25 @@ import {
   createServerOnlyFn,
   createClientOnlyFn,
   createIsomorphicFn,
-} from '@tanstack/react-start'
+} from '@tanstack/react-start';
 
 // Server function (RPC call)
 const getUsers = createServerFn().handler(async () => {
-  return await db.users.findMany()
-})
+  return await db.users.findMany();
+});
 
 // Server-only utility (crashes on client)
-const getSecret = createServerOnlyFn(() => process.env.API_SECRET)
+const getSecret = createServerOnlyFn(() => process.env.API_SECRET);
 
 // Client-only utility (crashes on server)
 const saveToStorage = createClientOnlyFn((data: any) => {
-  localStorage.setItem('data', JSON.stringify(data))
-})
+  localStorage.setItem('data', JSON.stringify(data));
+});
 
 // Different implementations per environment
 const logger = createIsomorphicFn()
   .server((msg) => console.log(`[SERVER]: ${msg}`))
-  .client((msg) => console.log(`[CLIENT]: ${msg}`))
+  .client((msg) => console.log(`[CLIENT]: ${msg}`));
 ```
 
 ## Implementation Patterns
@@ -645,20 +648,20 @@ const logger = createIsomorphicFn()
 ```tsx
 // Component works without JS, enhanced with JS
 function SearchForm() {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState('');
 
   return (
-    <form action="/search" method="get">
+    <form action='/search' method='get'>
       <input
-        name="q"
+        name='q'
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <ClientOnly fallback={<button type="submit">Search</button>}>
+      <ClientOnly fallback={<button type='submit'>Search</button>}>
         <SearchButton onSearch={() => search(query)} />
       </ClientOnly>
     </form>
-  )
+  );
 }
 ```
 
@@ -668,13 +671,13 @@ function SearchForm() {
 const storage = createIsomorphicFn()
   .server((key: string) => {
     // Server: File-based cache
-    const fs = require('node:fs')
-    return JSON.parse(fs.readFileSync('.cache', 'utf-8'))[key]
+    const fs = require('node:fs');
+    return JSON.parse(fs.readFileSync('.cache', 'utf-8'))[key];
   })
   .client((key: string) => {
     // Client: localStorage
-    return JSON.parse(localStorage.getItem(key) || 'null')
-  })
+    return JSON.parse(localStorage.getItem(key) || 'null');
+  });
 ```
 
 ## Common Problems
@@ -683,10 +686,10 @@ const storage = createIsomorphicFn()
 
 ```tsx
 // ❌ Exposes to client bundle
-const apiKey = process.env.SECRET_KEY
+const apiKey = process.env.SECRET_KEY;
 
 // ✅ Server-only access
-const apiKey = createServerOnlyFn(() => process.env.SECRET_KEY)
+const apiKey = createServerOnlyFn(() => process.env.SECRET_KEY);
 ```
 
 ### Incorrect Loader Assumptions
@@ -696,20 +699,20 @@ const apiKey = createServerOnlyFn(() => process.env.SECRET_KEY)
 export const Route = createFileRoute('/users')({
   loader: () => {
     // This runs on BOTH server and client!
-    const secret = process.env.SECRET // Exposed to client
-    return fetch(`/api/users?key=${secret}`)
+    const secret = process.env.SECRET; // Exposed to client
+    return fetch(`/api/users?key=${secret}`);
   },
-})
+});
 
 // ✅ Use server function for server-only operations
 const getUsersSecurely = createServerFn().handler(() => {
-  const secret = process.env.SECRET // Server-only
-  return fetch(`/api/users?key=${secret}`)
-})
+  const secret = process.env.SECRET; // Server-only
+  return fetch(`/api/users?key=${secret}`);
+});
 
 export const Route = createFileRoute('/users')({
   loader: () => getUsersSecurely(), // Isomorphic call to server function
-})
+});
 ```
 
 ### Hydration Mismatches
@@ -717,18 +720,18 @@ export const Route = createFileRoute('/users')({
 ```tsx
 // ❌ Different content server vs client
 function CurrentTime() {
-  return <div>{new Date().toLocaleString()}</div>
+  return <div>{new Date().toLocaleString()}</div>;
 }
 
 // ✅ Consistent rendering
 function CurrentTime() {
-  const [time, setTime] = useState<string>()
+  const [time, setTime] = useState<string>();
 
   useEffect(() => {
-    setTime(new Date().toLocaleString())
-  }, [])
+    setTime(new Date().toLocaleString());
+  }, []);
 
-  return <div>{time || 'Loading...'}</div>
+  return <div>{time || 'Loading...'}</div>;
 }
 ```
 
@@ -748,8 +751,10 @@ function CurrentTime() {
 - [Middleware](./middleware.md) - Server function middleware patterns
 
 ---
+
 id: import-protection
 title: Import Protection
+
 ---
 
 > **Experimental:** Import protection is experimental and subject to change.
@@ -796,17 +801,17 @@ These defaults mean you can use the `.server.ts` / `.client.ts` naming conventio
 Type-only imports and re-exports are ignored by import protection because they are erased from the runtime bundle and cannot leak environment-specific code.
 
 ```ts
-import type { User } from './db.server'
-import { type RequestHandler } from '@tanstack/react-start/server'
+import type { User } from './db.server';
+import { type RequestHandler } from '@tanstack/react-start/server';
 
-export type { User } from './db.server'
+export type { User } from './db.server';
 ```
 
 Mixed imports still count when they include at least one runtime value. Split the type and value imports if only the type is safe to cross the environment boundary.
 
 ```ts
 // This is still checked because `getUsers` is a runtime value.
-import { type User, getUsers } from './db.server'
+import { type User, getUsers } from './db.server';
 ```
 
 ## File Markers
@@ -815,17 +820,17 @@ You can explicitly mark a module as server-only or client-only by adding a side-
 
 ```ts
 // src/lib/secrets.ts
-import '@tanstack/react-start/server-only'
+import '@tanstack/react-start/server-only';
 
-export const API_KEY = process.env.API_KEY
+export const API_KEY = process.env.API_KEY;
 ```
 
 ```ts
 // src/lib/local-storage.ts
-import '@tanstack/react-start/client-only'
+import '@tanstack/react-start/client-only';
 
 export function savePreferences(prefs: Record<string, string>) {
-  localStorage.setItem('prefs', JSON.stringify(prefs))
+  localStorage.setItem('prefs', JSON.stringify(prefs));
 }
 ```
 
@@ -849,8 +854,8 @@ You can override the defaults:
 # Vite
 
 ```ts title="vite.config.ts"
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import { defineConfig } from 'vite';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 
 export default defineConfig({
   plugins: [
@@ -861,14 +866,14 @@ export default defineConfig({
       },
     }),
   ],
-})
+});
 ```
 
 # Rsbuild
 
 ```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
+import { defineConfig } from '@rsbuild/core';
+import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild';
 
 export default defineConfig({
   plugins: [
@@ -879,7 +884,7 @@ export default defineConfig({
       },
     }),
   ],
-})
+});
 ```
 
 <!-- ::end:tabs -->
@@ -904,8 +909,8 @@ You can add your own deny rules on top of the defaults. Rules are specified per 
 # Vite
 
 ```ts title="vite.config.ts"
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import { defineConfig } from 'vite';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 
 export default defineConfig({
   plugins: [
@@ -924,14 +929,14 @@ export default defineConfig({
       },
     }),
   ],
-})
+});
 ```
 
 # Rsbuild
 
 ```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
+import { defineConfig } from '@rsbuild/core';
+import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild';
 
 export default defineConfig({
   plugins: [
@@ -950,7 +955,7 @@ export default defineConfig({
       },
     }),
   ],
-})
+});
 ```
 
 <!-- ::end:tabs -->
@@ -1089,25 +1094,25 @@ In practice, when the compiler replaces a `createServerFn()` handler with a clie
 Example (client build):
 
 ```ts
-import { getUsers } from './db/queries.server'
-import { createServerFn } from '@tanstack/react-start'
+import { getUsers } from './db/queries.server';
+import { createServerFn } from '@tanstack/react-start';
 
 export const fetchUsers = createServerFn().handler(async () => {
-  return getUsers()
-})
+  return getUsers();
+});
 ```
 
 Conceptually, the client build output becomes something like (simplified):
 
 ```ts
-import { createClientRpc } from '@tanstack/react-start/client-rpc'
-import { createServerFn } from '@tanstack/react-start'
+import { createClientRpc } from '@tanstack/react-start/client-rpc';
+import { createServerFn } from '@tanstack/react-start';
 
 // Compiler replaces the handler with a client RPC stub.
 // (The id is generated by the compiler; treat it as an opaque identifier.)
 export const fetchUsers = TanStackStart.createServerFn({
   method: 'GET',
-}).handler(createClientRpc('sha256:deadbeef...'))
+}).handler(createClientRpc('sha256:deadbeef...'));
 
 // The server-only import is removed by the compiler.
 ```
@@ -1115,17 +1120,17 @@ export const fetchUsers = TanStackStart.createServerFn({
 If the import "leaks" into code that survives compilation, it stays live and import protection will still flag it:
 
 ```ts
-import { getUsers } from './db/queries.server'
-import { createServerFn } from '@tanstack/react-start'
+import { getUsers } from './db/queries.server';
+import { createServerFn } from '@tanstack/react-start';
 
 // This is fine -- the server implementation is removed for the client build
 export const fetchUsers = createServerFn().handler(async () => {
-  return getUsers()
-})
+  return getUsers();
+});
 
 // This keeps the import alive in the client build
 export function leakyHelper() {
-  return getUsers() // referenced outside server boundary
+  return getUsers(); // referenced outside server boundary
 }
 ```
 
@@ -1135,22 +1140,22 @@ Option A: split the file so client code cannot accidentally import the leak
 
 ```ts
 // src/users.server.ts
-import { getUsers } from './db/queries.server'
-import { createServerFn } from '@tanstack/react-start'
+import { getUsers } from './db/queries.server';
+import { createServerFn } from '@tanstack/react-start';
 
 // Safe to import from client code (compiler rewrites the handler)
 export const fetchUsers = createServerFn().handler(async () => {
-  return getUsers()
-})
+  return getUsers();
+});
 ```
 
 ```ts
 // src/users-leaky.server.ts
-import { getUsers } from './db/queries.server'
+import { getUsers } from './db/queries.server';
 
 // Server-only helper; do not import this from client code
 export function leakyHelper() {
-  return getUsers()
+  return getUsers();
 }
 ```
 
@@ -1159,12 +1164,12 @@ Option B: keep it in the same file, but wrap the helper in `createServerOnlyFn`
 This is useful when the helper should exist, but must never run on the client. Make sure the server-only import is only referenced inside the `createServerOnlyFn(() => ...)` callback:
 
 ```ts
-import { createServerOnlyFn } from '@tanstack/react-start'
-import { getUsers } from './db/queries.server'
+import { createServerOnlyFn } from '@tanstack/react-start';
+import { getUsers } from './db/queries.server';
 
 export const leakyHelper = createServerOnlyFn(() => {
-  return getUsers()
-})
+  return getUsers();
+});
 ```
 
 On the client, the compiler output is effectively:
@@ -1173,8 +1178,8 @@ On the client, the compiler output is effectively:
 export const leakyHelper = () => {
   throw new Error(
     'createServerOnlyFn() functions can only be called on the server!',
-  )
-}
+  );
+};
 ```
 
 Notice that the `createServerOnlyFn` import is gone, and the server-only `getUsers` import is also gone because it is no longer referenced after compilation.
@@ -1201,13 +1206,13 @@ For example, avoid mixed barrels like this:
 
 ```ts
 // src/lib/index.ts
-export { fetchUsers } from './fetchUsers'
-export { getDb } from './db.server'
+export { fetchUsers } from './fetchUsers';
+export { getDb } from './db.server';
 ```
 
 ```ts
 // src/routes/users.tsx
-import { fetchUsers } from '../lib'
+import { fetchUsers } from '../lib';
 ```
 
 Even if the client only uses `fetchUsers`, that import path still goes through a module that re-exports `getDb`.
@@ -1216,22 +1221,22 @@ Prefer splitting safe and server-only exports into separate entry points:
 
 ```ts
 // src/lib/index.ts
-export { fetchUsers } from './fetchUsers'
+export { fetchUsers } from './fetchUsers';
 ```
 
 ```ts
 // src/lib/server.ts
-export { getDb } from './db.server'
+export { getDb } from './db.server';
 ```
 
 ```ts
 // src/routes/users.tsx
-import { fetchUsers } from '../lib'
+import { fetchUsers } from '../lib';
 ```
 
 ```ts
 // src/server/worker.ts
-import { getDb } from '../lib/server'
+import { getDb } from '../lib/server';
 ```
 
 The same applies to marker-protected files (`import '@tanstack/react-start/server-only'`). If a marked file is re-exported through a mixed barrel but never consumed by client code, production may suppress the warning after tree-shaking, but the better fix is still to avoid exposing that server-only edge to client-reachable code at all.
@@ -1274,29 +1279,29 @@ importProtection: {
 
 ```ts
 interface ImportProtectionOptions {
-  enabled?: boolean
+  enabled?: boolean;
   behavior?:
     | 'error'
     | 'mock'
-    | { dev?: 'error' | 'mock'; build?: 'error' | 'mock' }
-  log?: 'once' | 'always'
-  include?: Array<string | RegExp>
-  exclude?: Array<string | RegExp>
-  ignoreImporters?: Array<string | RegExp>
-  maxTraceDepth?: number
+    | { dev?: 'error' | 'mock'; build?: 'error' | 'mock' };
+  log?: 'once' | 'always';
+  include?: Array<string | RegExp>;
+  exclude?: Array<string | RegExp>;
+  ignoreImporters?: Array<string | RegExp>;
+  maxTraceDepth?: number;
   client?: {
-    specifiers?: Array<string | RegExp>
-    files?: Array<string | RegExp>
-    excludeFiles?: Array<string | RegExp>
-  }
+    specifiers?: Array<string | RegExp>;
+    files?: Array<string | RegExp>;
+    excludeFiles?: Array<string | RegExp>;
+  };
   server?: {
-    specifiers?: Array<string | RegExp>
-    files?: Array<string | RegExp>
-    excludeFiles?: Array<string | RegExp>
-  }
+    specifiers?: Array<string | RegExp>;
+    files?: Array<string | RegExp>;
+    excludeFiles?: Array<string | RegExp>;
+  };
   onViolation?: (
     info: ViolationInfo,
-  ) => boolean | void | Promise<boolean | void>
+  ) => boolean | void | Promise<boolean | void>;
 }
 ```
 
@@ -1320,8 +1325,111 @@ interface ImportProtectionOptions {
 | `onViolation`         | `function`           | `undefined`                       | Callback invoked on every violation                                                                                                                                   |
 
 ---
+
+id: path-aliases
+title: Path Aliases
+
+---
+
+Path aliases are a useful feature of TypeScript that allows you to define a shortcut for a path that could be distant in your project's directory structure. This can help you avoid long relative imports in your code and make it easier to refactor your project's structure. This is especially useful for avoiding long relative imports in your code.
+
+By default, TanStack Start does not include path aliases. However, you can easily add them to your project by updating your `tsconfig.json` file in the root of your project and adding the following configuration:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./src/*"]
+    }
+  }
+}
+```
+
+In this example, we've defined the path alias `~/*` that maps to the `./src/*` directory. This means that you can now import files from the `src` directory using the `~` prefix.
+
+After updating your `tsconfig.json` file, configure your build tool so it resolves the same path aliases.
+
+<!-- ::start:tabs variant="bundler" -->
+
+# Vite
+
+## Vite 8
+
+Vite 8+ has [built-in support for path aliases](https://vite.dev/config/shared-options#resolve-tsconfigpaths), which is disabled by default. To enable it, simply add the following configuration to your `vite.config.ts` file:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  resolve: {
+    // This enables built-in support for path aliases defined in tsconfig.json
+    tsconfigPaths: true,
+  },
+});
+```
+
+## Vite 7 and earlier
+
+For Vite 7 and earlier, install the `vite-tsconfig-paths` plugin to enable path aliases in your TanStack Start project. You can do this by running the following command:
+
+```sh
+npm install -D vite-tsconfig-paths
+```
+
+Now, you'll need to update your `vite.config.ts` file to include the following:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import viteTsConfigPaths from 'vite-tsconfig-paths';
+
+export default defineConfig({
+  plugins: [
+    // this is the plugin that enables path aliases
+    viteTsConfigPaths({
+      projects: ['./tsconfig.json'],
+    }),
+  ],
+});
+```
+
+# Rsbuild
+
+Rsbuild reads the `paths` field from `tsconfig.json` by default. No extra config is needed when your aliases live in the root `tsconfig.json`.
+
+If you use a custom tsconfig file, point Rsbuild at it with `source.tsconfigPath`:
+
+```ts
+// rsbuild.config.ts
+import { defineConfig } from '@rsbuild/core';
+
+export default defineConfig({
+  source: {
+    tsconfigPath: './tsconfig.custom.json',
+  },
+});
+```
+
+<!-- ::end:tabs -->
+
+Once this configuration has completed, you'll now be able to import files using the path alias like so:
+
+```ts
+// app/routes/posts/$postId/edit.tsx
+import { Input } from '~/components/ui/input';
+
+// instead of
+
+import { Input } from '../../../components/ui/input';
+```
+
+---
+
 id: environment-variables
 title: Environment Variables
+
 ---
 
 Learn how to securely configure and use environment variables in your TanStack Start application across different contexts (server functions, client code, and build processes).
@@ -1385,24 +1493,24 @@ export function AppHeader() {
 Server functions can access **any** environment variable using `process.env`:
 
 ```typescript
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start';
 
 // Database connection (server-only)
 const connectToDatabase = createServerFn().handler(async () => {
-  const connectionString = process.env.DATABASE_URL // No prefix needed
-  const apiKey = process.env.EXTERNAL_API_SECRET // Stays on server
+  const connectionString = process.env.DATABASE_URL; // No prefix needed
+  const apiKey = process.env.EXTERNAL_API_SECRET; // Stays on server
 
   // These variables are never exposed to the client
-  return await database.connect(connectionString)
-})
+  return await database.connect(connectionString);
+});
 
 // Authentication (server-only)
 const authenticateUser = createServerFn()
   .validator(z.object({ token: z.string() }))
   .handler(async ({ data }) => {
-    const jwtSecret = process.env.JWT_SECRET // Server-only
-    return jwt.verify(data.token, jwtSecret)
-  })
+    const jwtSecret = process.env.JWT_SECRET; // Server-only
+    return jwt.verify(data.token, jwtSecret);
+  });
 ```
 
 ### Client-Side Context (Components & Client Code)
@@ -1528,17 +1636,17 @@ DATABASE_POOL_SIZE=20
 
 ```typescript
 // src/lib/database.ts
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start';
 
 const getDatabaseConnection = createServerFn().handler(async () => {
   const config = {
     url: process.env.DATABASE_URL,
     maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '10'),
     ssl: process.env.NODE_ENV === 'production',
-  }
+  };
 
-  return createConnection(config)
-})
+  return createConnection(config);
+});
 ```
 
 ### Authentication Provider Setup
@@ -1574,7 +1682,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 ```typescript
 // src/lib/external-api.ts
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start';
 
 // Server-side API calls (can use secret keys)
 const fetchUserData = createServerFn()
@@ -1588,19 +1696,19 @@ const fetchUserData = createServerFn()
           'Content-Type': 'application/json',
         },
       },
-    )
+    );
 
-    return response.json()
-  })
+    return response.json();
+  });
 
 // Client-side API calls (public endpoints only)
 export function usePublicData() {
-  const apiUrl = import.meta.env.VITE_PUBLIC_API_URL
+  const apiUrl = import.meta.env.VITE_PUBLIC_API_URL;
 
   return useQuery({
     queryKey: ['public-data'],
     queryFn: () => fetch(`${apiUrl}/public/stats`).then((r) => r.json()),
-  })
+  });
 }
 ```
 
@@ -1639,33 +1747,33 @@ Create `src/env.d.ts` to add type safety:
 
 interface ImportMetaEnv {
   // Client-side environment variables
-  readonly VITE_APP_NAME: string
-  readonly VITE_API_URL: string
-  readonly VITE_AUTH0_DOMAIN: string
-  readonly VITE_AUTH0_CLIENT_ID: string
-  readonly VITE_SENTRY_DSN?: string
-  readonly VITE_ENABLE_NEW_DASHBOARD?: string
+  readonly VITE_APP_NAME: string;
+  readonly VITE_API_URL: string;
+  readonly VITE_AUTH0_DOMAIN: string;
+  readonly VITE_AUTH0_CLIENT_ID: string;
+  readonly VITE_SENTRY_DSN?: string;
+  readonly VITE_ENABLE_NEW_DASHBOARD?: string;
 }
 
 interface ImportMeta {
-  readonly env: ImportMetaEnv
+  readonly env: ImportMetaEnv;
 }
 
 // Server-side environment variables
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      readonly DATABASE_URL: string
-      readonly REDIS_URL: string
-      readonly JWT_SECRET: string
-      readonly AUTH0_CLIENT_SECRET: string
-      readonly STRIPE_SECRET_KEY: string
-      readonly NODE_ENV: 'development' | 'production' | 'test'
+      readonly DATABASE_URL: string;
+      readonly REDIS_URL: string;
+      readonly JWT_SECRET: string;
+      readonly AUTH0_CLIENT_SECRET: string;
+      readonly STRIPE_SECRET_KEY: string;
+      readonly NODE_ENV: 'development' | 'production' | 'test';
     }
   }
 }
 
-export {}
+export {};
 ```
 
 # Rsbuild
@@ -1675,33 +1783,33 @@ export {}
 
 interface ImportMetaEnv {
   // Client-side environment variables
-  readonly PUBLIC_APP_NAME: string
-  readonly PUBLIC_API_URL: string
-  readonly PUBLIC_AUTH0_DOMAIN: string
-  readonly PUBLIC_AUTH0_CLIENT_ID: string
-  readonly PUBLIC_SENTRY_DSN?: string
-  readonly PUBLIC_ENABLE_NEW_DASHBOARD?: string
+  readonly PUBLIC_APP_NAME: string;
+  readonly PUBLIC_API_URL: string;
+  readonly PUBLIC_AUTH0_DOMAIN: string;
+  readonly PUBLIC_AUTH0_CLIENT_ID: string;
+  readonly PUBLIC_SENTRY_DSN?: string;
+  readonly PUBLIC_ENABLE_NEW_DASHBOARD?: string;
 }
 
 interface ImportMeta {
-  readonly env: ImportMetaEnv
+  readonly env: ImportMetaEnv;
 }
 
 // Server-side environment variables
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      readonly DATABASE_URL: string
-      readonly REDIS_URL: string
-      readonly JWT_SECRET: string
-      readonly AUTH0_CLIENT_SECRET: string
-      readonly STRIPE_SECRET_KEY: string
-      readonly NODE_ENV: 'development' | 'production' | 'test'
+      readonly DATABASE_URL: string;
+      readonly REDIS_URL: string;
+      readonly JWT_SECRET: string;
+      readonly AUTH0_CLIENT_SECRET: string;
+      readonly STRIPE_SECRET_KEY: string;
+      readonly NODE_ENV: 'development' | 'production' | 'test';
     }
   }
 }
 
-export {}
+export {};
 ```
 
 <!-- ::end:tabs -->
@@ -1712,20 +1820,20 @@ Use Zod for runtime validation of environment variables:
 
 ```typescript
 // src/config/env.ts
-import { z } from 'zod'
+import { z } from 'zod';
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.url(),
   JWT_SECRET: z.string().min(32),
   NODE_ENV: z.enum(['development', 'production', 'test']),
-})
+});
 
 const clientEnvSchema = z.object({
   VITE_APP_NAME: z.string(),
-  VITE_API_URL: z.string().url(),
+  VITE_API_URL: z.url(),
   VITE_AUTH0_DOMAIN: z.string(),
   VITE_AUTH0_CLIENT_ID: z.string(),
-})
+});
 
 // Validate server environment
 // NOTE: Module-level parse runs at module load. Fine for Node.js;
@@ -1736,10 +1844,10 @@ const clientEnvSchema = z.object({
 //   export const getServerEnv = () => envSchema.parse(process.env)
 //
 // Then read `getServerEnv()` per-request from server functions/middleware.
-export const serverEnv = envSchema.parse(process.env)
+export const serverEnv = envSchema.parse(process.env);
 
 // Validate client environment (build-time, always safe)
-export const clientEnv = clientEnvSchema.parse(import.meta.env)
+export const clientEnv = clientEnvSchema.parse(import.meta.env);
 ```
 
 ## Security Best Practices
@@ -1750,15 +1858,15 @@ export const clientEnv = clientEnvSchema.parse(import.meta.env)
 // ❌ WRONG - Secret exposed to client bundle
 const config = {
   apiKey: import.meta.env.VITE_SECRET_API_KEY, // This will be in your JS bundle!
-}
+};
 
 // ✅ CORRECT - Keep secrets on server
 const getApiData = createServerFn().handler(async () => {
   const response = await fetch(apiUrl, {
     headers: { Authorization: `Bearer ${process.env.SECRET_API_KEY}` },
-  })
-  return response.json()
-})
+  });
+  return response.json();
+});
 ```
 
 ### 2. Use Appropriate Prefixes
@@ -1782,21 +1890,21 @@ PUBLIC_SENTRY_DSN=https://...
 
 ```typescript
 // src/config/validation.ts
-const requiredServerEnv = ['DATABASE_URL', 'JWT_SECRET'] as const
+const requiredServerEnv = ['DATABASE_URL', 'JWT_SECRET'] as const;
 
-const requiredClientEnv = ['VITE_APP_NAME', 'VITE_API_URL'] as const // Use PUBLIC_ names for Rsbuild
+const requiredClientEnv = ['VITE_APP_NAME', 'VITE_API_URL'] as const; // Use PUBLIC_ names for Rsbuild
 
 // Validate on server startup
 for (const key of requiredServerEnv) {
   if (!process.env[key]) {
-    throw new Error(`Missing required environment variable: ${key}`)
+    throw new Error(`Missing required environment variable: ${key}`);
   }
 }
 
 // Validate client environment at build time
 for (const key of requiredClientEnv) {
   if (!import.meta.env[key]) {
-    throw new Error(`Missing required environment variable: ${key}`)
+    throw new Error(`Missing required environment variable: ${key}`);
   }
 }
 ```
@@ -1851,19 +1959,19 @@ Pass variables from the server down to the client:
 
 ```tsx
 const getRuntimeVar = createServerFn({ method: 'GET' }).handler(() => {
-  return process.env.MY_RUNTIME_VAR // notice `process.env` on the server, and no public prefix
-})
+  return process.env.MY_RUNTIME_VAR; // notice `process.env` on the server, and no public prefix
+});
 
 export const Route = createFileRoute('/')({
   loader: async () => {
-    const foo = await getRuntimeVar()
-    return { foo }
+    const foo = await getRuntimeVar();
+    return { foo };
   },
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
-  const { foo } = Route.useLoaderData()
+  const { foo } = Route.useLoaderData();
   // ... use your variable however you want
 }
 ```
@@ -1886,8 +1994,8 @@ function RouteComponent() {
 
 ```typescript
 interface ImportMetaEnv {
-  readonly VITE_MY_VAR: string
-  readonly PUBLIC_MY_VAR: string
+  readonly VITE_MY_VAR: string;
+  readonly PUBLIC_MY_VAR: string;
 }
 ```
 
@@ -1922,8 +2030,8 @@ By default, TanStack Start statically replaces `process.env.NODE_ENV` in **serve
 ```typescript
 if (process.env.NODE_ENV === 'development') {
   // This code would NOT be eliminated without static replacement
-  enableDevTools()
-  logDebugInfo()
+  enableDevTools();
+  logDebugInfo();
 }
 ```
 
@@ -1938,9 +2046,9 @@ The replacement is controlled by the `server.build.staticNodeEnv` option:
 # Vite
 
 ```ts title="vite.config.ts"
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+import viteReact from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [
@@ -1954,15 +2062,15 @@ export default defineConfig({
     }),
     viteReact(),
   ],
-})
+});
 ```
 
 # Rsbuild
 
 ```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { pluginReact } from '@rsbuild/plugin-react'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
+import { defineConfig } from '@rsbuild/core';
+import { pluginReact } from '@rsbuild/plugin-react';
+import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild';
 
 export default defineConfig({
   plugins: [
@@ -1976,7 +2084,7 @@ export default defineConfig({
       },
     }),
   ],
-})
+});
 ```
 
 <!-- ::end:tabs -->
@@ -1998,7 +2106,7 @@ tanstackStart({
       staticNodeEnv: false, // Keep NODE_ENV dynamic at runtime
     },
   },
-})
+});
 ```
 
 Common reasons to disable:
@@ -2020,8 +2128,10 @@ Common reasons to disable:
 - [Rsbuild Environment Variables](https://rsbuild.dev/guide/advanced/env-vars) - Official Rsbuild documentation
 
 ---
+
 id: server-functions
 title: Server Functions
+
 ---
 
 ## What are Server Functions?
@@ -2029,18 +2139,21 @@ title: Server Functions
 Server functions let you define server-only logic that can be called from anywhere in your application - loaders, components, hooks, or other server functions. They run on the server but can be invoked from client code seamlessly.
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start';
 
 export const getServerTime = createServerFn().handler(async () => {
   // This runs only on the server
-  return new Date().toISOString()
-})
+  return new Date().toISOString();
+});
 
 // Call from anywhere - components, loaders, hooks, etc.
-const time = await getServerTime()
+const time = await getServerTime();
 ```
 
 Server functions provide server capabilities (database access, environment variables, file system) while maintaining type safety across the network boundary.
+
+> [!NOTE]
+> Server functions are meant to be called by your TanStack Start application. They are easy to use from your app code, and Start handles serialization across the client/server boundary. If you need an endpoint that can be called from outside your Start app, use [server routes](./server-routes) instead.
 
 ## Same-Origin Requests
 
@@ -2050,15 +2163,15 @@ TanStack Start provides `createCsrfMiddleware()` to protect server functions fro
 
 ```tsx
 // src/start.ts
-import { createStart, createCsrfMiddleware } from '@tanstack/react-start'
+import { createStart, createCsrfMiddleware } from '@tanstack/react-start';
 
 const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === 'serverFn',
-})
+});
 
 export const startInstance = createStart(() => ({
   requestMiddleware: [csrfMiddleware],
-}))
+}));
 ```
 
 By default, `Origin` and `Referer` checks compare against the incoming request URL origin. If your deployment needs to allow a different public origin, configure it on the CSRF middleware with `createCsrfMiddleware({ origin: 'https://app.example.com' })`.
@@ -2071,18 +2184,18 @@ By default, `Origin` and `Referer` checks compare against the incoming request U
 Server functions are created with `createServerFn()` and can specify HTTP method:
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start';
 
 // GET request (default)
 export const getData = createServerFn().handler(async () => {
-  return { message: 'Hello from server!' }
-})
+  return { message: 'Hello from server!' };
+});
 
 // POST request
 export const saveData = createServerFn({ method: 'POST' }).handler(async () => {
   // Server-only logic
-  return { success: true }
-})
+  return { success: true };
+});
 ```
 
 ## Where to Call Server Functions
@@ -2098,16 +2211,16 @@ Call server functions from:
 // In a route loader
 export const Route = createFileRoute('/posts')({
   loader: () => getServerPosts(),
-})
+});
 
 // In a component
 function PostList() {
-  const getPosts = useServerFn(getServerPosts)
+  const getPosts = useServerFn(getServerPosts);
 
   const { data } = useQuery({
     queryKey: ['posts'],
     queryFn: () => getPosts(),
-  })
+  });
 }
 ```
 
@@ -2130,23 +2243,23 @@ src/utils/
 
 ```tsx
 // users.server.ts - Server-only helpers
-import { db } from '~/db'
+import { db } from '~/db';
 
 export async function findUserById(id: string) {
-  return db.query.users.findFirst({ where: eq(users.id, id) })
+  return db.query.users.findFirst({ where: eq(users.id, id) });
 }
 ```
 
 ```tsx
 // users.functions.ts - Server functions
-import { createServerFn } from '@tanstack/react-start'
-import { findUserById } from './users.server'
+import { createServerFn } from '@tanstack/react-start';
+import { findUserById } from './users.server';
 
 export const getUser = createServerFn({ method: 'GET' })
   .validator((data: { id: string }) => data)
   .handler(async ({ data }) => {
-    return findUserById(data.id)
-  })
+    return findUserById(data.id);
+  });
 ```
 
 ### Static Imports Are Safe
@@ -2155,13 +2268,13 @@ Server functions can be statically imported in any file, including client compon
 
 ```tsx
 // ✅ Safe - build process handles environment shaking
-import { getUser } from '~/utils/users.functions'
+import { getUser } from '~/utils/users.functions';
 
 function UserProfile({ id }) {
   const { data } = useQuery({
     queryKey: ['user', id],
     queryFn: () => getUser({ data: { id } }),
-  })
+  });
 }
 ```
 
@@ -2172,7 +2285,7 @@ The build process replaces server function implementations with RPC stubs in cli
 >
 > ```tsx
 > // ❌ Can cause bundler issues
-> const { getUser } = await import('~/utils/users.functions')
+> const { getUser } = await import('~/utils/users.functions');
 > ```
 
 ## Parameters & Validation
@@ -2182,15 +2295,15 @@ Server functions accept a single `data` parameter. Since they cross the network 
 ### Basic Parameters
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start';
 
 export const greetUser = createServerFn({ method: 'GET' })
   .validator((data: { name: string }) => data)
   .handler(async ({ data }) => {
-    return `Hello, ${data.name}!`
-  })
+    return `Hello, ${data.name}!`;
+  });
 
-await greetUser({ data: { name: 'John' } })
+await greetUser({ data: { name: 'John' } });
 ```
 
 ### Validation with Zod
@@ -2198,20 +2311,20 @@ await greetUser({ data: { name: 'John' } })
 For robust validation, use schema libraries like Zod:
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
+import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
 const UserSchema = z.object({
   name: z.string().min(1),
   age: z.number().min(0),
-})
+});
 
 export const createUser = createServerFn({ method: 'POST' })
   .validator(UserSchema)
   .handler(async ({ data }) => {
     // data is fully typed and validated
-    return `Created user: ${data.name}, age ${data.age}`
-  })
+    return `Created user: ${data.name}, age ${data.age}`;
+  });
 ```
 
 ### Form Data
@@ -2222,18 +2335,18 @@ Handle form submissions with FormData:
 export const submitForm = createServerFn({ method: 'POST' })
   .validator((data) => {
     if (!(data instanceof FormData)) {
-      throw new Error('Expected FormData')
+      throw new Error('Expected FormData');
     }
 
     return {
       name: data.get('name')?.toString() || '',
       email: data.get('email')?.toString() || '',
-    }
+    };
   })
   .handler(async ({ data }) => {
     // Process form data
-    return { success: true }
-  })
+    return { success: true };
+  });
 ```
 
 ### Serialization Type Checking
@@ -2250,8 +2363,8 @@ This default behavior is called `strict` mode. If you intentionally need to opt 
 export const looseServerFn = createServerFn({ strict: false })
   .validator((data: { value: unknown }) => data)
   .handler(async ({ data }) => {
-    return data.value
-  })
+    return data.value;
+  });
 
 // Disable only input serialization type checks
 export const looseInputServerFn = createServerFn({
@@ -2259,15 +2372,15 @@ export const looseInputServerFn = createServerFn({
 })
   .validator((data: { value: unknown }) => data)
   .handler(async () => {
-    return { ok: true }
-  })
+    return { ok: true };
+  });
 
 // Disable only output serialization type checks
 export const looseOutputServerFn = createServerFn({
   strict: { output: false },
 }).handler(async () => {
-  return getCustomSerializedValue()
-})
+  return getCustomSerializedValue();
+});
 ```
 
 > [!WARNING]
@@ -2280,20 +2393,20 @@ Server functions can throw errors, redirects, and not-found responses that are h
 ### Basic Errors
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start';
 
 export const riskyFunction = createServerFn().handler(async () => {
   if (Math.random() > 0.5) {
-    throw new Error('Something went wrong!')
+    throw new Error('Something went wrong!');
   }
-  return { success: true }
-})
+  return { success: true };
+});
 
 // Errors are serialized to the client
 try {
-  await riskyFunction()
+  await riskyFunction();
 } catch (error) {
-  console.log(error.message) // "Something went wrong!"
+  console.log(error.message); // "Something went wrong!"
 }
 ```
 
@@ -2302,18 +2415,18 @@ try {
 Use redirects for authentication, navigation, etc:
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
-import { redirect } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start';
+import { redirect } from '@tanstack/react-router';
 
 export const requireAuth = createServerFn().handler(async () => {
-  const user = await getCurrentUser()
+  const user = await getCurrentUser();
 
   if (!user) {
-    throw redirect({ to: '/login' })
+    throw redirect({ to: '/login' });
   }
 
-  return user
-})
+  return user;
+});
 ```
 
 ### Not Found
@@ -2321,20 +2434,20 @@ export const requireAuth = createServerFn().handler(async () => {
 Throw not-found errors for missing resources:
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
-import { notFound } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start';
+import { notFound } from '@tanstack/react-router';
 
 export const getPost = createServerFn()
   .validator((data: { id: string }) => data)
   .handler(async ({ data }) => {
-    const post = await db.findPost(data.id)
+    const post = await db.findPost(data.id);
 
     if (!post) {
-      throw notFound()
+      throw notFound();
     }
 
-    return post
-  })
+    return post;
+  });
 ```
 
 ## Advanced Topics
@@ -2346,13 +2459,13 @@ For more advanced server function patterns and features, see these dedicated gui
 Access request headers, cookies, and customize responses:
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start';
 import {
   getRequest,
   getRequestHeader,
   setResponseHeaders,
   setResponseStatus,
-} from '@tanstack/react-start/server'
+} from '@tanstack/react-start/server';
 
 // Public, non-personalized data — safe to cache shared across users.
 export const getPublicData = createServerFn({ method: 'GET' }).handler(
@@ -2364,11 +2477,11 @@ export const getPublicData = createServerFn({ method: 'GET' }).handler(
         'Cache-Control': 'public, max-age=300',
         'CDN-Cache-Control': 'max-age=3600, stale-while-revalidate=600',
       }),
-    )
-    setResponseStatus(200)
-    return fetchPublicData()
+    );
+    setResponseStatus(200);
+    return fetchPublicData();
   },
-)
+);
 ```
 
 > **Cache-Control safety:** `public` tells every CDN/proxy between you and the user that the response can be served to anyone. If the handler reads a session, cookie, or auth header — or branches on identity at all — using `public` will cache one user's response and replay it to the next user (cross-tenant data leak). For authenticated responses, use `private`:
@@ -2377,7 +2490,7 @@ export const getPublicData = createServerFn({ method: 'GET' }).handler(
 // Authenticated data — must NOT be 'public'.
 export const getMyOrders = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const session = await requireSession()
+    const session = await requireSession();
     setResponseHeaders(
       new Headers({
         // 'private' = only the user-agent may cache. Vary by Cookie/Authorization
@@ -2385,10 +2498,10 @@ export const getMyOrders = createServerFn({ method: 'GET' }).handler(
         'Cache-Control': 'private, max-age=60',
         Vary: 'Cookie, Authorization',
       }),
-    )
-    return db.orders.findMany({ where: { userId: session.userId } })
+    );
+    return db.orders.findMany({ where: { userId: session.userId } });
   },
-)
+);
 
 // For sensitive data, opt out entirely:
 // setResponseHeaders(new Headers({ 'Cache-Control': 'no-store' }))
@@ -2454,8 +2567,8 @@ Example:
 # Vite
 
 ```ts title="vite.config.ts"
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import { defineConfig } from 'vite';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 
 export default defineConfig({
   plugins: [
@@ -2465,19 +2578,19 @@ export default defineConfig({
           return crypto
             .createHash('sha1')
             .update(`${filename}--${functionName}`)
-            .digest('hex')
+            .digest('hex');
         },
       },
     }),
   ],
-})
+});
 ```
 
 # Rsbuild
 
 ```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
+import { defineConfig } from '@rsbuild/core';
+import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild';
 
 export default defineConfig({
   plugins: [
@@ -2487,12 +2600,12 @@ export default defineConfig({
           return crypto
             .createHash('sha1')
             .update(`${filename}--${functionName}`)
-            .digest('hex')
+            .digest('hex');
         },
       },
     }),
   ],
-})
+});
 ```
 
 <!-- ::end:tabs -->
@@ -2502,8 +2615,108 @@ export default defineConfig({
 > **Note**: Server functions use a compilation process that extracts server code from client bundles while maintaining seamless calling patterns. On the client, calls become `fetch` requests to the server.
 
 ---
+
+## title: Streaming Data from Server Functions
+
+Streaming data from the server has become very popular thanks to the rise of AI apps. Luckily, it's a pretty easy task with TanStack Start, and what's even better: the streamed data is typed!
+
+The two most popular ways of streaming data from server functions are using `ReadableStream`-s or async generators.
+
+You can see how to implement both in the [Streaming Data From Server Functions example](https://github.com/TanStack/router/tree/main/examples/react/start-streaming-data-from-server-functions).
+
+## Typed Readable Streams
+
+Here's an example for a server function that streams an array of messages to the client in a type-safe manner:
+
+```ts
+type Message = {
+  content: string;
+};
+
+/**
+  This server function returns a `ReadableStream`
+  that streams `Message` chunks to the client.
+*/
+const streamingResponseFn = createServerFn().handler(async () => {
+  // These are the messages that you want to send as chunks to the client
+  const messages: Message[] = generateMessages();
+
+  // This `ReadableStream` is typed, so each
+  // will be of type `Message`.
+  const stream = new ReadableStream<Message>({
+    async start(controller) {
+      for (const message of messages) {
+        // Send the message
+        controller.enqueue(message);
+      }
+      controller.close();
+    },
+  });
+
+  return stream;
+});
+```
+
+When you consume this stream from the client, the streamed chunks will be properly typed:
+
+```ts
+const [message, setMessage] = useState('');
+
+const getTypedReadableStreamResponse = useCallback(async () => {
+  const response = await streamingResponseFn();
+
+  if (!response) {
+    return;
+  }
+
+  const reader = response.getReader();
+  let done = false;
+  while (!done) {
+    const { value, done: doneReading } = await reader.read();
+    done = doneReading;
+    if (value) {
+      // Notice how we know the value of `chunk` (`Message | undefined`)
+      // here, because it's coming from the typed `ReadableStream`
+      const chunk = value.content;
+      setMessage((prev) => prev + chunk);
+    }
+  }
+}, []);
+```
+
+## Async Generators in Server Functions
+
+A much cleaner approach with the same results is to use an async generator function:
+
+```ts
+const streamingWithAnAsyncGeneratorFn = createServerFn().handler(
+  async function* () {
+    const messages: Message[] = generateMessages();
+    for (const msg of messages) {
+      await sleep(500);
+      // The streamed chunks are still typed as `Message`
+      yield msg;
+    }
+  },
+);
+```
+
+The client side code will also be leaner:
+
+```ts
+const getResponseFromTheAsyncGenerator = useCallback(async () => {
+  for await (const msg of await streamingWithAnAsyncGeneratorFn()) {
+    const chunk = msg.content;
+    setMessages((prev) => prev + chunk);
+  }
+}, []);
+```
+
+---
+
 id: server-components
 title: Server Components
+
 ---
 
 > [!WARNING]
@@ -2550,10 +2763,10 @@ Update your build tool config to enable RSC in the TanStack Start plugin:
 # Vite
 
 ```ts title="vite.config.ts"
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
-import rsc from '@vitejs/plugin-rsc'
+import { defineConfig } from 'vite';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+import viteReact from '@vitejs/plugin-react';
+import rsc from '@vitejs/plugin-rsc';
 
 export default defineConfig({
   plugins: [
@@ -2565,15 +2778,15 @@ export default defineConfig({
     rsc(),
     viteReact(),
   ],
-})
+});
 ```
 
 # Rsbuild
 
 ```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { pluginReact } from '@rsbuild/plugin-react'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
+import { defineConfig } from '@rsbuild/core';
+import { pluginReact } from '@rsbuild/plugin-react';
+import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild';
 
 export default defineConfig({
   plugins: [
@@ -2584,7 +2797,7 @@ export default defineConfig({
       },
     }),
   ],
-})
+});
 ```
 
 <!-- ::end:tabs -->
@@ -2603,71 +2816,71 @@ There are two high-level RSC helpers:
 ### Renderable (no slots)
 
 ```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { createServerFn } from '@tanstack/react-start'
-import { renderServerComponent } from '@tanstack/react-start/rsc'
+import { createFileRoute } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+import { renderServerComponent } from '@tanstack/react-start/rsc';
 
 function Greeting() {
-  return <h1>Hello from RSC</h1>
+  return <h1>Hello from RSC</h1>;
 }
 
 const getGreeting = createServerFn().handler(async () => {
-  const Renderable = await renderServerComponent(<Greeting />)
-  return { Renderable }
-})
+  const Renderable = await renderServerComponent(<Greeting />);
+  return { Renderable };
+});
 
 export const Route = createFileRoute('/')({
   loader: async () => {
-    const { Renderable } = await getGreeting()
-    return { Greeting: Renderable }
+    const { Renderable } = await getGreeting();
+    return { Greeting: Renderable };
   },
   component: HomePage,
-})
+});
 
 function HomePage() {
-  const { Greeting } = Route.useLoaderData()
-  return <>{Greeting}</>
+  const { Greeting } = Route.useLoaderData();
+  return <>{Greeting}</>;
 }
 ```
 
 ### Composite (slots)
 
 ```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { createServerFn } from '@tanstack/react-start'
+import { createFileRoute } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
 import {
   CompositeComponent,
   createCompositeComponent,
-} from '@tanstack/react-start/rsc'
+} from '@tanstack/react-start/rsc';
 
 const getCard = createServerFn().handler(async () => {
   const src = await createCompositeComponent(
     (props: { children?: React.ReactNode }) => (
-      <div className="card">
+      <div className='card'>
         <h2>Server-rendered header</h2>
         <div>{props.children}</div>
       </div>
     ),
-  )
+  );
 
-  return { src }
-})
+  return { src };
+});
 
 export const Route = createFileRoute('/')({
   loader: async () => ({
     Card: await getCard(),
   }),
   component: HomePage,
-})
+});
 
 function HomePage() {
-  const { Card } = Route.useLoaderData()
+  const { Card } = Route.useLoaderData();
 
   return (
     <CompositeComponent src={Card.src}>
       <Counter />
     </CompositeComponent>
-  )
+  );
 }
 ```
 
@@ -2700,23 +2913,23 @@ Pass client components as children. Simple and familiar, but the server cannot p
 import {
   CompositeComponent,
   createCompositeComponent,
-} from '@tanstack/react-start/rsc'
+} from '@tanstack/react-start/rsc';
 
 const getCard = createServerFn().handler(async () => {
   const src = await createCompositeComponent(
     (props: { children?: React.ReactNode }) => (
-      <div className="card">
+      <div className='card'>
         <h2>Server-rendered header</h2>
         <div>{props.children}</div>
       </div>
     ),
-  )
+  );
 
-  return { src }
-})
+  return { src };
+});
 
 function MyPage() {
-  const { src } = Route.useLoaderData()
+  const { src } = Route.useLoaderData();
 
   return (
     <CompositeComponent src={src}>
@@ -2724,7 +2937,7 @@ function MyPage() {
       <Counter />
       <button onClick={() => alert('Clicked!')}>Click me</button>
     </CompositeComponent>
-  )
+  );
 }
 ```
 
@@ -2736,20 +2949,20 @@ Use render props when the server needs to pass data to client-rendered content:
 import {
   CompositeComponent,
   createCompositeComponent,
-} from '@tanstack/react-start/rsc'
+} from '@tanstack/react-start/rsc';
 
 const getPost = createServerFn()
   .validator(z.object({ postId: z.string() }))
   .handler(async ({ data }) => {
-    const post = await db.posts.findById(data.postId)
+    const post = await db.posts.findById(data.postId);
 
     const src = await createCompositeComponent(
       (props: {
-        children?: React.ReactNode
+        children?: React.ReactNode;
         renderActions?: (data: {
-          postId: string
-          authorId: string
-        }) => React.ReactNode
+          postId: string;
+          authorId: string;
+        }) => React.ReactNode;
       }) => (
         <article>
           <h1>{post.title}</h1>
@@ -2763,24 +2976,23 @@ const getPost = createServerFn()
           {props.children}
         </article>
       ),
-    )
+    );
 
-    return { src }
-  })
+    return { src };
+  });
 
 function PostPage() {
-  const { src } = Route.useLoaderData()
+  const { src } = Route.useLoaderData();
 
   return (
     <CompositeComponent
       src={src}
       renderActions={({ postId, authorId }) => (
         <PostActions postId={postId} authorId={authorId} />
-      )}
-    >
+      )}>
       <Comments />
     </CompositeComponent>
-  )
+  );
 }
 ```
 
@@ -2792,51 +3004,51 @@ Pass React components as props. On the client, the passed in props will be rende
 import {
   CompositeComponent,
   createCompositeComponent,
-} from '@tanstack/react-start/rsc'
+} from '@tanstack/react-start/rsc';
 
 const getProductCard = createServerFn()
   .validator(z.object({ productId: z.string() }))
   .handler(async ({ data }) => {
-    const product = await db.products.findById(data.productId)
+    const product = await db.products.findById(data.productId);
 
     const src = await createCompositeComponent(
       ({
         AddToCart,
       }: {
-        AddToCart: React.ComponentType<{ productId: string; price: number }>
+        AddToCart: React.ComponentType<{ productId: string; price: number }>;
       }) => (
-        <div className="product-card">
+        <div className='product-card'>
           <h2>{product.name}</h2>
           <p>${product.price}</p>
           <AddToCart productId={product.id} price={product.price} />
         </div>
       ),
-    )
+    );
 
-    return { src }
-  })
+    return { src };
+  });
 
 // Client component with interactivity
 function AddToCartButton({
   productId,
   price,
 }: {
-  productId: string
-  price: number
+  productId: string;
+  price: number;
 }) {
-  const [added, setAdded] = React.useState(false)
+  const [added, setAdded] = React.useState(false);
 
   return (
     <button onClick={() => setAdded(true)}>
       {added ? '✓ Added!' : `Add to Cart - $${price}`}
     </button>
-  )
+  );
 }
 
 function ProductPage() {
-  const { src } = Route.useLoaderData()
+  const { src } = Route.useLoaderData();
 
-  return <CompositeComponent src={src} AddToCart={AddToCartButton} />
+  return <CompositeComponent src={src} AddToCart={AddToCartButton} />;
 }
 ```
 
@@ -2858,7 +3070,7 @@ export const Route = createFileRoute('/posts/$postId')({
     Post: await getPost({ data: { postId: params.postId } }),
   }),
   component: PostPage,
-})
+});
 ```
 
 Navigate to `/posts/abc`, then `/posts/xyz`, then back to `/posts/abc` - the cached component renders instantly.
@@ -2872,7 +3084,7 @@ export const Route = createFileRoute('/posts/$postId')({
     Post: await getPost({ data: { postId: params.postId } }),
   }),
   component: PostPage,
-})
+});
 ```
 
 For cache keys beyond route params, use `loaderDeps`:
@@ -2884,7 +3096,7 @@ export const Route = createFileRoute('/posts/$postId')({
     Post: await getPost({ data: { postId: params.postId, tab: deps.tab } }),
   }),
   component: PostPage,
-})
+});
 ```
 
 ### TanStack Query
@@ -2892,35 +3104,35 @@ export const Route = createFileRoute('/posts/$postId')({
 For fine-grained control, use TanStack Query:
 
 ```tsx
-import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query'
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 
 const postQueryOptions = (postId: string) => ({
   queryKey: ['post', postId],
   structuralSharing: false, // Required - RSC values must not be merged
   queryFn: () => getPost({ data: { postId } }),
   staleTime: 5 * 60 * 1000,
-})
+});
 
 export const Route = createFileRoute('/posts/$postId')({
   loader: async ({ context, params }) => {
     // Prefetch during SSR - data reused on client without refetch
-    await context.queryClient.ensureQueryData(postQueryOptions(params.postId))
+    await context.queryClient.ensureQueryData(postQueryOptions(params.postId));
   },
   component: PostPage,
-})
+});
 
 function PostPage() {
-  const { postId } = Route.useParams()
-  const queryClient = useQueryClient()
+  const { postId } = Route.useParams();
+  const queryClient = useQueryClient();
 
-  const { data } = useSuspenseQuery(postQueryOptions(postId))
+  const { data } = useSuspenseQuery(postQueryOptions(postId));
 
   const handleRefresh = () => {
     // Manually refetch the RSC
-    queryClient.refetchQueries({ queryKey: ['post', postId] })
-  }
+    queryClient.refetchQueries({ queryKey: ['post', postId] });
+  };
 
-  return <CompositeComponent src={data.src} />
+  return <CompositeComponent src={data.src} />;
 }
 ```
 
@@ -2972,21 +3184,21 @@ export const Route = createFileRoute('/dashboard')({
     Dashboard: await getDashboard(),
   }),
   component: DashboardPage,
-})
+});
 
 function DashboardPage() {
-  const { Dashboard } = Route.useLoaderData()
-  const [width, setWidth] = React.useState(0)
+  const { Dashboard } = Route.useLoaderData();
+  const [width, setWidth] = React.useState(0);
 
   React.useEffect(() => {
-    setWidth(window.innerWidth) // Browser API
-  }, [])
+    setWidth(window.innerWidth); // Browser API
+  }, []);
 
   return (
     <Dashboard
       renderChart={({ data }) => <ResponsiveChart data={data} width={width} />}
     />
-  )
+  );
 }
 ```
 
@@ -3004,11 +3216,11 @@ Both loader and component run on the client:
 export const Route = createFileRoute('/canvas')({
   ssr: false,
   loader: async () => {
-    const savedState = localStorage.getItem('canvas-state')
-    return { Tools: await getDrawingTools({ data: { savedState } }) }
+    const savedState = localStorage.getItem('canvas-state');
+    return { Tools: await getDrawingTools({ data: { savedState } }) };
   },
   component: CanvasPage,
-})
+});
 ```
 
 Use this when the loader itself requires browser APIs.
@@ -3023,19 +3235,19 @@ When a page needs several independent server components, fetch them in parallel 
 
 ```tsx
 const getArticleA = createServerFn().handler(async () => {
-  const article = await db.articles.findById('a')
-  return renderServerComponent(<Article data={article} />)
-})
+  const article = await db.articles.findById('a');
+  return renderServerComponent(<Article data={article} />);
+});
 
 const getArticleB = createServerFn().handler(async () => {
-  const article = await db.articles.findById('b')
-  return renderServerComponent(<Article data={article} />)
-})
+  const article = await db.articles.findById('b');
+  return renderServerComponent(<Article data={article} />);
+});
 
 const getSidebar = createServerFn().handler(async () => {
-  const trending = await db.articles.getTrending()
-  return renderServerComponent(<Sidebar items={trending} />)
-})
+  const trending = await db.articles.getTrending();
+  return renderServerComponent(<Sidebar items={trending} />);
+});
 
 export const Route = createFileRoute('/news')({
   loader: async () => {
@@ -3043,24 +3255,24 @@ export const Route = createFileRoute('/news')({
       getArticleA(),
       getArticleB(),
       getSidebar(),
-    ])
-    return { ArticleA, ArticleB, Sidebar }
+    ]);
+    return { ArticleA, ArticleB, Sidebar };
   },
   component: NewsPage,
-})
+});
 
 function NewsPage() {
-  const { ArticleA, ArticleB, Sidebar } = Route.useLoaderData()
+  const { ArticleA, ArticleB, Sidebar } = Route.useLoaderData();
 
   return (
-    <div className="grid">
+    <div className='grid'>
       <main>
         {ArticleA}
         {ArticleB}
       </main>
       <aside>{Sidebar}</aside>
     </div>
-  )
+  );
 }
 ```
 
@@ -3079,8 +3291,8 @@ Create multiple `renderServerComponent` or `createCompositeComponent` calls and 
 ```tsx
 const getPageLayout = createServerFn().handler(async () => {
   // Fetch shared data once
-  const user = await db.users.getCurrent()
-  const config = await db.config.get()
+  const user = await db.users.getCurrent();
+  const config = await db.config.get();
 
   // Create multiple components that share this data
   const [Header, Content, Footer] = await Promise.all([
@@ -3111,18 +3323,18 @@ const getPageLayout = createServerFn().handler(async () => {
         ))}
       </footer>,
     ),
-  ])
+  ]);
 
-  return { Header, Content, Footer }
-})
+  return { Header, Content, Footer };
+});
 
 export const Route = createFileRoute('/dashboard')({
   loader: async () => await getPageLayout(),
   component: DashboardPage,
-})
+});
 
 function DashboardPage() {
-  const { Header, Content, Footer } = Route.useLoaderData()
+  const { Header, Content, Footer } = Route.useLoaderData();
 
   return (
     <>
@@ -3130,7 +3342,7 @@ function DashboardPage() {
       {Content}
       {Footer}
     </>
-  )
+  );
 }
 ```
 
@@ -3143,8 +3355,8 @@ Alternatively, return a nested object structure from a single server function.
 
 ```tsx
 const getPageLayout = createServerFn().handler(async () => {
-  const user = await db.users.getCurrent()
-  const config = await db.config.get()
+  const user = await db.users.getCurrent();
+  const config = await db.config.get();
 
   const [Header, Content, Footer] = await Promise.all([
     createCompositeComponent((props: { children?: React.ReactNode }) => (
@@ -3178,26 +3390,26 @@ const getPageLayout = createServerFn().handler(async () => {
         ))}
       </footer>
     )),
-  ])
+  ]);
 
-  return { Header, Content, Footer }
-})
+  return { Header, Content, Footer };
+});
 
 export const Route = createFileRoute('/dashboard')({
   loader: async () => ({
     Layout: await getPageLayout(),
   }),
   component: DashboardPage,
-})
+});
 ```
 
 Render nested composites using dot notation:
 
 ```tsx
-import { CompositeComponent } from '@tanstack/react-start/rsc'
+import { CompositeComponent } from '@tanstack/react-start/rsc';
 
 function DashboardPage() {
-  const { Layout } = Route.useLoaderData()
+  const { Layout } = Route.useLoaderData();
 
   return (
     <>
@@ -3210,17 +3422,17 @@ function DashboardPage() {
       />
       <CompositeComponent src={Layout.Footer} />
     </>
-  )
+  );
 }
 ```
 
 Or destructure them from the loader data:
 
 ```tsx
-import { CompositeComponent } from '@tanstack/react-start/rsc'
+import { CompositeComponent } from '@tanstack/react-start/rsc';
 
 function DashboardPage() {
-  const { Header, Content, Footer } = Route.useLoaderData().Layout
+  const { Header, Content, Footer } = Route.useLoaderData().Layout;
 
   return (
     <>
@@ -3233,7 +3445,7 @@ function DashboardPage() {
       />
       <CompositeComponent src={Footer} />
     </>
-  )
+  );
 }
 ```
 
@@ -3248,35 +3460,35 @@ Return promises for server components instead of awaiting them. The client uses 
 **When to use:** Components with varying data latencies where faster results should render before slower ones complete. Avoids blocking on the slowest query.
 
 ```tsx
-import { Suspense, use } from 'react'
+import { Suspense, use } from 'react';
 
 const getDashboardBundle = createServerFn().handler(() => ({
   // Fast - resolves in ~100ms
   QuickStats: (async () => {
-    const stats = await cache.getStats() // Fast cache hit
-    return renderServerComponent(<StatsCard data={stats} />)
+    const stats = await cache.getStats(); // Fast cache hit
+    return renderServerComponent(<StatsCard data={stats} />);
   })(),
 
   // Medium - resolves in ~500ms
   RecentActivity: (async () => {
-    const activity = await db.activity.getRecent()
-    return renderServerComponent(<ActivityFeed items={activity} />)
+    const activity = await db.activity.getRecent();
+    return renderServerComponent(<ActivityFeed items={activity} />);
   })(),
 
   // Slow - resolves in ~2000ms
   Analytics: (async () => {
-    const data = await analytics.computeMetrics() // Expensive query
-    return renderServerComponent(<AnalyticsChart data={data} />)
+    const data = await analytics.computeMetrics(); // Expensive query
+    return renderServerComponent(<AnalyticsChart data={data} />);
   })(),
-}))
+}));
 
 export const Route = createFileRoute('/dashboard')({
   loader: () => getDashboardBundle(),
   component: DashboardPage,
-})
+});
 
 function DashboardPage() {
-  const { QuickStats, RecentActivity, Analytics } = Route.useLoaderData()
+  const { QuickStats, RecentActivity, Analytics } = Route.useLoaderData();
 
   return (
     <div>
@@ -3292,12 +3504,12 @@ function DashboardPage() {
         <Deferred promise={Analytics} />
       </Suspense>
     </div>
-  )
+  );
 }
 
 function Deferred({ promise }: { promise: Promise<unknown> }) {
-  const Renderable = use(promise)
-  return <>{Renderable}</>
+  const Renderable = use(promise);
+  return <>{Renderable}</>;
 }
 ```
 
@@ -3311,38 +3523,38 @@ Use React's `Suspense` directly inside server components to stream parts of the 
 
 ```tsx
 async function SlowMetric({ label, delay }: { label: string; delay: number }) {
-  await new Promise((resolve) => setTimeout(resolve, delay))
-  const value = await db.metrics.get(label)
+  await new Promise((resolve) => setTimeout(resolve, delay));
+  const value = await db.metrics.get(label);
 
   return (
-    <div className="metric">
+    <div className='metric'>
       <span>{label}</span>
       <span>{value.toLocaleString()}</span>
     </div>
-  )
+  );
 }
 
 const getAnalyticsDashboard = createServerFn().handler(() =>
   renderServerComponent(
-    <div className="dashboard">
+    <div className='dashboard'>
       <h1>Analytics</h1>
 
-      <div className="metrics-grid">
-        <Suspense fallback={<MetricSkeleton label="Active Users" />}>
-          <SlowMetric label="Active Users" delay={500} />
+      <div className='metrics-grid'>
+        <Suspense fallback={<MetricSkeleton label='Active Users' />}>
+          <SlowMetric label='Active Users' delay={500} />
         </Suspense>
 
-        <Suspense fallback={<MetricSkeleton label="Revenue" />}>
-          <SlowMetric label="Revenue" delay={1500} />
+        <Suspense fallback={<MetricSkeleton label='Revenue' />}>
+          <SlowMetric label='Revenue' delay={1500} />
         </Suspense>
 
-        <Suspense fallback={<MetricSkeleton label="Conversion" />}>
-          <SlowMetric label="Conversion" delay={2500} />
+        <Suspense fallback={<MetricSkeleton label='Conversion' />}>
+          <SlowMetric label='Conversion' delay={2500} />
         </Suspense>
       </div>
     </div>,
   ),
-)
+);
 ```
 
 Each metric streams independently. The dashboard shell appears immediately, then metrics pop in as their data loads.
@@ -3357,58 +3569,58 @@ Use async generators to stream server components one at a time. The client recei
 import {
   CompositeComponent,
   createCompositeComponent,
-} from '@tanstack/react-start/rsc'
+} from '@tanstack/react-start/rsc';
 
 const streamNotifications = createServerFn().handler(async function* () {
   // Yield initial batch immediately
-  const recent = await db.notifications.getRecent(3)
+  const recent = await db.notifications.getRecent(3);
   for (const notification of recent) {
     yield await createCompositeComponent<{
-      renderActions?: (data: { id: string }) => React.ReactNode
+      renderActions?: (data: { id: string }) => React.ReactNode;
     }>((props) => (
-      <div className="notification">
+      <div className='notification'>
         <h3>{notification.title}</h3>
         <p>{notification.message}</p>
         {props.renderActions?.({ id: notification.id })}
       </div>
-    ))
+    ));
   }
 
   // Stream older notifications with delays
-  const older = await db.notifications.getOlder(5)
+  const older = await db.notifications.getOlder(5);
   for (const notification of older) {
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await new Promise((resolve) => setTimeout(resolve, 300));
     yield await createCompositeComponent<{
-      renderActions?: (data: { id: string }) => React.ReactNode
+      renderActions?: (data: { id: string }) => React.ReactNode;
     }>((props) => (
-      <div className="notification">
+      <div className='notification'>
         <h3>{notification.title}</h3>
         <p>{notification.message}</p>
         {props.renderActions?.({ id: notification.id })}
       </div>
-    ))
+    ));
   }
-})
+});
 
 export const Route = createFileRoute('/notifications')({
   component: NotificationsPage,
-})
+});
 
 function NotificationsPage() {
-  const [notifications, setNotifications] = React.useState<Array<unknown>>([])
-  const [isStreaming, setIsStreaming] = React.useState(false)
+  const [notifications, setNotifications] = React.useState<Array<unknown>>([]);
+  const [isStreaming, setIsStreaming] = React.useState(false);
 
   const startStreaming = React.useCallback(async () => {
-    setNotifications([])
-    setIsStreaming(true)
+    setNotifications([]);
+    setIsStreaming(true);
 
-    const stream = await streamNotifications()
+    const stream = await streamNotifications();
     for await (const notification of stream) {
-      setNotifications((prev) => [...prev, notification])
+      setNotifications((prev) => [...prev, notification]);
     }
 
-    setIsStreaming(false)
-  }, [])
+    setIsStreaming(false);
+  }, []);
 
   return (
     <div>
@@ -3426,7 +3638,7 @@ function NotificationsPage() {
         />
       ))}
     </div>
-  )
+  );
 }
 ```
 
@@ -3448,7 +3660,7 @@ export const Route = createFileRoute('/')({
   }),
   errorComponent: ({ error }) => <div>Failed to load: {error.message}</div>,
   component: HomePage,
-})
+});
 ```
 
 ### Component Level Errors
@@ -3465,11 +3677,11 @@ export const Route = createFileRoute('/dashboard')({
     WidgetPromise: getWidget(),
   }),
   component: DashboardPage,
-})
+});
 
 // 2. Component handles the potential failure
 function DashboardPage() {
-  const { WidgetPromise } = Route.useLoaderData()
+  const { WidgetPromise } = Route.useLoaderData();
 
   return (
     <ErrorBoundary fallback={<div>Widget unavailable</div>}>
@@ -3477,7 +3689,7 @@ function DashboardPage() {
         <Deferred promise={WidgetPromise} />
       </React.Suspense>
     </ErrorBoundary>
-  )
+  );
 }
 ```
 
@@ -3488,21 +3700,21 @@ function DashboardPage() {
 `React.cache` works inside server components for request-scoped memoization. This is useful when multiple components need the same expensive computation:
 
 ```tsx
-import { cache } from 'react'
+import { cache } from 'react';
 
 const getUser = cache(async (userId: string) => {
-  return db.users.findById(userId)
-})
+  return db.users.findById(userId);
+});
 
 // Both components share the same cached result within a single request
 async function UserHeader() {
-  const user = await getUser('123') // Fetches from DB
-  return <h1>{user.name}</h1>
+  const user = await getUser('123'); // Fetches from DB
+  return <h1>{user.name}</h1>;
 }
 
 async function UserSidebar() {
-  const user = await getUser('123') // Returns cached result
-  return <aside>{user.bio}</aside>
+  const user = await getUser('123'); // Returns cached result
+  return <aside>{user.bio}</aside>;
 }
 ```
 
@@ -3511,21 +3723,21 @@ async function UserSidebar() {
 TanStack Router's `Link` component works inside server components. The link is serialized and hydrates on the client for client-side navigation:
 
 ```tsx
-import { Link } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router';
 
 const getNavigation = createServerFn().handler(async () => {
-  const pages = await db.pages.list()
+  const pages = await db.pages.list();
 
   return renderServerComponent(
     <nav>
       {pages.map((page) => (
-        <Link key={page.id} to="/pages/$pageId" params={{ pageId: page.id }}>
+        <Link key={page.id} to='/pages/$pageId' params={{ pageId: page.id }}>
           {page.title}
         </Link>
       ))}
     </nav>,
-  )
-})
+  );
+});
 ```
 
 ### CSS in Server Components
@@ -3533,15 +3745,15 @@ const getNavigation = createServerFn().handler(async () => {
 CSS Modules and global CSS imports work in server components. Styles are extracted and sent to the client:
 
 ```tsx
-import styles from './Card.module.css'
+import styles from './Card.module.css';
 
 const getCard = createServerFn().handler(async () => {
   return renderServerComponent(
     <div className={styles.card}>
       <h2 className={styles.title}>Server Rendered</h2>
     </div>,
-  )
-})
+  );
+});
 ```
 
 ## Rules and Limitations
@@ -3558,12 +3770,12 @@ createCompositeComponent((props: { children?: React.ReactNode }) => (
       React.cloneElement(child, { extra: 'prop' }),
     )}
   </div>
-))
+));
 
 // Do this instead - use render props
 createCompositeComponent<{
-  renderItem?: (data: { extra: string }) => React.ReactNode
-}>((props) => <div>{props.renderItem?.({ extra: 'prop' })}</div>)
+  renderItem?: (data: { extra: string }) => React.ReactNode;
+}>((props) => <div>{props.renderItem?.({ extra: 'prop' })}</div>);
 ```
 
 ### Render prop arguments must be serializable
@@ -3607,36 +3819,38 @@ Import from `@tanstack/react-start/rsc`:
 
 ```tsx
 // src/routes/api/rsc.ts - API route with Flight stream
-import { createAPIFileRoute } from '@tanstack/react-start/api'
-import { createServerFn } from '@tanstack/react-start'
-import { renderToReadableStream } from '@tanstack/react-start/rsc'
+import { createAPIFileRoute } from '@tanstack/react-start/api';
+import { createServerFn } from '@tanstack/react-start';
+import { renderToReadableStream } from '@tanstack/react-start/rsc';
 
 const getFlightStream = createServerFn({ method: 'GET' }).handler(async () => {
-  return renderToReadableStream(<div>Server Rendered Content</div>)
-})
+  return renderToReadableStream(<div>Server Rendered Content</div>);
+});
 
 export const APIRoute = createAPIFileRoute('/api/rsc')({
   GET: async () => {
-    const stream = await getFlightStream()
+    const stream = await getFlightStream();
     return new Response(stream, {
       headers: { 'Content-Type': 'text/x-component' },
-    })
+    });
   },
-})
+});
 ```
 
 ```tsx
 // Client: fetch and decode the Flight stream
-import { createFromFetch } from '@tanstack/react-start/rsc'
+import { createFromFetch } from '@tanstack/react-start/rsc';
 
 async function fetchRSC() {
-  return createFromFetch(fetch('/api/rsc'))
+  return createFromFetch(fetch('/api/rsc'));
 }
 ```
 
 ---
+
 id: static-server-functions
 title: Static Server Functions
+
 ---
 
 > [!WARNING]
@@ -3647,14 +3861,14 @@ title: Static Server Functions
 Static server functions are server functions that are executed at build time and cached as static assets when using prerendering/static-generation. They can be set to "static" mode by applying the `staticFunctionMiddleware` middleware to `createServerFn`:
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
-import { staticFunctionMiddleware } from '@tanstack/start-static-server-functions'
+import { createServerFn } from '@tanstack/react-start';
+import { staticFunctionMiddleware } from '@tanstack/start-static-server-functions';
 
 const myServerFn = createServerFn({ method: 'GET' })
   .middleware([staticFunctionMiddleware])
   .handler(async () => {
-    return 'Hello, world!'
-  })
+    return 'Hello, world!';
+  });
 ```
 
 Ensure that `staticFunctionMiddleware` is the final middleware!
@@ -3671,8 +3885,10 @@ This pattern goes as follows:
   - For future client-side invocations, the server function is replaced with a fetch call to the static JSON file
 
 ---
+
 id: environment-functions
 title: Environment Functions
+
 ---
 
 ## What Are Environment Functions?
@@ -3694,13 +3910,13 @@ Use `createIsomorphicFn()` to define functions that behave differently depending
 ### Complete Implementation
 
 ```tsx
-import { createIsomorphicFn } from '@tanstack/react-start'
+import { createIsomorphicFn } from '@tanstack/react-start';
 
 const getEnv = createIsomorphicFn()
   .server(() => 'server')
-  .client(() => 'client')
+  .client(() => 'client');
 
-const env = getEnv()
+const env = getEnv();
 // ℹ️ On the **server**, it returns `'server'`.
 // ℹ️ On the **client**, it returns `'client'`.
 ```
@@ -3710,11 +3926,11 @@ const env = getEnv()
 Here is an example of `createIsomorphicFn()` with only server implementation:
 
 ```tsx
-import { createIsomorphicFn } from '@tanstack/react-start'
+import { createIsomorphicFn } from '@tanstack/react-start';
 
-const serverImplementationOnly = createIsomorphicFn().server(() => 'server')
+const serverImplementationOnly = createIsomorphicFn().server(() => 'server');
 
-const server = serverImplementationOnly()
+const server = serverImplementationOnly();
 // ℹ️ On the **server**, it returns `'server'`.
 // ℹ️ On the **client**, it is no-op (returns `undefined`)
 ```
@@ -3724,11 +3940,11 @@ const server = serverImplementationOnly()
 Here is an example of `createIsomorphicFn()` with only client implementation:
 
 ```tsx
-import { createIsomorphicFn } from '@tanstack/react-start'
+import { createIsomorphicFn } from '@tanstack/react-start';
 
-const clientImplementationOnly = createIsomorphicFn().client(() => 'client')
+const clientImplementationOnly = createIsomorphicFn().client(() => 'client');
 
-const client = clientImplementationOnly()
+const client = clientImplementationOnly();
 // ℹ️ On the **server**, it is no-op (returns `undefined`)
 // ℹ️ On the **client**, it returns `'client'`.
 ```
@@ -3738,11 +3954,11 @@ const client = clientImplementationOnly()
 Here is an example of `createIsomorphicFn()` without any environment specific implementation:
 
 ```tsx
-import { createIsomorphicFn } from '@tanstack/react-start'
+import { createIsomorphicFn } from '@tanstack/react-start';
 
-const noImplementation = createIsomorphicFn()
+const noImplementation = createIsomorphicFn();
 
-const noop = noImplementation()
+const noop = noImplementation();
 // ℹ️ On both **client** and **server**, it is no-op (returns `undefined`)
 ```
 
@@ -3764,22 +3980,22 @@ The `createServerOnlyFn` and `createClientOnlyFn` helpers enforce strict environ
 ### `createServerOnlyFn`
 
 ```tsx
-import { createServerOnlyFn } from '@tanstack/react-start'
+import { createServerOnlyFn } from '@tanstack/react-start';
 
-const foo = createServerOnlyFn(() => 'bar')
+const foo = createServerOnlyFn(() => 'bar');
 
-foo() // ✅ On server: returns "bar"
+foo(); // ✅ On server: returns "bar"
 // ❌ On client: throws "createServerOnlyFn() functions can only be called on the server!"
 ```
 
 ### `createClientOnlyFn`
 
 ```tsx
-import { createClientOnlyFn } from '@tanstack/react-start'
+import { createClientOnlyFn } from '@tanstack/react-start';
 
-const foo = createClientOnlyFn(() => 'bar')
+const foo = createClientOnlyFn(() => 'bar');
 
-foo() // ✅ On client: returns "bar"
+foo(); // ✅ On client: returns "bar"
 // ❌ On server: throws "createClientOnlyFn() functions can only be called on the client!"
 ```
 
@@ -3795,8 +4011,10 @@ Functions created using `createIsomorphicFn()` are tree-shaken. All codes inside
 On the server, functions created using `createClientOnlyFn()` are replaced with a function that throws an `Error` on the server. The reverse is true for `createServerOnlyFn` functions on the client.
 
 ---
+
 id: middleware
 title: Middleware
+
 ---
 
 ## What is Middleware?
@@ -3844,17 +4062,17 @@ There are two types of middleware: **request middleware** and **server function 
 All middleware is composable, which means that one middleware can depend on another middleware.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const loggingMiddleware = createMiddleware().server(() => {
   //...
-})
+});
 
 const authMiddleware = createMiddleware()
   .middleware([loggingMiddleware])
   .server(() => {
     //...
-  })
+  });
 ```
 
 ### Progressing the Middleware Chain
@@ -3867,12 +4085,12 @@ Middleware is next-able, which means that you must call the `next` function in t
 - Pass context to the wrapping middleware
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const loggingMiddleware = createMiddleware().server(async ({ next }) => {
-  const result = await next() // <-- This will execute the next middleware in the chain
-  return result
-})
+  const result = await next(); // <-- This will execute the next middleware in the chain
+  return result;
+});
 ```
 
 ## Request Middleware
@@ -3882,11 +4100,11 @@ Request middleware is used to customize the behavior of any server request that 
 To create a request middleware, call the `createMiddleware` function. You may call this function with the `type` property set to 'request', but this is the default value so you can omit it if you'd like.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const loggingMiddleware = createMiddleware().server(() => {
   //...
-})
+});
 ```
 
 ### Available Methods
@@ -3901,13 +4119,13 @@ Request middleware has the following methods:
 The `.server` method is used to define server-side logic that the middleware will execute before any nested middleware, and also provide the result to the next middleware. It receives the `next` method and other things like context and the request object:
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const loggingMiddleware = createMiddleware().server(
   ({ next, context, request }) => {
-    return next()
+    return next();
   },
-)
+);
 ```
 
 To quickly visualize this handshake, here is a diagram:
@@ -3936,11 +4154,11 @@ You can use request middleware with server routes in two ways:
 To have a server route use middleware for all methods, pass a middleware array to the `middleware` property of the method builder object.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const loggingMiddleware = createMiddleware().server(() => {
   //...
-})
+});
 
 export const Route = createFileRoute('/foo')({
   server: {
@@ -3954,7 +4172,7 @@ export const Route = createFileRoute('/foo')({
       },
     },
   },
-})
+});
 ```
 
 #### Specific Server Route Methods
@@ -3962,11 +4180,11 @@ export const Route = createFileRoute('/foo')({
 You can pass middleware to specific server route methods by using the `createHandlers` utility and passing a middleware array to the `middleware` property of the method object.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const loggingMiddleware = createMiddleware().server(() => {
   //...
-})
+});
 
 export const Route = createFileRoute('/foo')({
   server: {
@@ -3980,7 +4198,7 @@ export const Route = createFileRoute('/foo')({
         },
       }),
   },
-})
+});
 ```
 
 ## Server Function Middleware
@@ -3990,7 +4208,7 @@ Server function middleware is a **subset** of request middleware that has extra 
 To create a server function middleware, call the `createMiddleware` function with the `type` property set to 'function'.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const loggingMiddleware = createMiddleware({ type: 'function' })
   .client(() => {
@@ -3998,7 +4216,7 @@ const loggingMiddleware = createMiddleware({ type: 'function' })
   })
   .server(() => {
     //...
-  })
+  });
 ```
 
 ### Available Methods
@@ -4018,14 +4236,14 @@ Server function middleware has the following methods:
 The `.client` method is used to define client-side logic that the middleware will wrap the execution and result of the RPC call to the server.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const loggingMiddleware = createMiddleware({ type: 'function' }).client(
   async ({ next, context }) => {
-    const result = await next() // <-- This will execute the next middleware in the chain and eventually, the RPC to the server
-    return result
+    const result = await next(); // <-- This will execute the next middleware in the chain and eventually, the RPC to the server
+    return result;
   },
-)
+);
 ```
 
 ### The `.validator` method
@@ -4033,20 +4251,20 @@ const loggingMiddleware = createMiddleware({ type: 'function' }).client(
 The `validator` method is used to modify the data object before it is passed to this middleware, nested middleware, and ultimately the server function. This method should receive a function that takes the data object and returns a validated (and optionally modified) data object. It's common to use a validation library like `zod` to do this.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
-import { zodValidator } from '@tanstack/zod-adapter'
-import { z } from 'zod'
+import { createMiddleware } from '@tanstack/react-start';
+import { zodValidator } from '@tanstack/zod-adapter';
+import { z } from 'zod';
 
 const mySchema = z.object({
   workspaceId: z.string(),
-})
+});
 
 const workspaceMiddleware = createMiddleware({ type: 'function' })
   .validator(zodValidator(mySchema))
   .server(({ next, data }) => {
-    console.log('Workspace ID:', data.workspaceId)
-    return next()
-  })
+    console.log('Workspace ID:', data.workspaceId);
+    return next();
+  });
 ```
 
 ### Using Server Function Middleware
@@ -4054,14 +4272,14 @@ const workspaceMiddleware = createMiddleware({ type: 'function' })
 To have a middleware wrap a specific server function, you can pass a middleware array to the `middleware` property of the `createServerFn` function.
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
-import { loggingMiddleware } from './middleware'
+import { createServerFn } from '@tanstack/react-start';
+import { loggingMiddleware } from './middleware';
 
 const fn = createServerFn()
   .middleware([loggingMiddleware])
   .handler(async () => {
     //...
-  })
+  });
 ```
 
 To quickly visualize this handshake, here is a diagram:
@@ -4097,7 +4315,7 @@ sequenceDiagram
 The `next` function can be optionally called with an object that has a `context` property with an object value. Whatever properties you pass to this `context` value will be merged into the parent `context` and provided to the next middleware.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const awesomeMiddleware = createMiddleware({ type: 'function' }).server(
   ({ next }) => {
@@ -4105,16 +4323,16 @@ const awesomeMiddleware = createMiddleware({ type: 'function' }).server(
       context: {
         isAwesome: Math.random() > 0.5,
       },
-    })
+    });
   },
-)
+);
 
 const loggingMiddleware = createMiddleware({ type: 'function' })
   .middleware([awesomeMiddleware])
   .server(async ({ next, context }) => {
-    console.log('Is awesome?', context.isAwesome)
-    return next()
-  })
+    console.log('Is awesome?', context.isAwesome);
+    return next();
+  });
 ```
 
 ### Sending Client Context to the Server
@@ -4122,7 +4340,7 @@ const loggingMiddleware = createMiddleware({ type: 'function' })
 **Client context is NOT sent to the server by default since this could end up unintentionally sending large payloads to the server.** If you need to send client context to the server, you must call the `next` function with a `sendContext` property and object to transmit any data to the server. Any properties passed to `sendContext` will be merged, serialized and sent to the server along with the data and will be available on the normal context object of any nested server middleware.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const requestLogger = createMiddleware({ type: 'function' })
   .client(async ({ next, context }) => {
@@ -4131,13 +4349,13 @@ const requestLogger = createMiddleware({ type: 'function' })
         // Send the workspace ID to the server
         workspaceId: context.workspaceId,
       },
-    })
+    });
   })
   .server(async ({ next, data, context }) => {
     // Woah! We have the workspace ID from the client!
-    console.log('Workspace ID:', context.workspaceId)
-    return next()
-  })
+    console.log('Workspace ID:', context.workspaceId);
+    return next();
+  });
 ```
 
 #### Client-Sent Context Security
@@ -4147,8 +4365,8 @@ You may have noticed that in the example above while client-sent context is type
 > **Shape validation is not authorization.** A parsed UUID/number is a _well-formed_ identifier, not an _authorized_ one. If the value is going to be used as a query key, filter, or path parameter — anything that selects which row(s) get read or written — you must also verify the session principal has access to it. Otherwise a logged-in user can rewrite the value in their own request and walk other tenants' data.
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
-import { z } from 'zod'
+import { createMiddleware } from '@tanstack/react-start';
+import { z } from 'zod';
 
 const requestLogger = createMiddleware({ type: 'function' })
   .client(async ({ next, context }) => {
@@ -4156,21 +4374,21 @@ const requestLogger = createMiddleware({ type: 'function' })
       sendContext: {
         workspaceId: context.workspaceId,
       },
-    })
+    });
   })
   .middleware([authMiddleware]) // session loaded server-side, NOT from sendContext
   .server(async ({ next, context }) => {
     // 1. Validate shape
-    const workspaceId = z.string().uuid().parse(context.workspaceId)
+    const workspaceId = z.string().uuid().parse(context.workspaceId);
     // 2. Validate access — does this session principal have membership?
     const member = await db.memberships.find({
       userId: context.session.userId,
       workspaceId,
-    })
-    if (!member) throw new Error('Not a member of this workspace')
+    });
+    if (!member) throw new Error('Not a member of this workspace');
     // 3. Now safe to use as a query key.
-    return next({ context: { workspaceId } })
-  })
+    return next({ context: { workspaceId } });
+  });
 ```
 
 Always derive the session itself from a server-trusted source (a cookie + DB lookup in `authMiddleware`), never from `sendContext`. Anything the client can send, the client can lie about.
@@ -4183,7 +4401,7 @@ Similar to sending client context to the server, you can also send server contex
 > The return type of `next` in `client` can only be inferred from middleware known in the current middleware chain. Therefore the most accurate return type of `next` is in middleware at the end of the middleware chain
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const serverTimer = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
@@ -4192,19 +4410,19 @@ const serverTimer = createMiddleware({ type: 'function' }).server(
         // Send the current time to the client
         timeFromServer: new Date(),
       },
-    })
+    });
   },
-)
+);
 
 const requestLogger = createMiddleware({ type: 'function' })
   .middleware([serverTimer])
   .client(async ({ next }) => {
-    const result = await next()
+    const result = await next();
     // Woah! We have the time from the server!
-    console.log('Time from the server:', result.context.timeFromServer)
+    console.log('Time from the server:', result.context.timeFromServer);
 
-    return result
-  })
+    return result;
+  });
 ```
 
 ## Global Middleware
@@ -4220,17 +4438,17 @@ To have a middleware run for **every request handled by Start**, create a `src/s
 
 ```tsx
 // src/start.ts
-import { createStart, createMiddleware } from '@tanstack/react-start'
+import { createStart, createMiddleware } from '@tanstack/react-start';
 
 const myGlobalMiddleware = createMiddleware().server(() => {
   //...
-})
+});
 
 export const startInstance = createStart(() => {
   return {
     requestMiddleware: [myGlobalMiddleware],
-  }
-})
+  };
+});
 ```
 
 > [!NOTE]
@@ -4244,15 +4462,15 @@ If you define a custom `src/start.ts`, add `createCsrfMiddleware()` explicitly:
 
 ```tsx
 // src/start.ts
-import { createStart, createCsrfMiddleware } from '@tanstack/react-start'
+import { createStart, createCsrfMiddleware } from '@tanstack/react-start';
 
 const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === 'serverFn',
-})
+});
 
 export const startInstance = createStart(() => ({
   requestMiddleware: [csrfMiddleware],
-}))
+}));
 ```
 
 By default, `Origin` and `Referer` checks compare against the incoming request URL origin. If your deployment needs to allow a different public origin, configure it on the CSRF middleware with `createCsrfMiddleware({ origin: 'https://app.example.com' })`.
@@ -4278,7 +4496,7 @@ tanstackStart({
   serverFns: {
     disableCsrfMiddlewareWarning: true,
   },
-})
+});
 ```
 
 ### Global Server Function Middleware
@@ -4287,14 +4505,14 @@ To have a middleware run for **every server function in your application**, add 
 
 ```tsx
 // src/start.ts
-import { createStart } from '@tanstack/react-start'
-import { loggingMiddleware } from './middleware'
+import { createStart } from '@tanstack/react-start';
+import { loggingMiddleware } from './middleware';
 
 export const startInstance = createStart(() => {
   return {
     functionMiddleware: [loggingMiddleware],
-  }
-})
+  };
+});
 ```
 
 ### Middleware Execution Order
@@ -4310,52 +4528,52 @@ Middleware is executed dependency-first, starting with global middleware, follow
 - `fn`
 
 ```tsx
-import { createMiddleware, createServerFn } from '@tanstack/react-start'
+import { createMiddleware, createServerFn } from '@tanstack/react-start';
 
 const globalMiddleware1 = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
-    console.log('globalMiddleware1')
-    return next()
+    console.log('globalMiddleware1');
+    return next();
   },
-)
+);
 
 const globalMiddleware2 = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
-    console.log('globalMiddleware2')
-    return next()
+    console.log('globalMiddleware2');
+    return next();
   },
-)
+);
 
 const a = createMiddleware({ type: 'function' }).server(async ({ next }) => {
-  console.log('a')
-  return next()
-})
+  console.log('a');
+  return next();
+});
 
 const b = createMiddleware({ type: 'function' })
   .middleware([a])
   .server(async ({ next }) => {
-    console.log('b')
-    return next()
-  })
+    console.log('b');
+    return next();
+  });
 
 const c = createMiddleware({ type: 'function' })
   .middleware()
   .server(async ({ next }) => {
-    console.log('c')
-    return next()
-  })
+    console.log('c');
+    return next();
+  });
 
 const d = createMiddleware({ type: 'function' })
   .middleware([b, c])
   .server(async () => {
-    console.log('d')
-  })
+    console.log('d');
+  });
 
 const fn = createServerFn()
   .middleware([d])
   .server(async () => {
-    console.log('fn')
-  })
+    console.log('fn');
+  });
 ```
 
 ## Request and Response Modification
@@ -4373,8 +4591,8 @@ Middleware that uses the `client` method executes in a **completely different cl
 You can add headers to the outgoing request by passing a `headers` object to `next`:
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
-import { getToken } from 'my-auth-library'
+import { createMiddleware } from '@tanstack/react-start';
+import { getToken } from 'my-auth-library';
 
 const authMiddleware = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
@@ -4382,9 +4600,9 @@ const authMiddleware = createMiddleware({ type: 'function' }).client(
       headers: {
         Authorization: `Bearer ${getToken()}`,
       },
-    })
+    });
   },
-)
+);
 ```
 
 #### Header Merging Across Middleware
@@ -4392,7 +4610,7 @@ const authMiddleware = createMiddleware({ type: 'function' }).client(
 When multiple middlewares set headers, they are **merged together**. Later middlewares can add new headers or override headers set by earlier middlewares:
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
 
 const firstMiddleware = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
@@ -4401,9 +4619,9 @@ const firstMiddleware = createMiddleware({ type: 'function' }).client(
         'X-Request-ID': '12345',
         'X-Source': 'first-middleware',
       },
-    })
+    });
   },
-)
+);
 
 const secondMiddleware = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
@@ -4412,9 +4630,9 @@ const secondMiddleware = createMiddleware({ type: 'function' }).client(
         'X-Timestamp': Date.now().toString(),
         'X-Source': 'second-middleware', // Overrides first middleware
       },
-    })
+    });
   },
-)
+);
 
 // Final headers will include:
 // - X-Request-ID: '12345' (from first)
@@ -4430,7 +4648,7 @@ await myServerFn({
   headers: {
     'X-Custom-Header': 'call-site-value',
   },
-})
+});
 ```
 
 **Header precedence (all headers are merged, later values override earlier):**
@@ -4451,40 +4669,40 @@ For advanced use cases, you can provide a custom `fetch` implementation to contr
 **Via Client Middleware:**
 
 ```tsx
-import { createMiddleware } from '@tanstack/react-start'
-import type { CustomFetch } from '@tanstack/react-start'
+import { createMiddleware } from '@tanstack/react-start';
+import type { CustomFetch } from '@tanstack/react-start';
 
 const customFetchMiddleware = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
     const customFetch: CustomFetch = async (url, init) => {
-      console.log('Request starting:', url)
-      const start = Date.now()
+      console.log('Request starting:', url);
+      const start = Date.now();
 
-      const response = await fetch(url, init)
+      const response = await fetch(url, init);
 
-      console.log('Request completed in', Date.now() - start, 'ms')
-      return response
-    }
+      console.log('Request completed in', Date.now() - start, 'ms');
+      return response;
+    };
 
-    return next({ fetch: customFetch })
+    return next({ fetch: customFetch });
   },
-)
+);
 ```
 
 **Directly at Call Site:**
 
 ```tsx
-import type { CustomFetch } from '@tanstack/react-start'
+import type { CustomFetch } from '@tanstack/react-start';
 
 const myFetch: CustomFetch = async (url, init) => {
   // Add custom logic here
-  return fetch(url, init)
-}
+  return fetch(url, init);
+};
 
 await myServerFn({
   data: { name: 'John' },
   fetch: myFetch,
-})
+});
 ```
 
 #### Fetch Override Precedence
@@ -4502,35 +4720,35 @@ When custom fetch implementations are provided at multiple levels, the following
 **Key principle:** The call site always wins. This allows you to override middleware behavior for specific calls when needed.
 
 ```tsx
-import { createMiddleware, createServerFn } from '@tanstack/react-start'
-import type { CustomFetch } from '@tanstack/react-start'
+import { createMiddleware, createServerFn } from '@tanstack/react-start';
+import type { CustomFetch } from '@tanstack/react-start';
 
 // Middleware sets a fetch that adds logging
 const loggingMiddleware = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
     const loggingFetch: CustomFetch = async (url, init) => {
-      console.log('Middleware fetch:', url)
-      return fetch(url, init)
-    }
-    return next({ fetch: loggingFetch })
+      console.log('Middleware fetch:', url);
+      return fetch(url, init);
+    };
+    return next({ fetch: loggingFetch });
   },
-)
+);
 
 const myServerFn = createServerFn()
   .middleware([loggingMiddleware])
   .handler(async () => {
-    return { message: 'Hello' }
-  })
+    return { message: 'Hello' };
+  });
 
 // Uses middleware's loggingFetch
-await myServerFn()
+await myServerFn();
 
 // Override with custom fetch for this specific call
 const testFetch: CustomFetch = async (url, init) => {
-  console.log('Test fetch:', url)
-  return fetch(url, init)
-}
-await myServerFn({ fetch: testFetch }) // Uses testFetch, NOT loggingFetch
+  console.log('Test fetch:', url);
+  return fetch(url, init);
+};
+await myServerFn({ fetch: testFetch }); // Uses testFetch, NOT loggingFetch
 ```
 
 **Chained Middleware Example:**
@@ -4538,38 +4756,38 @@ await myServerFn({ fetch: testFetch }) // Uses testFetch, NOT loggingFetch
 When multiple middlewares provide fetch, the last one wins:
 
 ```tsx
-import { createMiddleware, createServerFn } from '@tanstack/react-start'
-import type { CustomFetch } from '@tanstack/react-start'
+import { createMiddleware, createServerFn } from '@tanstack/react-start';
+import type { CustomFetch } from '@tanstack/react-start';
 
 const firstMiddleware = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
     const firstFetch: CustomFetch = (url, init) => {
-      const headers = new Headers(init?.headers)
-      headers.set('X-From', 'first-middleware')
-      return fetch(url, { ...init, headers })
-    }
-    return next({ fetch: firstFetch })
+      const headers = new Headers(init?.headers);
+      headers.set('X-From', 'first-middleware');
+      return fetch(url, { ...init, headers });
+    };
+    return next({ fetch: firstFetch });
   },
-)
+);
 
 const secondMiddleware = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
     const secondFetch: CustomFetch = (url, init) => {
-      const headers = new Headers(init?.headers)
-      headers.set('X-From', 'second-middleware')
-      return fetch(url, { ...init, headers })
-    }
-    return next({ fetch: secondFetch })
+      const headers = new Headers(init?.headers);
+      headers.set('X-From', 'second-middleware');
+      return fetch(url, { ...init, headers });
+    };
+    return next({ fetch: secondFetch });
   },
-)
+);
 
 const myServerFn = createServerFn()
   .middleware([firstMiddleware, secondMiddleware])
   .handler(async () => {
     // Request will have X-From: 'second-middleware'
     // because secondMiddleware's fetch overrides firstMiddleware's fetch
-    return { message: 'Hello' }
-  })
+    return { message: 'Hello' };
+  });
 ```
 
 **Global Fetch via createStart:**
@@ -4578,22 +4796,22 @@ You can set a default custom fetch for all server functions in your application 
 
 ```tsx
 // src/start.ts
-import { createStart } from '@tanstack/react-start'
-import type { CustomFetch } from '@tanstack/react-start'
+import { createStart } from '@tanstack/react-start';
+import type { CustomFetch } from '@tanstack/react-start';
 
 const globalFetch: CustomFetch = async (url, init) => {
-  console.log('Global fetch:', url)
+  console.log('Global fetch:', url);
   // Add retry logic, telemetry, etc.
-  return fetch(url, init)
-}
+  return fetch(url, init);
+};
 
 export const startInstance = createStart(() => {
   return {
     serverFns: {
       fetch: globalFetch,
     },
-  }
-})
+  };
+});
 ```
 
 This global fetch has lower priority than middleware and call-site fetch, so you can still override it for specific server functions or calls when needed.
@@ -4622,22 +4840,22 @@ This middleware validates the session and injects it into `context` for downstre
 
 ```tsx
 // middleware.ts
-import { createMiddleware } from '@tanstack/react-start'
-import { auth } from './my-auth'
+import { createMiddleware } from '@tanstack/react-start';
+import { auth } from './my-auth';
 
 export const authMiddleware = createMiddleware().server(
   async ({ next, request }) => {
-    const session = await auth.getSession({ headers: request.headers })
+    const session = await auth.getSession({ headers: request.headers });
 
     if (!session) {
-      throw new Error('Unauthorized')
+      throw new Error('Unauthorized');
     }
 
     return await next({
       context: { session },
-    })
+    });
   },
-)
+);
 ```
 
 **Authorization (Middleware Factory) Example:**
@@ -4646,29 +4864,29 @@ The middleware validates access based on the dynamic `permissions` parameter, co
 
 ```tsx
 // middleware.ts
-import { createMiddleware } from '@tanstack/react-start'
-import { auth } from './my-auth'
+import { createMiddleware } from '@tanstack/react-start';
+import { auth } from './my-auth';
 
 export const authMiddleware = createMiddleware().server(
   async ({ next, request }) => {
     // ... (implementation from authentication example above)
   },
-)
+);
 
-type Permissions = Record<string, string[]>
+type Permissions = Record<string, string[]>;
 
 export function authorizationMiddleware(permissions: Permissions) {
   return createMiddleware({ type: 'function' })
     .middleware([authMiddleware])
     .server(async ({ next, context }) => {
-      const granted = await auth.hasPermission(context.session, permissions)
+      const granted = await auth.hasPermission(context.session, permissions);
 
       if (!granted) {
-        throw new Error('Forbidden')
+        throw new Error('Forbidden');
       }
 
-      return await next()
-    })
+      return await next();
+    });
 }
 ```
 
@@ -4677,8 +4895,8 @@ export function authorizationMiddleware(permissions: Permissions) {
 Access requirements are defined per server function, without duplicating any middleware logic.
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
-import { authorizationMiddleware } from './middleware'
+import { createServerFn } from '@tanstack/react-start';
+import { authorizationMiddleware } from './middleware';
 
 export const getClients = createServerFn()
   .middleware([
@@ -4687,13 +4905,15 @@ export const getClients = createServerFn()
     }),
   ])
   .handler(async ({ context }) => {
-    return { message: 'The user can read clients.' }
-  })
+    return { message: 'The user can read clients.' };
+  });
 ```
 
 ---
+
 id: error-boundaries
 title: Error Boundaries
+
 ---
 
 ## Error Boundaries (React Start)
@@ -4707,8 +4927,8 @@ TanStack Start uses TanStack Router's route-level error boundaries.
 
 ```tsx
 // src/router.tsx
-import { createRouter, ErrorComponent } from '@tanstack/react-router'
-import { routeTree } from './routeTree.gen'
+import { createRouter, ErrorComponent } from '@tanstack/react-router';
+import { routeTree } from './routeTree.gen';
 
 export function getRouter() {
   const router = createRouter({
@@ -4717,8 +4937,8 @@ export function getRouter() {
     defaultErrorComponent: ({ error, reset }) => (
       <ErrorComponent error={error} />
     ),
-  })
-  return router
+  });
+  return router;
 }
 ```
 
@@ -4726,17 +4946,17 @@ export function getRouter() {
 
 ```tsx
 // src/routes/posts.$postId.tsx
-import { createFileRoute, ErrorComponent } from '@tanstack/react-router'
-import type { ErrorComponentProps } from '@tanstack/react-router'
+import { createFileRoute, ErrorComponent } from '@tanstack/react-router';
+import type { ErrorComponentProps } from '@tanstack/react-router';
 
 function PostError({ error, reset }: ErrorComponentProps) {
-  return <ErrorComponent error={error} />
+  return <ErrorComponent error={error} />;
 }
 
 export const Route = createFileRoute('/posts/$postId')({
   component: PostComponent,
   errorComponent: PostError,
-})
+});
 ```
 
 Notes:
@@ -4746,8 +4966,10 @@ Notes:
 - Use `beforeLoad`/`loader` to throw errors that will be caught.
 
 ---
+
 id: server-routes
 title: Server Routes
+
 ---
 
 Server routes are a powerful feature of TanStack Start that allow you to create server-side endpoints in your application and are useful for handling raw HTTP requests, form submissions, user authentication, and much more.
@@ -4758,18 +4980,21 @@ Here's what a simple server route looks like:
 
 ```ts
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        return new Response('Hello, World!')
+        return new Response('Hello, World!');
       },
     },
   },
-})
+});
 ```
+
+> [!NOTE]
+> Server routes are meant for HTTP endpoints that need to be called from outside your TanStack Start application. If you only need to call server-side logic from within your Start app and want Start to handle serialization for you, use [server functions](./server-functions) instead.
 
 ## Server Routes and App Routes
 
@@ -4777,22 +5002,24 @@ Because server routes can be defined in the same directory as your app routes, y
 
 ```tsx
 // routes/hello.tsx
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = await request.json()
-        return new Response(JSON.stringify({ message: `Hello, ${body.name}!` }))
+        const body = await request.json();
+        return new Response(
+          JSON.stringify({ message: `Hello, ${body.name}!` }),
+        );
       },
     },
   },
   component: HelloComponent,
-})
+});
 
 function HelloComponent() {
-  const [reply, setReply] = useState('')
+  const [reply, setReply] = useState('');
 
   return (
     <div>
@@ -4806,13 +5033,12 @@ function HelloComponent() {
             body: JSON.stringify({ name: 'Tanner' }),
           })
             .then((res) => res.json())
-            .then((data) => setReply(data.message))
-        }}
-      >
+            .then((data) => setReply(data.message));
+        }}>
         Say Hello
       </button>
     </div>
-  )
+  );
 }
 ```
 
@@ -4868,17 +5094,17 @@ Server routes are created by adding a `server` property to your `createFileRoute
 
 ```ts
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        return new Response('Hello, World! from ' + request.url)
+        return new Response('Hello, World! from ' + request.url);
       },
     },
   },
-})
+});
 ```
 
 ## Defining Server Route Handlers
@@ -4894,17 +5120,17 @@ For simple use cases, you can provide handler functions directly in a handlers o
 
 ```ts
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        return new Response('Hello, World! from ' + request.url)
+        return new Response('Hello, World! from ' + request.url);
       },
     },
   },
-})
+});
 ```
 
 ### Adding middleware to specific handlers
@@ -4913,7 +5139,7 @@ For more complex use cases, you can add middleware to specific handlers. This re
 
 ```tsx
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
@@ -4922,12 +5148,12 @@ export const Route = createFileRoute('/hello')({
         GET: {
           middleware: [loggerMiddleware],
           handler: async ({ request }) => {
-            return new Response('Hello, World! from ' + request.url)
+            return new Response('Hello, World! from ' + request.url);
           },
         },
       }),
   },
-})
+});
 ```
 
 ### Adding middleware to all handlers
@@ -4936,22 +5162,22 @@ You can also add middleware that applies to all handlers in a route by using the
 
 ```tsx
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
     middleware: [authMiddleware, loggerMiddleware], // Applies to all handlers
     handlers: {
       GET: async ({ request }) => {
-        return new Response('Hello, World! from ' + request.url)
+        return new Response('Hello, World! from ' + request.url);
       },
       POST: async ({ request }) => {
-        const body = await request.json()
-        return new Response(`Hello, ${body.name}!`)
+        const body = await request.json();
+        return new Response(`Hello, ${body.name}!`);
       },
     },
   },
-})
+});
 ```
 
 ### Combining route-level and handler-specific middleware
@@ -4960,7 +5186,7 @@ You can combine both approaches - route-level middleware will run first, followe
 
 ```tsx
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
@@ -4968,18 +5194,18 @@ export const Route = createFileRoute('/hello')({
     handlers: ({ createHandlers }) =>
       createHandlers({
         GET: async ({ request }) => {
-          return new Response('Hello, World!')
+          return new Response('Hello, World!');
         },
         POST: {
           middleware: [validationMiddleware], // Runs after authMiddleware, only for POST
           handler: async ({ request }) => {
-            const body = await request.json()
-            return new Response(`Hello, ${body.name}!`)
+            const body = await request.json();
+            return new Response(`Hello, ${body.name}!`);
           },
         },
       }),
   },
-})
+});
 ```
 
 ## Handler Context
@@ -4998,18 +5224,18 @@ Server routes support dynamic path parameters in the same way as TanStack Router
 
 ```ts
 // routes/users/$id.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/users/$id')({
   server: {
     handlers: {
       GET: async ({ params }) => {
-        const { id } = params
-        return new Response(`User ID: ${id}`)
+        const { id } = params;
+        return new Response(`User ID: ${id}`);
       },
     },
   },
-})
+});
 
 // Visit /users/123 to see the response
 // User ID: 123
@@ -5019,18 +5245,18 @@ You can also have multiple dynamic path parameters in a single route. For exampl
 
 ```ts
 // routes/users/$id/posts/$postId.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/users/$id/posts/$postId')({
   server: {
     handlers: {
       GET: async ({ params }) => {
-        const { id, postId } = params
-        return new Response(`User ID: ${id}, Post ID: ${postId}`)
+        const { id, postId } = params;
+        return new Response(`User ID: ${id}, Post ID: ${postId}`);
       },
     },
   },
-})
+});
 
 // Visit /users/123/posts/456 to see the response
 // User ID: 123, Post ID: 456
@@ -5042,18 +5268,18 @@ Server routes also support wildcard parameters at the end of the path, which are
 
 ```ts
 // routes/file/$.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/file/$')({
   server: {
     handlers: {
       GET: async ({ params }) => {
-        const { _splat } = params
-        return new Response(`File: ${_splat}`)
+        const { _splat } = params;
+        return new Response(`File: ${_splat}`);
       },
     },
   },
-})
+});
 
 // Visit /file/hello.txt to see the response
 // File: hello.txt
@@ -5065,18 +5291,18 @@ To handle POST requests, you can add a `POST` handler to the route object. The h
 
 ```ts
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = await request.json()
-        return new Response(`Hello, ${body.name}!`)
+        const body = await request.json();
+        return new Response(`Hello, ${body.name}!`);
       },
     },
   },
-})
+});
 
 // Send a POST request to /hello with a JSON body like { "name": "Tanner" }
 // Hello, Tanner!
@@ -5094,7 +5320,7 @@ When returning JSON using a Response object, this is a common pattern:
 
 ```ts
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
@@ -5104,11 +5330,11 @@ export const Route = createFileRoute('/hello')({
           headers: {
             'Content-Type': 'application/json',
           },
-        })
+        });
       },
     },
   },
-})
+});
 
 // Visit /hello to see the response
 // {"message":"Hello, World!"}
@@ -5120,17 +5346,17 @@ Or you can use the [`Response.json`](https://developer.mozilla.org/en-US/docs/We
 
 ```ts
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        return Response.json({ message: 'Hello, World!' })
+        return Response.json({ message: 'Hello, World!' });
       },
     },
   },
-})
+});
 
 // Visit /hello to see the response
 // {"message":"Hello, World!"}
@@ -5142,23 +5368,23 @@ You can set the status code of the response by passing it as a property of the s
 
 ```ts
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/hello')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const user = await findUser(params.id)
+        const user = await findUser(params.id);
         if (!user) {
           return new Response('User not found', {
             status: 404,
-          })
+          });
         }
-        return Response.json(user)
+        return Response.json(user);
       },
     },
   },
-})
+});
 ```
 
 In this example, we're returning a `404` status code if the user is not found. You can set any valid HTTP status code using this method.
@@ -5169,7 +5395,7 @@ Sometimes you may need to set headers in the response. You can do this by passin
 
 ```ts
 // routes/hello.ts
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 export const Route = createFileRoute('/hello')({
   server: {
     handlers: {
@@ -5178,3870 +5404,11 @@ export const Route = createFileRoute('/hello')({
           headers: {
             'Content-Type': 'text/plain',
           },
-        })
+        });
       },
     },
   },
-})
+});
 // Visit /hello to see the response
 // Hello, World!
 ```
-
----
-id: hydration-errors
-title: Hydration Errors
----
-
-### Why it happens
-
-- **Mismatch**: Server HTML differs from client render during hydration
-- **Common causes**: `Intl` (locale/time zone), `Date.now()`, random IDs, responsive-only logic, feature flags, user prefs
-
-### Strategy 1 — Make server and client match
-
-- **Pick a deterministic locale/time zone on the server** and use the same on the client
-- **Source of truth**: cookie (preferred) or `Accept-Language` header
-- **Compute once on the server** and hydrate as initial state
-
-```tsx
-// src/start.ts
-import { createStart, createMiddleware } from '@tanstack/react-start'
-import {
-  getRequestHeader,
-  getCookie,
-  setCookie,
-} from '@tanstack/react-start/server'
-
-const localeTzMiddleware = createMiddleware().server(async ({ next }) => {
-  const header = getRequestHeader('accept-language')
-  const headerLocale = header?.split(',')[0] || 'en-US'
-  const cookieLocale = getCookie('locale')
-  const cookieTz = getCookie('tz') // set by client later (see Strategy 2)
-
-  const locale = cookieLocale || headerLocale
-  const timeZone = cookieTz || 'UTC' // deterministic until client sends tz
-
-  // Persist locale for subsequent requests (optional)
-  setCookie('locale', locale, { path: '/', maxAge: 60 * 60 * 24 * 365 })
-
-  return next({ context: { locale, timeZone } })
-})
-
-export const startInstance = createStart(() => ({
-  requestMiddleware: [localeTzMiddleware],
-}))
-```
-
-```tsx
-// src/routes/index.tsx (example)
-import * as React from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { createServerFn } from '@tanstack/react-start'
-import { getCookie } from '@tanstack/react-start/server'
-
-export const getServerNow = createServerFn().handler(async () => {
-  const locale = getCookie('locale') || 'en-US'
-  const timeZone = getCookie('tz') || 'UTC'
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone,
-  }).format(new Date())
-})
-
-export const Route = createFileRoute('/')({
-  loader: () => getServerNow(),
-  component: () => {
-    const serverNow = Route.useLoaderData() as string
-    return <time dateTime={serverNow}>{serverNow}</time>
-  },
-})
-```
-
-### Strategy 2 — Let the client tell you its environment
-
-- On first visit, set a cookie with the client time zone; SSR uses `UTC` until then
-- Do this without risking mismatches
-
-```tsx
-import * as React from 'react'
-import { ClientOnly } from '@tanstack/react-router'
-
-function SetTimeZoneCookie() {
-  React.useEffect(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    document.cookie = `tz=${tz}; path=/; max-age=31536000`
-  }, [])
-  return null
-}
-
-export function AppBoot() {
-  return (
-    <ClientOnly fallback={null}>
-      <SetTimeZoneCookie />
-    </ClientOnly>
-  )
-}
-```
-
-### Strategy 3 — Make it client-only
-
-- Wrap unstable UI in `<ClientOnly>` to avoid SSR and mismatches
-
-```tsx
-import { ClientOnly } from '@tanstack/react-router'
-;<ClientOnly fallback={<span>—</span>}>
-  <RelativeTime ts={someTs} />
-</ClientOnly>
-```
-
-### Strategy 4 — Disable or limit SSR for the route
-
-- Use Selective SSR to avoid rendering the component on the server
-
-```tsx
-export const Route = createFileRoute('/unstable')({
-  ssr: 'data-only', // or false
-  component: () => <ExpensiveViz />,
-})
-```
-
-### Strategy 5 — Last resort suppression
-
-- For small, known-different nodes, you can use React’s `suppressHydrationWarning`
-
-```tsx
-<time suppressHydrationWarning>{new Date().toLocaleString()}</time>
-```
-
-### Checklist
-
-- **Deterministic inputs**: locale, time zone, feature flags
-- **Prefer cookies** for client context; fallback to `Accept-Language`
-- **Use `<ClientOnly>`** for inherently dynamic UI
-- **Use Selective SSR** when server HTML cannot be stable
-- **Avoid blind suppression**; use `suppressHydrationWarning` sparingly
-
-See also: [Execution Model](./execution-model.md), [Code Execution Patterns](./code-execution-patterns.md), [Selective SSR](./selective-ssr.md), [Server Functions](./server-functions.md)
-
----
-id: deferred-hydration
-title: Deferred Hydration
----
-
-> Deferred hydration is experimental
-
-On an initial page load, TanStack Start server-renders your page so the browser
-can show useful HTML quickly. Hydration is the client-side work that turns that
-initial HTML document into an interactive app. It loads and executes JavaScript,
-runs components, attaches event handlers, and reconnects the existing DOM to
-React.
-
-Deferred hydration applies to this initial document hydration work. After the
-app is already running, subsequent client-side navigations render through the
-client app; there is no initial server HTML for TanStack Start to preserve.
-
-By default, TanStack Start hydrates the full document. That is usually the
-simplest and safest behavior, but large pages can spend meaningful startup time
-loading JavaScript and hydrating parts of the page that the user may not need
-right away.
-
-Deferred hydration lets you mark selected parts of a page as "not interactive
-yet". The server HTML remains in the document, but TanStack Start waits to
-hydrate that boundary until a strategy says it is time. By default, the compiler
-also moves the boundary children into a separate JavaScript chunk so the browser
-can delay loading that code too.
-
-Use deferred hydration when a part of the page should be visible, styled, and
-indexable immediately, but does not need to be interactive immediately.
-
-## Add A Deferred Boundary
-
-Use `Hydrate` with a strategy from `@tanstack/react-start/hydration`:
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { visible } from '@tanstack/react-start/hydration'
-
-export function ProductPage() {
-  return (
-    <Hydrate when={visible({ rootMargin: '400px' })}>
-      <Reviews />
-    </Hydrate>
-  )
-}
-```
-
-On the initial server response, `Reviews` is still rendered to HTML. During the
-initial client hydration pass, that HTML is preserved but the `Reviews` React
-tree does not hydrate yet. When the boundary comes within `400px` of the
-viewport, TanStack Start loads the deferred child chunk and hydrates the
-boundary.
-
-`Hydrate` only preserves server HTML that exists in the initial document. If the
-same boundary first mounts later, for example after client-side navigation,
-there is no server HTML to preserve, so it renders normally on the client.
-
-## Choose What To Defer
-
-The right boundary depends on your page, your product priorities, and real user
-behavior. TanStack Start cannot know which parts of your page are safe to delay.
-
-Good candidates are usually SSR content that is not needed for immediate
-interaction:
-
-- Below-the-fold reviews, comments, product details, related content, or long
-  marketing sections.
-- Rich widgets such as maps, charts, carousels, video players, editors, or
-  embeds.
-- Panels that are activated by intent, such as filters, preview panes, or
-  contextual tools.
-- UI that only matters for a matching media query.
-- Static server-rendered content that should not hydrate on the initial
-  document.
-
-Poor candidates are parts of the page users may need immediately:
-
-- Primary navigation, route chrome, search boxes, and account controls.
-- Above-the-fold forms, add-to-cart buttons, checkout actions, or consent
-  controls.
-- The interactive part of the LCP or hero area when users may click it
-  immediately.
-- Accessibility-critical controls that must be keyboard-ready as soon as the
-  page appears.
-- Components whose props, context, or shared state are expected to update
-  immediately after app startup.
-
-Measure each boundary. A useful boundary reduces startup JavaScript or hydration
-work without making expected interactions feel late.
-
-## Comparison To Astro Islands
-
-Astro starts static and asks "what should come alive?" Each answer is an
-isolated framework root dropped into HTML. Islands are independent runtimes
-sharing a DOM.
-
-TanStack Start starts fully interactive and asks "what can wait?" The whole
-document hydrates as one React tree by default; `Hydrate` boundaries are gates
-inside that tree. Context, state, and events flow through normally, and
-hydration is parent-first.
-
-Same trigger vocabulary, different substrate: Astro composes runtimes, Start
-schedules one. That is why Start gets `interaction()`, `condition()`, and intent
-bubbling, and why Astro gets multi-framework.
-
-## Comparison To React Selective Hydration
-
-React's selective hydration controls the order in which server-rendered
-boundaries hydrate. Deferred hydration controls whether and when each
-boundary hydrates at all.
-
-When React hydrates a streaming SSR page, every server-rendered
-`<Suspense>` boundary will eventually hydrate. Selective hydration just
-decides the order: each boundary hydrates as soon as its code arrives,
-and React jumps a boundary to the front of the queue if the user clicks
-inside it. The work is fixed by what the server rendered; React
-schedules it to feel responsive.
-
-Deferred hydration changes what is in the queue in the first place. A
-`Hydrate` boundary names a condition — `visible()`, `idle()`,
-`interaction()`, `media()`, `condition()`, or `never()` — and the
-boundary stays as static server HTML until that condition fires. By
-default the child JavaScript also moves into a separate chunk that the
-browser does not download until the boundary is about to hydrate. If the
-condition never fires, the boundary never hydrates and its code is never
-fetched.
-
-The two compose. A `Hydrate` boundary decides whether and when React
-starts hydrating a subtree; once it opens, anything inside it (including
-`<Suspense>` boundaries) flows back into React's normal hydration
-scheduler. Use `<Suspense>` when hydration must happen and you want React
-to prioritize it well. Use `Hydrate` when hydration might not need to
-happen at all.
-
-## The Three Decisions
-
-Each `Hydrate` boundary has three performance decisions:
-
-| Decision    | Option     | What it controls                                                   |
-| ----------- | ---------- | ------------------------------------------------------------------ |
-| Hydration   | `when`     | When the preserved server HTML becomes interactive.                |
-| Code split  | `split`    | Whether the children move into a generated deferred child chunk.   |
-| Preparation | `prefetch` | Whether work starts before the `when` strategy hydrates the child. |
-
-### `when`: decide when the boundary hydrates
-
-`when` is required. Pass a strategy object for the common case:
-
-```tsx
-<Hydrate when={visible()}>
-  <Reviews />
-</Hydrate>
-```
-
-Pass a function when the decision needs browser-only information:
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { interaction, visible } from '@tanstack/react-start/hydration'
-
-export function RecommendationsBoundary() {
-  return (
-    <Hydrate
-      when={() =>
-        navigator.connection?.saveData
-          ? interaction({ events: 'click' })
-          : visible()
-      }
-    >
-      <Recommendations />
-    </Hydrate>
-  )
-}
-```
-
-The function form is evaluated only on the client and must synchronously return
-a strategy. Use `never()` when you intentionally want the initial server HTML to
-stay static.
-
-### `split`: decide whether to create a separate child chunk
-
-By default, `Hydrate` splits the children into a generated child chunk:
-
-```tsx
-<Hydrate when={visible()}>
-  <HeavyWidget />
-</Hydrate>
-```
-
-This delays both hydration work and child JavaScript loading.
-
-Set `split={false}` when the child code is small or already needed elsewhere,
-and you only want to delay hydration work:
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { idle } from '@tanstack/react-start/hydration'
-
-export function SmallWidgetBoundary() {
-  return (
-    <Hydrate when={idle()} split={false}>
-      <SmallWidget />
-    </Hydrate>
-  )
-}
-```
-
-### `prefetch`: decide whether to start loading before hydration
-
-`prefetch` starts loading before the boundary hydrates. It has two forms:
-
-| Form                | Example                             | Use it for                                                     |
-| ------------------- | ----------------------------------- | -------------------------------------------------------------- |
-| Prefetch strategy   | `prefetch={idle()}`                 | Preloading the generated child chunk before hydration.         |
-| Procedural prefetch | `prefetch={async (ctx) => { ... }}` | Preloading the child chunk plus data or other async resources. |
-
-Both forms start work early, but they do not change when the boundary becomes
-interactive. That is still controlled by `when`.
-
-A prefetch strategy is the small, declarative form:
-
-```tsx
-import { idle, interaction, visible } from '@tanstack/react-start/hydration'
-
-<Hydrate when={interaction()} prefetch={idle()}>
-  <ProductRecommendations />
-</Hydrate>
-
-<Hydrate
-  when={interaction()}
-  prefetch={visible({ rootMargin: '1200px' })}
->
-  <RelatedProducts />
-</Hydrate>
-```
-
-Strategy-form `prefetch` downloads the generated child chunk before the boundary
-hydrates. This can make the later hydration trigger feel faster, because the
-browser may already have the chunk by the time `when` resolves. Generated child
-chunks only exist when `split` is enabled, so TypeScript rejects strategy-form
-`prefetch` when `split={false}`.
-
-Use procedural prefetch when you need custom work:
-
-```tsx
-import { useQueryClient } from '@tanstack/react-query'
-import { Hydrate } from '@tanstack/react-start'
-import { visible } from '@tanstack/react-start/hydration'
-
-function DeferredReviews() {
-  const queryClient = useQueryClient()
-
-  return (
-    <Hydrate
-      when={visible()}
-      prefetch={async ({ preload }) => {
-        await preload()
-        await queryClient.prefetchQuery(reviewsQueryOptions)
-      }}
-    >
-      <Reviews />
-    </Hydrate>
-  )
-}
-```
-
-Procedural prefetch also works with `split={false}`. In that case, `preload()`
-is a resolved no-op, but the function can still prepare data or other
-resources.
-
-## Common Recipes
-
-### Hydrate below-the-fold SSR content
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { visible } from '@tanstack/react-start/hydration'
-
-export function ProductPage() {
-  return (
-    <>
-      <ProductHero />
-      <BuyBox />
-
-      <Hydrate when={visible({ rootMargin: '800px' })}>
-        <Reviews />
-      </Hydrate>
-    </>
-  )
-}
-```
-
-Use a positive `rootMargin` when the boundary should hydrate before it actually
-enters the viewport.
-
-### Download the child chunk before it is needed
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { idle, visible } from '@tanstack/react-start/hydration'
-
-export function ReviewsBoundary() {
-  return (
-    <Hydrate when={visible({ rootMargin: '200px' })} prefetch={idle()}>
-      <Reviews />
-    </Hydrate>
-  )
-}
-```
-
-This keeps the boundary non-interactive until it is close to the viewport, but
-starts loading the child chunk during idle time.
-
-### Keep a widget cold until user intent
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { interaction, visible } from '@tanstack/react-start/hydration'
-
-export function RecommendationsBoundary() {
-  return (
-    <Hydrate
-      when={interaction({ events: ['focusin', 'click'] })}
-      prefetch={visible({ rootMargin: '1200px' })}
-    >
-      <RecommendationCarousel />
-    </Hydrate>
-  )
-}
-```
-
-This is useful for expensive controls that are visible or nearby, but only
-matter when the user reaches for them.
-
-### Delay hydration without code splitting
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { idle } from '@tanstack/react-start/hydration'
-
-export function BadgeBoundary() {
-  return (
-    <Hydrate when={idle()} split={false}>
-      <SmallPersonalizedBadge />
-    </Hydrate>
-  )
-}
-```
-
-Use this when the JavaScript is already part of the startup bundle or when a
-separate child chunk would not be worth it.
-
-### Keep initial SSR HTML static
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { never } from '@tanstack/react-start/hydration'
-
-export function MarketingPage() {
-  return (
-    <Hydrate when={never()}>
-      <StaticTrustBadges />
-    </Hydrate>
-  )
-}
-```
-
-`never()` preserves the existing server HTML and does not hydrate the boundary
-during initial document hydration. If the same boundary mounts later during
-client-side navigation, it renders normally because there is no initial server
-HTML to preserve. `never()` cannot be used as a prefetch strategy.
-
-### Reuse Hydrate props
-
-Use `HydrateOptions` for reusable objects that you spread into `Hydrate`:
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import type { HydrateOptions } from '@tanstack/react-start'
-import { visible } from '@tanstack/react-start/hydration'
-
-const belowFoldProps = {
-  when: () => visible({ rootMargin: '800px' }),
-} satisfies HydrateOptions
-
-export function Page() {
-  return (
-    <Hydrate
-      {...belowFoldProps}
-      prefetch={async ({ preload }) => {
-        await preload()
-      }}
-    >
-      <Widget />
-    </Hydrate>
-  )
-}
-```
-
-Inline `when` and `prefetch` functions are supported. You do not need to wrap
-them in `useCallback`; TanStack Start keeps the latest callback internally and
-does not re-register hydration listeners just because a function identity
-changed. If the meaning of a boundary changes, use a normal React `key` to
-create a new boundary.
-
-## Hydrate Props Reference
-
-`Hydrate` accepts these props:
-
-| Prop         | Type                                                     | Notes                                                                                                                                                     |
-| ------------ | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `when`       | `HydrationStrategy \| () => HydrationStrategy`           | Required. Controls when the boundary hydrates. Function form is client-only and synchronous.                                                              |
-| `prefetch`   | `HydrationPrefetchStrategy \| HydrationPrefetchFunction` | Optional. Strategy form preloads the split child chunk. Function form can preload chunks, data, or other resources, and can be used with `split={false}`. |
-| `split`      | `boolean`                                                | Defaults to `true`. Set literal `false` to disable compiler extraction and only defer hydration work.                                                     |
-| `fallback`   | `ReactNode`                                              | Client-only loading UI for boundaries that mount after the app has already hydrated and then suspend on the child chunk or child `Suspense`.              |
-| `onHydrated` | `() => void`                                             | Fires once after the boundary has hydrated on the client.                                                                                                 |
-
-## Strategy Reference
-
-Import strategies from `@tanstack/react-start/hydration`.
-
-| Strategy        | Behavior                                                                                   |
-| --------------- | ------------------------------------------------------------------------------------------ |
-| `load()`        | Hydrates as soon as the app hydrates.                                                      |
-| `idle()`        | Hydrates in `requestIdleCallback`, or after `timeout` when idle callbacks are unavailable. |
-| `visible()`     | Hydrates when the boundary marker enters the viewport.                                     |
-| `media()`       | Hydrates when the media query matches.                                                     |
-| `interaction()` | Hydrates on configured interaction intent events.                                          |
-| `condition()`   | Hydrates once the condition is truthy.                                                     |
-| `never()`       | Never hydrates the initial server-rendered boundary.                                       |
-
-Strategy options:
-
-| Strategy      | Options                                                                                 |
-| ------------- | --------------------------------------------------------------------------------------- |
-| `idle`        | `{ timeout?: number }`, defaults to `2000`.                                             |
-| `visible`     | `{ rootMargin?: string; threshold?: number \| Array<number> }`, default margin `600px`. |
-| `media`       | Query string, for example `media('(min-width: 800px)')`.                                |
-| `interaction` | `{ events?: supported event or readonly array of supported events }`.                   |
-| `condition`   | Boolean or boolean-returning function.                                                  |
-
-Supported interaction events are `auxclick`, `click`, `contextmenu`,
-`dblclick`, `focusin`, `keydown`, `keyup`, `mousedown`, `mouseenter`,
-`mouseover`, `mouseup`, `pointerdown`, `pointerenter`, `pointerover`, and
-`pointerup`.
-
-The default `interaction()` event list is `pointerenter`, `focusin`,
-`pointerdown`, and `click`. Use `events` when a boundary should listen to a
-different event or a smaller set:
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { interaction } from '@tanstack/react-start/hydration'
-
-<Hydrate when={interaction({ events: 'dblclick' })}>
-  <PreviewEditor />
-</Hydrate>
-
-<Hydrate when={interaction({ events: ['contextmenu', 'dblclick'] })}>
-  <ContextMenuEditor />
-</Hydrate>
-```
-
-After a `condition()` boundary hydrates, it stays hydrated even if the condition
-later becomes false:
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { condition } from '@tanstack/react-start/hydration'
-
-export function CartRecommendationsBoundary() {
-  return (
-    <Hydrate when={condition(isCartOpen)}>
-      <CartRecommendations />
-    </Hydrate>
-  )
-}
-```
-
-## Prefetch Reference
-
-Procedural prefetch receives a context object:
-
-| Property            | Meaning                                                                                 |
-| ------------------- | --------------------------------------------------------------------------------------- |
-| `preload()`         | Loads the compiler-generated child chunk. It resolves immediately when `split={false}`. |
-| `waitFor(strategy)` | Waits for a prefetch strategy, the hydration trigger, or abort.                         |
-| `signal`            | `AbortSignal` for cancelable async work such as `fetch`.                                |
-| `element`           | Boundary marker element for custom observers or DOM measurements.                       |
-
-`waitFor(strategy)` resolves with:
-
-| Result       | Meaning                                                             |
-| ------------ | ------------------------------------------------------------------- |
-| `'prefetch'` | The supplied prefetch strategy resolved normally.                   |
-| `'hydrate'`  | The boundary's hydration trigger fired first. Do required work now. |
-| `'abort'`    | The boundary unmounted or the prefetch lifecycle was abandoned.     |
-
-The promise returned from procedural prefetch is meaningful. Awaited work blocks
-hydration if the `when` strategy resolves before the prefetch function
-finishes:
-
-```tsx
-<Hydrate
-  when={visible()}
-  prefetch={async ({ preload }) => {
-    await preload()
-  }}
->
-  <Widget />
-</Hydrate>
-```
-
-Fire-and-forget work does not block hydration:
-
-```tsx
-<Hydrate
-  when={visible()}
-  prefetch={({ preload }) => {
-    void preload()
-  }}
->
-  <Widget />
-</Hydrate>
-```
-
-Use this distinction deliberately. Await when the resource is required for the
-first hydrated render. Fire and forget when the resource is only a helpful
-head start.
-
-## Fallbacks
-
-`fallback` is not the placeholder for the initial server-rendered HTML. On the
-initial page load, TanStack Start keeps the existing server HTML in place until
-the boundary hydrates:
-
-```tsx
-<Hydrate when={visible()} fallback={<ReviewsSkeleton />}>
-  <Reviews />
-</Hydrate>
-```
-
-In that example, if `Reviews` was present in the initial HTML document, users
-see the server-rendered reviews. They do not see `ReviewsSkeleton` while the
-boundary is waiting for `visible()`.
-
-`fallback` is used when the boundary first appears after the app is already
-running and there is no existing server HTML for that boundary. Common examples
-include client-side navigation, conditionally showing a panel, or opening a tab
-whose contents were not in the initial document. In those cases, the boundary
-renders on the client, and `fallback` can show while the generated child chunk
-or a child `Suspense` is still loading.
-
-With `never()`, initial server HTML remains static and `fallback` is not used.
-
-The compiler removes statically visible `fallback` props from the server bundle.
-Prefer passing `fallback` directly, in an inline object spread, or through a
-single-use `const` object spread so server builds can strip that UI.
-
-## Correctness And Updates
-
-Deferred hydration is a performance hint for React's initial hydration work.
-React may hydrate a deferred boundary earlier than its strategy would normally
-allow if state, props, context, or store updates outside the boundary require
-React to reconcile inside it before the gate opens. This preserves correctness
-and avoids showing stale server HTML after the surrounding app has changed.
-
-`never()` is the exception for initial document hydration. Treat it as
-intentionally static SSR HTML. Do not rely on parent updates to make a `never()`
-boundary interactive. If the same boundary mounts later during client-side
-navigation, it renders normally.
-
-## Nested Boundaries
-
-Nested boundaries hydrate parent-first. A child boundary can only hydrate after
-its ancestor boundaries have hydrated. That means non-interaction child
-strategies such as `visible`, `media`, `idle`, or `condition` cannot run while
-their parent boundary is still dehydrated.
-
-For example, a product page might defer the whole reviews section until it is
-near the viewport, while keeping heavier review tools cold until the user
-interacts with them:
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-import { interaction, visible } from '@tanstack/react-start/hydration'
-
-export function ProductPage() {
-  return (
-    <>
-      <ProductHero />
-      <BuyBox />
-
-      <Hydrate when={visible({ rootMargin: '600px' })}>
-        <section aria-labelledby="reviews-heading">
-          <h2 id="reviews-heading">Reviews</h2>
-          <ReviewsSummary />
-          <ReviewsList />
-
-          <Hydrate when={interaction({ events: ['focusin', 'click'] })}>
-            <ReviewFilters />
-          </Hydrate>
-
-          <Hydrate when={interaction({ events: 'click' })}>
-            <WriteReviewForm />
-          </Hydrate>
-        </section>
-      </Hydrate>
-    </>
-  )
-}
-```
-
-In this example, scrolling near the reviews hydrates the parent first. Only
-after that can the nested interaction boundaries hydrate from focus or click.
-
-Interaction intent can also resolve an unresolved ancestor chain when the
-ancestor is itself waiting for interaction:
-
-```tsx
-<Hydrate when={interaction({ events: ['focusin', 'click'] })}>
-  <section aria-label="Review tools">
-    <ReviewSortSummary />
-
-    <Hydrate when={interaction({ events: 'click' })}>
-      <WriteReviewForm />
-    </Hydrate>
-  </section>
-</Hydrate>
-```
-
-If the first meaningful intent is a click inside `WriteReviewForm`, TanStack
-Start hydrates the unresolved parent chain and then redispatches a same-type
-event for the target boundary. Native listener payload details such as pointer
-coordinates are not guaranteed to be preserved. A `never()` ancestor still wins
-during initial hydration, so descendants under it remain non-interactive.
-
-## Preloading And CSS
-
-Transformed `Hydrate` JavaScript chunks are not modulepreloaded with the route.
-Without `prefetch`, the child chunk loads when the split boundary is ready to
-render. If that import suspends during client-side navigation or another
-client-only mount, the boundary's `fallback` is shown.
-
-CSS used by split, deferred, and `never()` boundaries is linked in the SSR HTML
-for the matched route. It is not deferred with the generated child JavaScript
-chunk, because the server-rendered HTML may need those styles before any
-JavaScript runs. This is route-level asset linking: if a route module contains a
-deferred boundary that imports CSS, that stylesheet can be linked for the route
-even when that boundary is hidden behind conditional rendering and does not
-appear in a particular response.
-
-## Extraction Limits
-
-Compiler-backed `Hydrate` splitting works by moving the boundary's children into
-a generated virtual module and rendering them through a lazy component. That
-gives TanStack Start a separate child chunk to load later, but it also means the
-compiler must be able to move the JSX safely.
-
-Keep the component you want to split directly inside `Hydrate`. If you hide it
-behind opaque `children` props, the compiler cannot statically extract those
-children into a generated child chunk at the usage site.
-
-The split boundary must use a statically imported `Hydrate` component from
-`@tanstack/react-start`. Renaming that import is supported:
-
-```tsx
-import { Hydrate as Deferred } from '@tanstack/react-start'
-
-export function ProductPage() {
-  return (
-    <Deferred when={visible()}>
-      <Reviews />
-    </Deferred>
-  )
-}
-```
-
-Assigning `Hydrate` to another component variable is not analyzed for splitting:
-
-```tsx
-import { Hydrate } from '@tanstack/react-start'
-
-const Deferred = Hydrate
-
-<Deferred when={visible()}>
-  <Reviews />
-</Deferred>
-```
-
-Render the imported `Hydrate` tag directly, use an import rename, or set
-`split={false}` when you need component indirection.
-
-Use the literal prop `split={false}` to opt out of extraction. Dynamic values
-such as `split={shouldSplit}` cannot be used to opt out at compile time.
-
-These patterns cannot be split:
-
-| Pattern                                  | Why it is rejected                                                                 | What to do instead                                                                   |
-| ---------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Function-as-children                     | The compiler cannot move a render function and preserve the expected call pattern. | Use `split={false}` or move the rendered UI into a child component.                  |
-| Hook calls directly inside extracted JSX | Moving that JSX would move where the hook executes.                                | Move the hook call into a component inside the boundary, then render that component. |
-| `this` captures                          | Extracted function components cannot safely preserve class instance context.       | Wrap the UI in a function component or use `split={false}`.                          |
-| `super` captures                         | Extracted function components cannot preserve superclass access.                   | Wrap the UI in a function component or use `split={false}`.                          |
-
-This fails because `useThing()` would be moved into the generated component:
-
-```tsx
-<Hydrate when={idle()}>
-  <p>{useThing()}</p>
-</Hydrate>
-```
-
-Move the hook into a component instead:
-
-```tsx
-function ThingText() {
-  const thing = useThing()
-  return <p>{thing}</p>
-}
-
-export function ProductPage() {
-  return (
-    <Hydrate when={idle()}>
-      <ThingText />
-    </Hydrate>
-  )
-}
-```
-
-Values captured from the surrounding component can be passed into the generated
-child component, but keep the boundary simple. If extraction starts forcing
-complicated data flow, prefer a named child component and put the logic there.
-
-`fallback` stripping is intentionally conservative. The server build can strip
-directly passed fallback UI, inline object-spread fallback UI, and single-use
-`const` object-spread fallback UI. If fallback props are hidden behind dynamic
-spreads or shared objects, the compiler may keep them.
-
-You can extract reusable `when` and `prefetch` helpers today, but avoid hiding
-split boundaries behind plain wrapper components if you need child code
-splitting. A wrapper can defer hydration at runtime, but the compiler cannot
-reliably move call-site children into a separate chunk through arbitrary
-component indirection.
-
----
-id: selective-ssr
-title: Selective Server-Side Rendering (SSR)
----
-
-## What is Selective SSR?
-
-In TanStack Start, routes matching the initial request are rendered on the server by default. This means `beforeLoad` and `loader` are executed on the server, followed by rendering the route components. The resulting HTML is sent to the client, which hydrates the markup into a fully interactive application.
-
-However, there are cases where you might want to disable SSR for certain routes or all routes, such as:
-
-- When `beforeLoad` or `loader` requires browser-only APIs (e.g., `localStorage`).
-- When the route component depends on browser-only APIs (e.g., `canvas`).
-
-TanStack Start's Selective SSR feature lets you configure:
-
-- Which routes should execute `beforeLoad` or `loader` on the server.
-- Which route components should be rendered on the server.
-
-## How does this compare to SPA mode?
-
-TanStack Start's [SPA mode](./spa-mode) completely disables server-side execution of `beforeLoad` and `loader`, as well as server-side rendering of route components. Selective SSR allows you to configure server-side handling on a per-route basis, either statically or dynamically.
-
-## Configuration
-
-You can control how a route is handled during the initial server request using the `ssr` property. If this property is not set, it defaults to `true`. You can change this default using the `defaultSsr` option in `createStart`:
-
-```tsx
-// src/start.ts
-import { createStart } from '@tanstack/react-start'
-
-export const startInstance = createStart(() => ({
-  // Disable SSR by default
-  defaultSsr: false,
-}))
-```
-
-### `ssr: true`
-
-This is the default behavior unless otherwise configured. On the initial request, it will:
-
-- Run `beforeLoad` on the server and send the resulting context to the client.
-- Run `loader` on the server and send the loader data to the client.
-- Render the component on the server and send the HTML markup to the client.
-
-```tsx
-// src/routes/posts/$postId.tsx
-export const Route = createFileRoute('/posts/$postId')({
-  ssr: true,
-  beforeLoad: () => {
-    console.log('Executes on the server during the initial request')
-    console.log('Executes on the client for subsequent navigation')
-  },
-  loader: () => {
-    console.log('Executes on the server during the initial request')
-    console.log('Executes on the client for subsequent navigation')
-  },
-  component: () => <div>This component is rendered on the server</div>,
-})
-```
-
-### `ssr: false`
-
-This disables server-side:
-
-- Execution of the route's `beforeLoad` and `loader`.
-- Rendering of the route component.
-
-```tsx
-// src/routes/posts/$postId.tsx
-export const Route = createFileRoute('/posts/$postId')({
-  ssr: false,
-  beforeLoad: () => {
-    console.log('Executes on the client during hydration')
-  },
-  loader: () => {
-    console.log('Executes on the client during hydration')
-  },
-  component: () => <div>This component is rendered on the client</div>,
-})
-```
-
-### `ssr: 'data-only'`
-
-This hybrid option will:
-
-- Run `beforeLoad` on the server and send the resulting context to the client.
-- Run `loader` on the server and send the loader data to the client.
-- Disable server-side rendering of the route component.
-
-```tsx
-// src/routes/posts/$postId.tsx
-export const Route = createFileRoute('/posts/$postId')({
-  ssr: 'data-only',
-  beforeLoad: () => {
-    console.log('Executes on the server during the initial request')
-    console.log('Executes on the client for subsequent navigation')
-  },
-  loader: () => {
-    console.log('Executes on the server during the initial request')
-    console.log('Executes on the client for subsequent navigation')
-  },
-  component: () => <div>This component is rendered on the client</div>,
-})
-```
-
-### Functional Form
-
-For more flexibility, you can use the functional form of the `ssr` property to decide at runtime whether to SSR a route:
-
-```tsx
-// src/routes/docs/$docType/$docId.tsx
-export const Route = createFileRoute('/docs/$docType/$docId')({
-  validateSearch: z.object({ details: z.boolean().optional() }),
-  ssr: ({ params, search }) => {
-    if (params.status === 'success' && params.value.docType === 'sheet') {
-      return false
-    }
-    if (search.status === 'success' && search.value.details) {
-      return 'data-only'
-    }
-  },
-  beforeLoad: () => {
-    console.log('Executes on the server depending on the result of ssr()')
-  },
-  loader: () => {
-    console.log('Executes on the server depending on the result of ssr()')
-  },
-  component: () => <div>This component is rendered on the client</div>,
-})
-```
-
-The `ssr` function runs only on the server during the initial request and is stripped from the client bundle.
-
-`search` and `params` are passed in after validation as a discriminated union:
-
-```tsx
-params:
-    | { status: 'success'; value: Expand<ResolveAllParamsFromParent<TParentRoute, TParams>> }
-    | { status: 'error'; error: unknown }
-search:
-    | { status: 'success'; value: Expand<ResolveFullSearchSchema<TParentRoute, TSearchValidator>> }
-    | { status: 'error'; error: unknown }
-```
-
-If validation fails, `status` will be `error` and `error` will contain the failure details. Otherwise, `status` will be `success` and `value` will contain the validated data.
-
-### Inheritance
-
-At runtime, a child route inherits the Selective SSR configuration of its parent. However, the inherited value can only be changed to be more restrictive (i.e. `true` to `data-only` or `false` and `data-only` to `false`). For example:
-
-```tsx
-root { ssr: undefined }
-  posts { ssr: false }
-     $postId { ssr: true }
-```
-
-- `root` defaults to `ssr: true`.
-- `posts` explicitly sets `ssr: false`, so neither `beforeLoad` nor `loader` will run on the server, and the route component won't be rendered on the server.
-- `$postId` sets `ssr: true`, but inherits `ssr: false` from its parent. Because the inherited value can only be changed to be more restrictive, `ssr: true` has no effect and the inherited `ssr: false` will remain.
-
-Another example:
-
-```tsx
-root { ssr: undefined }
-  posts { ssr: 'data-only' }
-     $postId { ssr: true }
-       details { ssr: false }
-```
-
-- `root` defaults to `ssr: true`.
-- `posts` sets `ssr: 'data-only'`, so `beforeLoad` and `loader` run on the server, but the route component isn't rendered on the server.
-- `$postId` sets `ssr: true`, but inherits `ssr: 'data-only'` from its parent.
-- `details` sets `ssr: false`, so neither `beforeLoad` nor `loader` will run on the server, and the route component won't be rendered on the server. Here the inherited value is changed to be more restrictive, and therefore, the `ssr: false` will override the inherited value.
-
-## Fallback Rendering
-
-For the first route with `ssr: false` or `ssr: 'data-only'`, the server will render the route's `pendingComponent` as a fallback. If `pendingComponent` isn't configured, the `defaultPendingComponent` will be rendered. If neither is configured, no fallback will be rendered.
-
-On the client during hydration, this fallback will be displayed for at least `minPendingMs` (or `defaultPendingMinMs` if not configured), even if the route doesn't have `beforeLoad` or `loader` defined.
-
-## How to disable SSR of the root route?
-
-You can disable server side rendering of the root route component, however the `<html>` shell still needs to be rendered on the server. This shell is configured via the `shellComponent` property and takes a single property `children`. The `shellComponent` is always SSRed and is wrapping around the root `component`, the root `errorComponent` or the root `notFound` component respectively.
-
-A minimal setup of a root route with disabled SSR for the route component looks like this:
-
-```tsx
-import * as React from 'react'
-
-import {
-  HeadContent,
-  Outlet,
-  Scripts,
-  createRootRoute,
-} from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  shellComponent: RootShell,
-  component: RootComponent,
-  errorComponent: () => <div>Error</div>,
-  notFoundComponent: () => <div>Not found</div>,
-  ssr: false, // or `defaultSsr: false` on the router
-})
-
-function RootShell({ children }: { children: React.ReactNode }) {
-  return (
-    <html>
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  )
-}
-
-function RootComponent() {
-  return (
-    <div>
-      <h1>This component will be rendered on the client</h1>
-      <Outlet />
-    </div>
-  )
-}
-```
-
----
-id: static-prerendering
-title: Static Prerendering
----
-
-Static prerendering is the process of generating static HTML files for your application. This can be useful for either improving the performance of your application, as it allows you to serve pre-rendered HTML files to users without having to generate them on the fly or for deploying static sites to platforms that do not support server-side rendering.
-
-## Prerendering
-
-TanStack Start can prerender your application to static HTML files, which can then be served to users without having to generate them on the fly. To prerender your application, you can add the `prerender` option to your `tanstackStart` configuration:
-
-<!-- ::start:tabs variant="bundler" -->
-
-# Vite
-
-```ts title="vite.config.ts"
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [
-    tanstackStart({
-      prerender: {
-        // Switch to true to enable prerendering
-        enabled: false,
-
-        // Disable if you need pages to be at `/page.html` instead of `/page/index.html`
-        autoSubfolderIndex: true,
-
-        // If disabled, only the root path or the paths defined in the pages config will be prerendered
-        autoStaticPathsDiscovery: true,
-
-        // How many prerender jobs to run at once
-        concurrency: 14,
-
-        // Whether to extract links from the HTML and prerender them also
-        crawlLinks: true,
-
-        // Filter function takes the page object and returns whether it should prerender
-        filter: ({ path }) => !path.startsWith('/do-not-render-me'),
-
-        // Number of times to retry a failed prerender job
-        retryCount: 2,
-
-        // Delay between retries in milliseconds
-        retryDelay: 1000,
-
-        // Maximum number of redirects to follow during prerendering
-        maxRedirects: 5,
-
-        // Fail if an error occurs during prerendering
-        failOnError: true,
-
-        // Callback when page is successfully rendered
-        onSuccess: ({ page }) => {
-          console.log(`Rendered ${page.path}!`)
-        },
-      },
-      // Optional configuration for specific pages
-      // Note: When autoStaticPathsDiscovery is enabled (default), discovered static
-      // routes will be merged with the pages specified below
-      pages: [
-        {
-          path: '/my-page',
-          prerender: { enabled: true, outputPath: '/my-page/index.html' },
-        },
-      ],
-    }),
-    viteReact(),
-  ],
-})
-```
-
-# Rsbuild
-
-```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { pluginReact } from '@rsbuild/plugin-react'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
-
-export default defineConfig({
-  plugins: [
-    pluginReact(),
-    tanstackStart({
-      prerender: {
-        // Switch to true to enable prerendering
-        enabled: false,
-
-        // Disable if you need pages to be at `/page.html` instead of `/page/index.html`
-        autoSubfolderIndex: true,
-
-        // If disabled, only the root path or the paths defined in the pages config will be prerendered
-        autoStaticPathsDiscovery: true,
-
-        // How many prerender jobs to run at once
-        concurrency: 14,
-
-        // Whether to extract links from the HTML and prerender them also
-        crawlLinks: true,
-
-        // Filter function takes the page object and returns whether it should prerender
-        filter: ({ path }) => !path.startsWith('/do-not-render-me'),
-
-        // Number of times to retry a failed prerender job
-        retryCount: 2,
-
-        // Delay between retries in milliseconds
-        retryDelay: 1000,
-
-        // Maximum number of redirects to follow during prerendering
-        maxRedirects: 5,
-
-        // Fail if an error occurs during prerendering
-        failOnError: true,
-
-        // Callback when page is successfully rendered
-        onSuccess: ({ page }) => {
-          console.log(`Rendered ${page.path}!`)
-        },
-      },
-      // Optional configuration for specific pages
-      // Note: When autoStaticPathsDiscovery is enabled (default), discovered static
-      // routes will be merged with the pages specified below
-      pages: [
-        {
-          path: '/my-page',
-          prerender: { enabled: true, outputPath: '/my-page/index.html' },
-        },
-      ],
-    }),
-  ],
-})
-```
-
-<!-- ::end:tabs -->
-
-## Automatic Static Route Discovery
-
-All static paths will be automatically discovered and seamlessly merged with the specified `pages` config
-
-Routes are excluded from automatic discovery in the following cases:
-
-- Routes with path parameters (e.g., `/users/$userId`) since they require specific parameter values
-- Layout routes (prefixed with `_`) since they don't render standalone pages
-- Routes without components (e.g., API routes)
-
-Note: Dynamic routes can still be prerendered if they are linked from other pages when `crawlLinks` is enabled.
-
-## Crawling Links
-
-When `crawlLinks` is enabled (default: `true`), TanStack Start will extract links from prerendered pages and prerender those linked pages as well.
-
-For example, if `/` contains a link to `/posts`, then `/posts` will also be automatically prerendered.
-
----
-id: isr
-title: Incremental Static Regeneration (ISR)
----
-
-Incremental Static Regeneration (ISR) allows you to serve statically generated content from a CDN while periodically regenerating it in the background. This gives you the performance benefits of static sites with the freshness of dynamic content.
-
-## How ISR Works in TanStack Start
-
-TanStack Start's approach to ISR is flexible and leverages standard HTTP cache headers that work with any CDN. Unlike framework-specific ISR implementations, this approach gives you full control over caching behavior at both the page and data level.
-
-The core concept is simple:
-
-1. **Static Prerendering**: Pages are generated at build time
-2. **CDN Caching**: Cache headers control how long CDNs cache the HTML
-3. **Revalidation**: After the cache expires, the next request triggers regeneration
-4. **Stale-While-Revalidate**: Serve stale content while fetching fresh data in the background
-
-## Cache Header Strategies
-
-### Time-Based Revalidation
-
-The most common ISR pattern uses the `Cache-Control` header with `max-age` and `s-maxage` directives:
-
-<!-- ::start:tabs variant="bundler" -->
-
-# Vite
-
-```ts title="vite.config.ts"
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import { defineConfig } from 'vite'
-
-export default defineConfig({
-  plugins: [
-    tanstackStart({
-      prerender: {
-        routes: ['/blog', '/blog/posts/*'],
-        crawlLinks: true,
-      },
-    }),
-  ],
-})
-```
-
-# Rsbuild
-
-```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { pluginReact } from '@rsbuild/plugin-react'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
-
-export default defineConfig({
-  plugins: [
-    pluginReact(),
-    tanstackStart({
-      prerender: {
-        routes: ['/blog', '/blog/posts/*'],
-        crawlLinks: true,
-      },
-    }),
-  ],
-})
-```
-
-<!-- ::end:tabs -->
-
-```tsx
-// routes/blog/posts/$postId.tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/blog/posts/$postId')({
-  loader: async ({ params }) => {
-    const post = await fetchPost(params.postId)
-    return { post }
-  },
-  headers: () => ({
-    // Cache at CDN for 1 hour, allow stale content for up to 1 day
-    'Cache-Control':
-      'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400',
-  }),
-})
-
-export default function BlogPost() {
-  const { post } = Route.useLoaderData()
-  return (
-    <article>
-      <h1>{post.title}</h1>
-      <div>{post.content}</div>
-    </article>
-  )
-}
-```
-
-### Understanding Cache-Control Directives
-
-- **`public`**: Response can be cached by any cache (CDN, browser, etc.)
-- **`max-age=3600`**: Content is fresh for 3600 seconds (1 hour)
-- **`s-maxage=3600`**: Overrides max-age for shared caches (CDNs)
-- **`stale-while-revalidate=86400`**: Serve stale content while revalidating in background for up to 24 hours
-- **`immutable`**: Content never changes (use for hash-based assets)
-
-## ISR with Server Functions
-
-Server functions can also set cache headers for dynamic data endpoints:
-
-```tsx
-// routes/api/products/$productId.ts
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/api/products/$productId')({
-  server: {
-    handlers: {
-      GET: async ({ params, request }) => {
-        const product = await db.products.findById(params.productId)
-
-        return Response.json(
-          { product },
-          {
-            headers: {
-              'Cache-Control':
-                'public, max-age=300, stale-while-revalidate=600',
-              'CDN-Cache-Control': 'max-age=3600', // Cloudflare-specific
-            },
-          },
-        )
-      },
-    },
-  },
-})
-```
-
-### Using Middleware for Cache Headers
-
-For API routes, you can use middleware to set cache headers:
-
-```tsx
-// routes/api/products/$productId.ts
-import { createFileRoute } from '@tanstack/react-router'
-import { createMiddleware } from '@tanstack/react-start'
-
-const cacheMiddleware = createMiddleware().server(async ({ next }) => {
-  const result = await next()
-
-  // Add cache headers to the response
-  result.response.headers.set(
-    'Cache-Control',
-    'public, max-age=3600, stale-while-revalidate=86400',
-  )
-
-  return result
-})
-
-export const Route = createFileRoute('/api/products/$productId')({
-  server: {
-    middleware: [cacheMiddleware],
-    handlers: {
-      GET: async ({ params }) => {
-        const product = await db.products.findById(params.productId)
-        return Response.json({ product })
-      },
-    },
-  },
-})
-```
-
-For page routes, it's simpler to use the `headers` property directly:
-
-```tsx
-// routes/blog/posts/$postId.tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/blog/posts/$postId')({
-  loader: async ({ params }) => {
-    const post = await fetchPost(params.postId)
-    return { post }
-  },
-  headers: () => ({
-    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-  }),
-})
-```
-
-## On-Demand Revalidation
-
-While time-based revalidation works well for most cases, you may need to invalidate specific pages immediately (e.g., when content is updated):
-
-```tsx
-// routes/api/revalidate.ts
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/api/revalidate')({
-  server: {
-    handlers: {
-      POST: async ({ request }) => {
-        const { path, secret } = await request.json()
-
-        // Verify secret token
-        if (secret !== process.env.REVALIDATE_SECRET) {
-          return Response.json({ error: 'Invalid token' }, { status: 401 })
-        }
-
-        // Trigger CDN purge via your CDN's API
-        await fetch(
-          `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/purge_cache`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${CF_API_TOKEN}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              files: [`https://yoursite.com${path}`],
-            }),
-          },
-        )
-
-        return Response.json({ revalidated: true })
-      },
-    },
-  },
-})
-```
-
-## CDN-Specific Configuration
-
-### Cloudflare Workers
-
-Cloudflare respects standard `Cache-Control` headers and provides additional control:
-
-```tsx
-export const Route = createFileRoute('/products/$id')({
-  headers: () => ({
-    'Cache-Control': 'public, max-age=3600',
-    // Cloudflare-specific header for finer control
-    'CDN-Cache-Control': 'max-age=7200',
-  }),
-})
-```
-
-### Netlify
-
-Netlify uses `Cache-Control` headers and also supports `_headers` files:
-
-```plaintext
-# public/_headers
-/blog/*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
-
-/api/*
-  Cache-Control: public, max-age=300
-```
-
-### Vercel
-
-When deploying to Vercel, use their Edge Network cache headers:
-
-```tsx
-export const Route = createFileRoute('/posts/$id')({
-  headers: () => ({
-    'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-  }),
-})
-```
-
-## Combining ISR with Client-Side Caching
-
-TanStack Router's built-in cache control works alongside CDN caching:
-
-```tsx
-export const Route = createFileRoute('/posts/$postId')({
-  loader: async ({ params }) => {
-    return fetchPost(params.postId)
-  },
-  // CDN caching (via headers)
-  headers: () => ({
-    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-  }),
-  // Client-side caching (via TanStack Router)
-  staleTime: 60_000, // Consider data fresh for 60 seconds on client
-  gcTime: 5 * 60_000, // Keep in memory for 5 minutes
-})
-```
-
-This creates a multi-tier caching strategy:
-
-1. **CDN Edge**: 1 hour cache, stale-while-revalidate for 24 hours
-2. **Client**: 60 seconds of fresh data, 5 minutes in memory
-
-## Common ISR Patterns
-
-### Blog Posts
-
-```tsx
-export const Route = createFileRoute('/blog/$slug')({
-  loader: async ({ params }) => fetchPost(params.slug),
-  headers: () => ({
-    // Cache for 1 hour, allow stale for 7 days
-    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=604800',
-  }),
-  staleTime: 5 * 60_000, // 5 minutes client-side
-})
-```
-
-### E-commerce Product Pages
-
-```tsx
-export const Route = createFileRoute('/products/$id')({
-  loader: async ({ params }) => fetchProduct(params.id),
-  headers: () => ({
-    // Shorter cache due to inventory changes
-    'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
-  }),
-  staleTime: 30_000, // 30 seconds client-side
-})
-```
-
-### Marketing Landing Pages
-
-```tsx
-export const Route = createFileRoute('/landing/$campaign')({
-  loader: async ({ params }) => fetchCampaign(params.campaign),
-  headers: () => ({
-    // Long cache for stable content
-    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
-  }),
-  staleTime: 60 * 60_000, // 1 hour client-side
-})
-```
-
-### User-Specific Pages
-
-```tsx
-export const Route = createFileRoute('/dashboard')({
-  loader: async () => fetchUserData(),
-  headers: () => ({
-    // Private cache, no CDN caching
-    'Cache-Control': 'private, max-age=60',
-  }),
-  staleTime: 30_000,
-})
-```
-
-## Best Practices
-
-### 1. Start Conservative
-
-Begin with shorter cache times and increase as you understand your content update patterns:
-
-```tsx
-// Start here
-'Cache-Control': 'public, max-age=300, stale-while-revalidate=600'
-
-// Then move to
-'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400'
-```
-
-### 2. Use ETags for Validation
-
-ETags help CDNs efficiently revalidate content:
-
-```tsx
-import { createMiddleware } from '@tanstack/react-start'
-import crypto from 'crypto'
-
-const etagMiddleware = createMiddleware().server(async ({ next }) => {
-  const result = await next()
-
-  // Generate ETag from response content
-  const etag = crypto
-    .createHash('md5')
-    .update(JSON.stringify(result.data))
-    .digest('hex')
-
-  result.response.headers.set('ETag', `"${etag}"`)
-
-  return result
-})
-```
-
-### 3. Vary Cache by Query Parameters
-
-When content varies by query params, include them in cache keys:
-
-```tsx
-export const Route = createFileRoute('/search')({
-  headers: () => ({
-    'Cache-Control': 'public, max-age=300',
-    Vary: 'Accept, Accept-Encoding',
-  }),
-})
-```
-
-### 4. Monitor Cache Hit Rates
-
-Track CDN performance to optimize cache times:
-
-```tsx
-const cacheMonitoringMiddleware = createMiddleware().server(
-  async ({ next }) => {
-    const result = await next()
-
-    // Log cache status (from CDN headers)
-    console.log('Cache Status:', result.response.headers.get('cf-cache-status'))
-
-    return result
-  },
-)
-```
-
-### 5. Combine with Static Prerendering
-
-Prerender at build time for instant first load, then use ISR for updates:
-
-<!-- ::start:tabs variant="bundler" -->
-
-# Vite
-
-```ts title="vite.config.ts"
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import { defineConfig } from 'vite'
-
-export default defineConfig({
-  plugins: [
-    tanstackStart({
-      prerender: {
-        routes: ['/blog', '/blog/posts/*'],
-        crawlLinks: true,
-      },
-    }),
-  ],
-})
-```
-
-# Rsbuild
-
-```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { pluginReact } from '@rsbuild/plugin-react'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
-
-export default defineConfig({
-  plugins: [
-    pluginReact(),
-    tanstackStart({
-      prerender: {
-        routes: ['/blog', '/blog/posts/*'],
-        crawlLinks: true,
-      },
-    }),
-  ],
-})
-```
-
-<!-- ::end:tabs -->
-
-## Debugging ISR
-
-### Check Cache Headers
-
-Use browser DevTools or curl to inspect cache headers:
-
-```bash
-curl -I https://yoursite.com/blog/my-post
-
-# Look for:
-# Cache-Control: public, max-age=3600, stale-while-revalidate=86400
-# Age: 1234 (time in cache)
-# X-Cache: HIT (from CDN)
-```
-
-### Test Revalidation
-
-Force cache misses to test regeneration:
-
-```bash
-# Cloudflare: Bypass cache
-curl -H "Cache-Control: no-cache" https://yoursite.com/page
-
-# Or use CDN-specific cache purge APIs
-```
-
-### Monitor Performance
-
-Track key metrics:
-
-- **Cache Hit Rate**: Percentage of requests served from cache
-- **Revalidation Time**: Time to regenerate stale content
-- **Time to First Byte (TTFB)**: Should be low for cached content
-
-## Related Resources
-
-- [Static Prerendering](./static-prerendering.md) - Build-time page generation
-- [Hosting](./hosting.md) - CDN deployment configurations
-- [Server Functions](./server-functions.md) - Creating dynamic data endpoints
-- [Data Loading](../../../../router/guide/data-loading.md) - Client-side cache control
-- [Middleware](./middleware.md) - Request/response customization
-
----
-id: authentication-overview
-title: Authentication
----
-
-## Authentication vs Authorization
-
-- **Authentication**: Who is this user? (Login/logout, identity verification)
-- **Authorization**: What can this user do? (Permissions, roles, access control)
-
-## Architecture Overview
-
-### Full-Stack Authentication Model
-
-**Server-Side (Secure)**
-
-- Session storage and validation
-- User credential verification
-- Database operations
-- Token generation/verification
-- Protected API endpoints
-
-**Client-Side (Public)**
-
-- Authentication state management
-- Route protection logic
-- Login/logout user interface
-- Redirect handling
-
-**Isomorphic (Both)**
-
-- Route loaders checking auth state
-- Shared validation logic
-- User profile data access
-
-### Session Management Patterns
-
-**HTTP-Only Cookies (Recommended)**
-
-- Most secure approach - not accessible via JavaScript
-- Automatic browser handling
-- Built-in CSRF protection with `sameSite`
-- Best for traditional web applications
-
-**JWT Tokens**
-
-- Stateless authentication
-- Good for API-first applications
-- Requires careful handling to avoid XSS vulnerabilities
-- Consider refresh token rotation
-
-**Server-Side Sessions**
-
-- Centralized session control
-- Easy to revoke sessions
-- Requires session storage (database, Redis)
-- Good for applications requiring immediate session control
-
-### Route Protection Architecture
-
-**Layout Route Pattern (Recommended)**
-
-- Protect entire route subtrees with parent layout routes
-- Centralized authentication logic
-- Automatic protection for all child routes
-- Clean separation of authenticated vs public routes
-
-**Component-Level Protection**
-
-- Conditional rendering within components
-- More granular control over UI states
-- Good for mixed public/private content on same route
-- Requires careful handling to prevent layout shifts
-
-**Data/API Protection (Security Boundary)**
-
-- Authorize every server function, server route, or API endpoint that reads or writes private data
-- Reject unauthorized requests even if no protected route was loaded first
-- Treat route guards as UX and navigation control, not as the data boundary
-
-### State Management Patterns
-
-**Server-Driven State (Recommended)**
-
-- Authentication state sourced from server on each request
-- Always up-to-date with server state
-- Works seamlessly with SSR
-- Best security - server is source of truth
-
-**Context-Based State**
-
-- Client-side authentication state management
-- Good for third-party auth providers (Auth0, Firebase)
-- Requires careful synchronization with server state
-- Consider for highly interactive client-first applications
-
-**Hybrid Approach**
-
-- Initial state from server, client-side updates
-- Balance between security and UX
-- Periodic server-side validation
-
-## Authentication Options
-
-### 🏢 Partner Solutions
-
-- **[WorkOS](https://workos.com)**
-- **[Clerk](https://clerk.dev)**
-
-### 🛠️ DIY Authentication
-
-Build your own authentication system using TanStack Start's server functions and session management. Start with the [Authentication Server Primitives](./authentication-server-primitives.md) guide — it covers session cookies (`HttpOnly`/`Secure`/`SameSite`/`__Host-`), session lookup as middleware, OAuth `state` + PKCE, password-reset enumeration defense, CSRF, rate limiting, and session rotation, with the WRONG/CORRECT patterns that catch the common mistakes.
-
-- **Full Control**: Complete customization over authentication flow
-- **Server Primitives**: Sessions, OAuth, CSRF, rate limiting — see [Authentication Server Primitives](./authentication-server-primitives.md)
-- **Session Management**: HTTP-only cookies via `setResponseHeader`, read with `getRequestHeader`
-- **Type Safety**: End-to-end type safety for authentication state
-
-### 🌐 Other Excellent Options
-
-**Open Source & Community Solutions:**
-
-- **[Better Auth](https://www.better-auth.com/)** - Modern, TypeScript-first authentication library
-- **[Auth.js](https://authjs.dev/)** (formerly NextAuth.js) - Popular authentication library for React
-
-**Hosted Services:**
-
-- **[Supabase Auth](https://supabase.com/auth)** - Open source Firebase alternative with built-in auth
-- **[Auth0](https://auth0.com/)** - Established authentication platform with extensive features
-- **[Firebase Auth](https://firebase.google.com/docs/auth)** - Google's authentication service
-
-## Partner Solutions
-
-### WorkOS - Enterprise Authentication
-
-<a href="https://workos.com/" alt="WorkOS Logo">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/tanstack/tanstack.com/main/src/images/workos-white.svg" width="280">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/tanstack/tanstack.com/main/src/images/workos-black.svg" width="280">
-    <img alt="WorkOS logo" src="https://raw.githubusercontent.com/tanstack/tanstack.com/main/src/images/workos-black.svg" width="280">
-  </picture>
-</a>
-
-- **Single Sign-On (SSO)** - SAML, OIDC, and OAuth integrations
-- **Directory Sync** - SCIM provisioning with Active Directory and Google Workspace
-- **Multi-factor Authentication** - Enterprise-grade security options
-- **Compliance Ready** - SOC 2, GDPR, and CCPA compliant
-
-[Visit WorkOS →](https://workos.com/) | [View example →](https://github.com/TanStack/router/tree/main/examples/react/start-workos)
-
-### Clerk - Complete Authentication Platform
-
-<a href="https://go.clerk.com/wOwHtuJ" alt="Clerk Logo">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/tanstack/tanstack.com/main/src/images/clerk-logo-dark.svg" width="280">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/tanstack/tanstack.com/main/src/images/clerk-logo-light.svg" width="280">
-    <img alt="Clerk logo" src="https://raw.githubusercontent.com/tanstack/tanstack.com/main/src/images/clerk-logo-light.svg" width="280">
-  </picture>
-</a>
-
-- **Ready-to-use UI Components** - Sign-in, sign-up, user profile, and organization management
-- **Social Logins** - Google, GitHub, Discord, and 20+ providers
-- **Multi-factor Authentication** - SMS, TOTP, and backup codes
-- **Organizations & Teams** - Built-in support for team-based applications
-
-[Visit Clerk →](https://go.clerk.com/wOwHtuJ) | [Sign up free →](https://go.clerk.com/PrSDXti) | [View example →](https://github.com/TanStack/router/tree/main/examples/react/start-clerk-basic)
-
-## Examples
-
-**Partner Solutions:**
-
-- [Clerk Integration](https://github.com/TanStack/router/tree/main/examples/react/start-clerk-basic)
-- [WorkOS Integration](https://github.com/TanStack/router/tree/main/examples/react/start-workos)
-
-**DIY Implementations:**
-
-- [Basic Auth with Prisma](https://github.com/TanStack/router/tree/main/examples/react/start-basic-auth)
-- [Supabase Auth](https://github.com/TanStack/router/tree/main/examples/react/start-supabase-basic)
-
-**Client-Side Examples:**
-
-- [Basic Authentication](https://github.com/TanStack/router/tree/main/examples/react/authenticated-routes)
-- [Firebase Auth](https://github.com/TanStack/router/tree/main/examples/react/authenticated-routes-firebase)
-
-## Architecture Decision Guide
-
-### Choosing an Authentication Approach
-
-**Partner Solutions:**
-
-- Focus on your core business logic
-- Enterprise features (SSO, compliance)
-- Managed security and updates
-- Pre-built UI components
-
-**OSS Solutions:**
-
-- Community-driven development
-- Specific customizations
-- Self-hosted solutions
-- Avoid vendor lock-in
-
-**DIY Implementation:**
-
-- Complete control over the auth flow
-- Custom security requirements
-- Specific business logic needs
-- Full ownership of authentication data
-
-### Production Auth Checklist
-
-- Use HTTPS in production and set a strong session secret.
-- Store sessions in `HttpOnly`, `Secure`, `SameSite` cookies. Do not store session tokens in `localStorage` or `sessionStorage`.
-- Enforce auth in every server function, server route, or API endpoint that reads or writes private user, tenant, or account data. Use `beforeLoad` for page UX, not as the data boundary.
-- Use `.validator()` on every server function that accepts input.
-- Hash passwords with bcrypt, scrypt, or Argon2. For missing users, verify against a dummy hash and return the same login/reset message.
-- Rate limit login, registration, and password-reset endpoints.
-- Use CSRF or same-origin protections for non-GET server functions and server routes.
-- Log authentication events and monitor failures.
-- Test direct unauthenticated calls to protected server functions; they should reject before returning data.
-
-## Next Steps
-
-- **Partner solutions** → [Clerk](https://go.clerk.com/wOwHtuJ) or [WorkOS](https://workos.com/)
-- **DIY implementation** → [Authentication Guide](./authentication.md)
-- **Examples** → [Working implementations](https://github.com/TanStack/router/tree/main/examples/react)
-
-## Resources
-
-**Implementation Guides:**
-
-- [Authentication Server Primitives](./authentication-server-primitives.md) — sessions, cookies, OAuth, CSRF, rate limiting (the server half)
-- [Authentication Patterns](./authentication.md)
-- [Router Authentication Guide](/router/latest/docs/framework/react/guide/authenticated-routes)
-
-**Foundation Concepts:**
-
-- [Execution Model](./execution-model.md)
-- [Server Functions](./server-functions.md)
-
-**Step-by-Step Tutorials:**
-
-- [Router How-to Guides](/router/latest/docs/framework/react/how-to/README.md#authentication)
-
----
-id: authentication-server-primitives
-title: Authentication Server Primitives
----
-
-This guide covers the **server-side primitives** for building authentication in TanStack Start: session cookies, session lookup, OAuth, password-reset hardening, CSRF, and rate limiting. It pairs with the [routing-side guide](../../../../router/guide/authenticated-routes.md) (`_authenticated` layout, `beforeLoad`, redirects, RBAC).
-
-If you can use a managed solution like [Clerk](https://go.clerk.com/wOwHtuJ) or [WorkOS](https://workos.com/), prefer that — they handle most of what this guide describes. Read on if you're rolling your own.
-
-## Protect Data First
-
-Authentication has a data/API boundary and a route/UI layer. The data boundary is the security boundary: every server function, server route, or API endpoint that reads or writes private data must authorize the request before returning data or mutating state.
-
-- **Data/API boundary** (this guide): issue and verify session cookies, exchange OAuth codes, hash and verify passwords, rate-limit credential endpoints, defeat user enumeration, and authorize private data access.
-- **Route/UI layer** (`router-core/auth-and-guards`): redirect unauthenticated users away from screens they cannot use, gate UI on roles/permissions, surface a login form, and avoid triggering requests that would fail anyway.
-
-> **A route guard is not a data authorization boundary.** Server functions and server routes are API endpoints; they are reachable independently of the route that calls them. Auth must be enforced in the handler or middleware for the endpoint that touches private data. `beforeLoad` is for route UX.
-
-## Session Cookies
-
-The default session storage is an HTTP-only cookie. The cookie can hold:
-
-- An **opaque session ID** that the server looks up in a database (recommended — easy to revoke).
-- A **signed/encrypted token** that carries the session payload itself (stateless, but revocation is harder).
-
-Whichever you choose, the cookie flags matter:
-
-```ts
-// src/server/session.ts
-import {
-  getRequestHeader,
-  setResponseHeader,
-} from '@tanstack/react-start/server'
-
-const SESSION_COOKIE = '__Host-session'
-const ONE_DAY = 60 * 60 * 24
-
-export function setSessionCookie(token: string) {
-  setResponseHeader(
-    'Set-Cookie',
-    [
-      `${SESSION_COOKIE}=${token}`,
-      `HttpOnly`,
-      `Secure`,
-      `SameSite=Lax`,
-      `Path=/`,
-      `Max-Age=${ONE_DAY}`,
-    ].join('; '),
-  )
-}
-
-export function clearSessionCookie() {
-  setResponseHeader(
-    'Set-Cookie',
-    `${SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`,
-  )
-}
-
-export function readSessionToken(): string | null {
-  const header = getRequestHeader('cookie')
-  if (!header) return null
-  for (const part of header.split(/;\s*/)) {
-    // Split only on the FIRST '=' — signed/base64 values often contain '='.
-    const eq = part.indexOf('=')
-    if (eq === -1) continue
-    if (part.slice(0, eq) === SESSION_COOKIE) return part.slice(eq + 1)
-  }
-  return null
-}
-```
-
-| Flag             | Why                                                                                                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `HttpOnly`       | JavaScript can't read the cookie. An XSS bug can't exfiltrate the session.                                                                                   |
-| `Secure`         | HTTPS only. Required when using the `__Host-` prefix.                                                                                                        |
-| `SameSite=Lax`   | Sent on top-level navigations; blocks most cross-site CSRF on POST. Use `Strict` for higher-risk apps where loss of cross-site GET navigation is acceptable. |
-| `__Host-` prefix | Binds the cookie to the exact origin. No `Domain` attribute, `Path=/`, `Secure` required. Defeats subdomain-takeover session fixation.                       |
-| `Path=/`         | Required by `__Host-`.                                                                                                                                       |
-| `Max-Age`        | Bounded lifetime. Pair with server-side rotation.                                                                                                            |
-
-## Session Lookup as Middleware
-
-Centralize session loading in middleware so every protected handler sees a typed session:
-
-```ts
-// src/server/auth-middleware.ts
-import { createMiddleware } from '@tanstack/react-start'
-import { readSessionToken } from './session'
-
-export const authMiddleware = createMiddleware({ type: 'function' }).server(
-  async ({ next }) => {
-    const token = readSessionToken()
-    const session = token ? await db.sessions.findValid(token) : null
-    if (!session) throw new Error('Unauthorized')
-    return next({ context: { session } })
-  },
-)
-```
-
-Attach to every protected server function:
-
-```ts
-import { createServerFn } from '@tanstack/react-start'
-import { authMiddleware } from '~/server/auth-middleware'
-
-export const getMyOrders = createServerFn({ method: 'GET' })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    return db.orders.findMany({ where: { userId: context.session.userId } })
-  })
-```
-
-## Login
-
-```ts
-// src/server/login.functions.ts
-import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
-import { setSessionCookie } from './session'
-
-export const login = createServerFn({ method: 'POST' })
-  .validator(z.object({ email: z.string().email(), password: z.string() }))
-  .handler(async ({ data }) => {
-    const user = await db.users.findByEmail(data.email)
-    // Always run verifyPasswordHash — even when the user doesn't exist —
-    // so the user-not-found branch takes the same time as wrong-password.
-    // DUMMY_PASSWORD_HASH is a hash of any throwaway password computed once
-    // at startup with the same algorithm/cost as real password hashes.
-    const hashToCheck = user?.passwordHash ?? DUMMY_PASSWORD_HASH
-    const passwordMatches = await verifyPasswordHash(hashToCheck, data.password)
-    const ok = user != null && passwordMatches
-    if (!ok) throw new Error('Invalid email or password')
-
-    // Rotate: destroy any existing session, then issue fresh.
-    await db.sessions.revokeAllForUser(user.id)
-    const token = await db.sessions.create({ userId: user.id })
-    setSessionCookie(token)
-    return { ok: true }
-  })
-```
-
-The `Invalid email or password` message is identical for "user not found" and "wrong password". The dummy-hash technique above also makes the timing identical: without it, the no-user branch returns instantly while the wrong-password branch spends ~100ms on the hash compare, leaking account existence over the wire.
-
-## Logout
-
-```ts
-import { createServerFn } from '@tanstack/react-start'
-import { authMiddleware } from '~/server/auth-middleware'
-import { clearSessionCookie } from '~/server/session'
-
-export const logout = createServerFn({ method: 'POST' })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    await db.sessions.revoke(context.session.id)
-    clearSessionCookie()
-    return { ok: true }
-  })
-```
-
-## OAuth: state + PKCE
-
-For OAuth authorization-code flow:
-
-- Generate a one-time random `state` parameter — prevents CSRF on the callback.
-- Generate a PKCE `code_verifier`/`code_challenge` pair — defends against authorization-code interception.
-- Store both in a short-lived signed cookie keyed to this exact attempt.
-
-```ts
-// src/server/oauth.functions.ts
-import { createServerFn } from '@tanstack/react-start'
-import { redirect } from '@tanstack/react-router'
-import { setResponseHeader } from '@tanstack/react-start/server'
-import crypto from 'node:crypto'
-
-const OAUTH_STATE_COOKIE = '__Host-oauth'
-
-function base64url(buf: Buffer) {
-  return buf
-    .toString('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-}
-
-export const startOAuth = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    const state = base64url(crypto.randomBytes(32))
-    const verifier = base64url(crypto.randomBytes(32))
-    const challenge = base64url(
-      crypto.createHash('sha256').update(verifier).digest(),
-    )
-
-    setResponseHeader(
-      'Set-Cookie',
-      `${OAUTH_STATE_COOKIE}=${signed({ state, verifier })}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`,
-    )
-
-    throw redirect({
-      href:
-        `https://provider.example/authorize` +
-        `?response_type=code` +
-        `&client_id=${process.env.OAUTH_CLIENT_ID}` +
-        `&redirect_uri=${encodeURIComponent(process.env.OAUTH_REDIRECT_URI!)}` +
-        `&state=${state}` +
-        `&code_challenge=${challenge}` +
-        `&code_challenge_method=S256`,
-    })
-  },
-)
-```
-
-In the callback handler:
-
-1. Read the cookie, verify its signature, and extract `state` + `verifier`.
-2. Compare cookie-state to the `state` query param. If they don't match, abort.
-3. Exchange the authorization code for an access token, sending `code_verifier` along with it.
-4. Fetch the user profile, find/create the local user record, issue a session.
-5. Clear the OAuth cookie.
-
-If any of those checks fail, the request did not originate from your `startOAuth` and must be rejected.
-
-## Password Reset: defeat user enumeration
-
-The reset endpoint must NOT tell the caller whether a given email is registered. Returning 200 vs 404 — or even different copy — leaks user existence to anyone who can hit the endpoint.
-
-```ts
-import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
-
-export const requestPasswordReset = createServerFn({ method: 'POST' })
-  .validator(z.object({ email: z.string().email() }))
-  .handler(async ({ data }) => {
-    const user = await db.users.findByEmail(data.email)
-    if (user) {
-      const token = await db.passwordResets.issue(user.id)
-      await sendResetEmail(user.email, token)
-    }
-    // Same response, same body, regardless of existence.
-    return { ok: true }
-  })
-```
-
-Do NOT:
-
-- Return 200 if exists, 404 if not.
-- Vary the message ("we sent you a link" vs "no account found").
-- Skip the work when the user doesn't exist (timing leak — measurable from the wire).
-
-## CSRF for non-GET RPCs
-
-`SameSite=Lax` on the session cookie blocks most cross-site CSRF for POST/PUT/DELETE. Two cases need explicit defense:
-
-1. **GET-that-mutates** — never. Use POST/PUT/DELETE for any mutation.
-2. **POST from a sibling subdomain** — `SameSite=Lax` does not block this; verify the `Origin` header matches your app.
-
-```ts
-import { createMiddleware } from '@tanstack/react-start'
-import { getRequest } from '@tanstack/react-start/server'
-
-export const csrfMiddleware = createMiddleware().server(async ({ next }) => {
-  const request = getRequest()
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    const origin = request.headers.get('origin')
-    // Compare the FULL origin (scheme + host + port) — host alone lets
-    // http://example.com pass a check meant for https://example.com.
-    if (!origin || new URL(origin).origin !== process.env.APP_ORIGIN) {
-      throw new Error('Origin check failed')
-    }
-  }
-  return next()
-})
-```
-
-Attach this in `src/start.ts` global `requestMiddleware` so it runs on every non-GET request, including server routes and SSR.
-
-## Rate Limiting Auth Endpoints
-
-A login endpoint without rate limiting is a credential-stuffing target. Limit per IP (and per-account if you can identify the user) with a sliding window or token bucket.
-
-```ts
-import { createMiddleware } from '@tanstack/react-start'
-import { getRequest } from '@tanstack/react-start/server'
-
-function rateLimitMiddleware(opts: {
-  key: string
-  max: number
-  windowMs: number
-}) {
-  return createMiddleware().server(async ({ next }) => {
-    const request = getRequest()
-    const ip =
-      request.headers.get('cf-connecting-ip') ??
-      request.headers.get('x-forwarded-for')?.split(',')[0] ??
-      'unknown'
-    const allowed = await rateLimiter.consume(
-      `rl:${opts.key}:${ip}`,
-      opts.max,
-      opts.windowMs,
-    )
-    if (!allowed) throw new Error('Too many requests')
-    return next()
-  })
-}
-
-export const login = createServerFn({ method: 'POST' }).middleware([
-  rateLimitMiddleware({ key: 'login', max: 5, windowMs: 60_000 }),
-])
-// ...
-```
-
-## Session Rotation
-
-Whenever the user's privileges change — login, logout, password change, role grant — destroy the old session and issue a new one. This neutralizes session-fixation attacks where an attacker plants their own session ID in the victim's browser before the privilege change.
-
-```ts
-// On login: revoke any pre-login session, create fresh.
-await db.sessions.revokeAllForUser(user.id)
-const token = await db.sessions.create({ userId: user.id })
-setSessionCookie(token)
-
-// On password change / role grant:
-await db.sessions.revokeAllForUser(user.id)
-const token = await db.sessions.create({ userId: user.id })
-setSessionCookie(token)
-```
-
-## Read Cookies and Env Per Request, Not at Module Scope
-
-Module-scope reads are wrong on two axes:
-
-- **Security:** they can be inlined into the client bundle.
-- **Correctness on edge runtimes:** Cloudflare Workers (and others) inject env at request time. Module-level reads run before any request exists and evaluate to `undefined` even on the server.
-
-```ts
-// ❌ Wrong
-const SESSION_SECRET = process.env.SESSION_SECRET
-export function signSession(payload) {
-  return sign(payload, SESSION_SECRET)
-}
-
-// ✅ Right
-export function signSession(payload) {
-  return sign(payload, process.env.SESSION_SECRET)
-}
-```
-
-See [Execution Model: Module-Level `process.env` Reads](./execution-model.md#module-level-processenv-reads) for the full rule.
-
-## See Also
-
-- [Authentication Overview](./authentication-overview.md) — choosing between partner solutions, OSS libraries, and DIY.
-- [Authenticated Routes (Router)](../../../../router/guide/authenticated-routes.md) — the routing-side guide.
-- [Server Functions](./server-functions.md) — the RPC primitive that auth lives inside.
-- [Middleware](./middleware.md) — composing `authMiddleware`.
-- [OWASP Cheat Sheets — Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html), [Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html), [CSRF](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
-- [MDN — Set-Cookie](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie).
-
----
-id: authentication
-title: Authentication
----
-
-This guide covers authentication patterns and shows how to implement your own authentication system with TanStack Start.
-
-> **📋 Before You Start:** Check our [Authentication Overview](./authentication-overview.md) for all available options including partner solutions and hosted services.
-
-## Authentication Approaches
-
-You have several options for authentication in your TanStack Start application:
-
-**Hosted Solutions:**
-
-1. **[Clerk](https://clerk.dev)** - Complete authentication platform with UI components
-2. **[WorkOS](https://workos.com)** - Enterprise-focused with SSO and compliance features
-3. **[Better Auth](https://www.better-auth.com/)** - Open-source TypeScript library
-4. **[Auth.js](https://authjs.dev/)** - Open-source library supporting 80+ OAuth providers
-
-**DIY Implementation Benefits:**
-
-- **Full Control**: Complete customization over authentication flow
-- **No Vendor Lock-in**: Own your authentication logic and user data
-- **Custom Requirements**: Implement specific business logic or compliance needs
-- **Cost Control**: No per-user pricing or usage limits
-
-Authentication involves many considerations including password security, session management, rate limiting, CSRF protection, and various attack vectors.
-
-## Core Concepts
-
-### Authentication vs Authorization
-
-- **Authentication**: Who is this user? (Login/logout)
-- **Authorization**: What can this user do? (Permissions/roles)
-
-TanStack Start provides the tools for both through server functions, sessions, and route protection.
-
-> Protect the data/API boundary first. Any server function, server route, or other API endpoint that returns or mutates private data must authorize the request itself. `beforeLoad` is useful for route UX: it keeps users out of screens they cannot use and avoids triggering work that would fail anyway. It is not the security boundary for the data. See [Authentication Server Primitives](./authentication-server-primitives.md) for the server-side pattern.
-
-## Essential Building Blocks
-
-### 1. Server Functions for Authentication
-
-Server functions handle sensitive authentication logic securely on the server:
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-import { redirect } from '@tanstack/react-router'
-
-// Login server function
-export const loginFn = createServerFn({ method: 'POST' })
-  .validator((data: { email: string; password: string }) => data)
-  .handler(async ({ data }) => {
-    // Verify credentials (replace with your auth logic)
-    const user = await authenticateUser(data.email, data.password)
-
-    if (!user) {
-      return { error: 'Invalid credentials' }
-    }
-
-    // Create session
-    const session = await useAppSession()
-    await session.update({
-      userId: user.id,
-      email: user.email,
-    })
-
-    // Redirect to protected area
-    throw redirect({ to: '/dashboard' })
-  })
-
-// Logout server function
-export const logoutFn = createServerFn({ method: 'POST' }).handler(async () => {
-  const session = await useAppSession()
-  await session.clear()
-  throw redirect({ to: '/' })
-})
-
-// Get current user
-export const getCurrentUserFn = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    const session = await useAppSession()
-    const userId = session.data.userId
-
-    if (!userId) {
-      return null
-    }
-
-    return await getUserById(userId)
-  },
-)
-```
-
-### 2. Session Management
-
-TanStack Start provides secure HTTP-only cookie sessions:
-
-```tsx
-// utils/session.ts
-import { useSession } from '@tanstack/react-start/server'
-
-type SessionData = {
-  userId?: string
-  email?: string
-  role?: string
-}
-
-export function useAppSession() {
-  return useSession<SessionData>({
-    // Session configuration
-    name: 'app-session',
-    password: process.env.SESSION_SECRET!, // At least 32 characters
-    // Optional: customize cookie settings
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      httpOnly: true,
-    },
-  })
-}
-```
-
-### 3. Authentication Context
-
-Share authentication state across your application:
-
-```tsx
-// contexts/auth.tsx
-import { createContext, useContext, ReactNode } from 'react'
-import { useServerFn } from '@tanstack/react-start'
-import { getCurrentUserFn } from '../server/auth'
-
-type User = {
-  id: string
-  email: string
-  role: string
-}
-
-type AuthContextType = {
-  user: User | null
-  isLoading: boolean
-  refetch: () => void
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const { data: user, isLoading, refetch } = useServerFn(getCurrentUserFn)
-
-  return (
-    <AuthContext.Provider value={{ user, isLoading, refetch }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
-  }
-  return context
-}
-```
-
-### 4. Route Protection
-
-Protect routes using `beforeLoad`:
-
-```tsx
-// routes/_authed.tsx - Layout route for protected pages
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { getCurrentUserFn } from '../server/auth'
-
-export const Route = createFileRoute('/_authed')({
-  beforeLoad: async ({ location }) => {
-    const user = await getCurrentUserFn()
-
-    if (!user) {
-      throw redirect({
-        to: '/login',
-        search: { redirect: location.href },
-      })
-    }
-
-    // Pass user to child routes
-    return { user }
-  },
-})
-```
-
-```tsx
-// routes/_authed/dashboard.tsx - Protected route
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/_authed/dashboard')({
-  component: DashboardComponent,
-})
-
-function DashboardComponent() {
-  const { user } = Route.useRouteContext()
-
-  return (
-    <div>
-      <h1>Welcome, {user.email}!</h1>
-      {/* Dashboard content */}
-    </div>
-  )
-}
-```
-
-## Implementation Patterns
-
-### Basic Email/Password Authentication
-
-```tsx
-// server/auth.ts
-import bcrypt from 'bcryptjs'
-import { createServerFn } from '@tanstack/react-start'
-
-// User registration
-export const registerFn = createServerFn({ method: 'POST' })
-  .validator((data: { email: string; password: string; name: string }) => data)
-  .handler(async ({ data }) => {
-    // Check if user exists
-    const existingUser = await getUserByEmail(data.email)
-    if (existingUser) {
-      return { error: 'User already exists' }
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(data.password, 12)
-
-    // Create user
-    const user = await createUser({
-      email: data.email,
-      password: hashedPassword,
-      name: data.name,
-    })
-
-    // Create session
-    const session = await useAppSession()
-    await session.update({ userId: user.id })
-
-    return { success: true, user: { id: user.id, email: user.email } }
-  })
-
-async function authenticateUser(email: string, password: string) {
-  const user = await getUserByEmail(email)
-  if (!user) return null
-
-  const isValid = await bcrypt.compare(password, user.password)
-  return isValid ? user : null
-}
-```
-
-### Role-Based Access Control (RBAC)
-
-```tsx
-// utils/auth.ts
-export const roles = {
-  USER: 'user',
-  ADMIN: 'admin',
-  MODERATOR: 'moderator',
-} as const
-
-type Role = (typeof roles)[keyof typeof roles]
-
-export function hasPermission(userRole: Role, requiredRole: Role): boolean {
-  const hierarchy = {
-    [roles.USER]: 0,
-    [roles.MODERATOR]: 1,
-    [roles.ADMIN]: 2,
-  }
-
-  return hierarchy[userRole] >= hierarchy[requiredRole]
-}
-
-// Protected route with role check
-export const Route = createFileRoute('/_authed/admin/')({
-  beforeLoad: async ({ context }) => {
-    if (!hasPermission(context.user.role, roles.ADMIN)) {
-      throw redirect({ to: '/unauthorized' })
-    }
-  },
-})
-```
-
-### Social Authentication Integration
-
-```tsx
-// Example with OAuth providers
-export const authProviders = {
-  google: {
-    clientId: process.env.GOOGLE_CLIENT_ID!,
-    redirectUri: `${process.env.APP_URL}/auth/google/callback`,
-  },
-  github: {
-    clientId: process.env.GITHUB_CLIENT_ID!,
-    redirectUri: `${process.env.APP_URL}/auth/github/callback`,
-  },
-}
-
-export const initiateOAuthFn = createServerFn({ method: 'POST' })
-  .validator((data: { provider: 'google' | 'github' }) => data)
-  .handler(async ({ data }) => {
-    const provider = authProviders[data.provider]
-    const state = generateRandomState()
-
-    // Store state in session for CSRF protection
-    const session = await useAppSession()
-    await session.update({ oauthState: state })
-
-    // Generate OAuth URL
-    const authUrl = generateOAuthUrl(provider, state)
-
-    throw redirect({ href: authUrl })
-  })
-```
-
-### Password Reset Flow
-
-```tsx
-// Password reset request
-export const requestPasswordResetFn = createServerFn({ method: 'POST' })
-  .validator((data: { email: string }) => data)
-  .handler(async ({ data }) => {
-    const user = await getUserByEmail(data.email)
-    if (!user) {
-      // Don't reveal if email exists
-      return { success: true }
-    }
-
-    const token = generateSecureToken()
-    const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-
-    await savePasswordResetToken(user.id, token, expires)
-    await sendPasswordResetEmail(user.email, token)
-
-    return { success: true }
-  })
-
-// Password reset confirmation
-export const resetPasswordFn = createServerFn({ method: 'POST' })
-  .validator((data: { token: string; newPassword: string }) => data)
-  .handler(async ({ data }) => {
-    const resetToken = await getPasswordResetToken(data.token)
-
-    if (!resetToken || resetToken.expires < new Date()) {
-      return { error: 'Invalid or expired token' }
-    }
-
-    const hashedPassword = await bcrypt.hash(data.newPassword, 12)
-    await updateUserPassword(resetToken.userId, hashedPassword)
-    await deletePasswordResetToken(data.token)
-
-    return { success: true }
-  })
-```
-
-## Security Best Practices
-
-### 1. Password Security
-
-```tsx
-// Use strong hashing (bcrypt, scrypt, or argon2)
-import bcrypt from 'bcryptjs'
-
-const saltRounds = 12 // Adjust based on your security needs
-const hashedPassword = await bcrypt.hash(password, saltRounds)
-```
-
-### 2. Session Security
-
-```tsx
-// Use secure session configuration
-export function useAppSession() {
-  return useSession({
-    name: 'app-session',
-    password: process.env.SESSION_SECRET!, // 32+ characters
-    cookie: {
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'lax', // CSRF protection
-      httpOnly: true, // XSS protection
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    },
-  })
-}
-```
-
-### 3. Rate Limiting
-
-```tsx
-// Simple in-memory rate limiting (use Redis in production)
-const loginAttempts = new Map<string, { count: number; resetTime: number }>()
-
-export const rateLimitLogin = (ip: string): boolean => {
-  const now = Date.now()
-  const attempts = loginAttempts.get(ip)
-
-  if (!attempts || now > attempts.resetTime) {
-    loginAttempts.set(ip, { count: 1, resetTime: now + 15 * 60 * 1000 }) // 15 min
-    return true
-  }
-
-  if (attempts.count >= 5) {
-    return false // Too many attempts
-  }
-
-  attempts.count++
-  return true
-}
-```
-
-### 4. Input Validation
-
-```tsx
-import { z } from 'zod'
-
-const loginSchema = z.object({
-  email: z.string().email().max(255),
-  password: z.string().min(8).max(100),
-})
-
-export const loginFn = createServerFn({ method: 'POST' })
-  .validator((data) => loginSchema.parse(data))
-  .handler(async ({ data }) => {
-    // data is now validated
-  })
-```
-
-## Testing Authentication
-
-### Unit Testing Server Functions
-
-```tsx
-// __tests__/auth.test.ts
-import { describe, it, expect, beforeEach } from 'vitest'
-import { loginFn } from '../server/auth'
-
-describe('Authentication', () => {
-  beforeEach(async () => {
-    await setupTestDatabase()
-  })
-
-  it('should login with valid credentials', async () => {
-    const result = await loginFn({
-      data: { email: 'test@example.com', password: 'password123' },
-    })
-
-    expect(result.error).toBeUndefined()
-    expect(result.user).toBeDefined()
-  })
-
-  it('should reject invalid credentials', async () => {
-    const result = await loginFn({
-      data: { email: 'test@example.com', password: 'wrongpassword' },
-    })
-
-    expect(result.error).toBe('Invalid credentials')
-  })
-})
-```
-
-### Integration Testing
-
-```tsx
-// __tests__/auth-flow.test.tsx
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
-import { router } from '../router'
-
-describe('Authentication Flow', () => {
-  it('should redirect to login when accessing protected route', async () => {
-    const history = createMemoryHistory()
-    history.push('/dashboard') // Protected route
-
-    render(<RouterProvider router={router} history={history} />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Login')).toBeInTheDocument()
-    })
-  })
-})
-```
-
-## Common Patterns
-
-### Loading States
-
-```tsx
-function LoginForm() {
-  const [isLoading, setIsLoading] = useState(false)
-  const loginMutation = useServerFn(loginFn)
-
-  const handleSubmit = async (data: LoginData) => {
-    setIsLoading(true)
-    try {
-      await loginMutation.mutate(data)
-    } catch (error) {
-      // Handle error
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit}>
-      {/* Form fields */}
-      <button disabled={isLoading}>
-        {isLoading ? 'Logging in...' : 'Login'}
-      </button>
-    </form>
-  )
-}
-```
-
-### Remember Me Functionality
-
-```tsx
-export const loginFn = createServerFn({ method: 'POST' })
-  .validator(
-    (data: { email: string; password: string; rememberMe?: boolean }) => data,
-  )
-  .handler(async ({ data }) => {
-    const user = await authenticateUser(data.email, data.password)
-    if (!user) return { error: 'Invalid credentials' }
-
-    const session = await useAppSession()
-    await session.update(
-      { userId: user.id },
-      {
-        // Extend session if remember me is checked
-        maxAge: data.rememberMe ? 30 * 24 * 60 * 60 : undefined, // 30 days vs session
-      },
-    )
-
-    return { success: true }
-  })
-```
-
-## Working Examples
-
-Study these implementations to understand different authentication patterns:
-
-- **[Basic Auth with Prisma](https://github.com/TanStack/router/tree/main/examples/react/start-basic-auth)** - Complete DIY implementation with database and sessions
-- **[Supabase Integration](https://github.com/TanStack/router/tree/main/examples/react/start-supabase-basic)** - Third-party service integration example
-- **[Client-side Context Auth](https://github.com/TanStack/router/tree/main/examples/react/authenticated-routes)** - Client-only authentication patterns
-
-## Migration from Other Solutions
-
-### From Client-Side Auth
-
-If you're migrating from client-side authentication (localStorage, context only):
-
-1. Move authentication logic to server functions
-2. Replace localStorage with server sessions
-3. Update route protection to use `beforeLoad`
-4. Add proper security headers and CSRF protection
-
-### From Other Frameworks
-
-- **Next.js**: Replace API routes with server functions, migrate NextAuth sessions
-- **Remix**: Convert loaders/actions to server functions, adapt session patterns
-- **SvelteKit**: Move form actions to server functions, update route protection
-
-## Production Considerations
-
-When choosing your authentication approach, consider these factors:
-
-### Hosted vs DIY Comparison
-
-**Hosted Solutions (Clerk, WorkOS, Better Auth):**
-
-- Pre-built security measures and regular updates
-- UI components and user management features
-- Compliance certifications and audit trails
-- Support and documentation
-- Per-user or subscription pricing
-
-**DIY Implementation:**
-
-- Complete control over implementation and data
-- No ongoing subscription costs
-- Custom business logic and workflows
-- Responsibility for security updates and monitoring
-- Need to handle edge cases and attack vectors
-
-### Security Considerations
-
-Authentication systems need to handle various security aspects:
-
-- Password hashing and timing attack prevention
-- Session management and fixation protection
-- CSRF and XSS protection
-- Rate limiting and brute force prevention
-- OAuth flow security
-- Compliance requirements (GDPR, CCPA, etc.)
-
-## Next Steps
-
-When implementing authentication, consider:
-
-- **Security Review**: Review your implementation for security best practices
-- **Performance**: Add caching for user lookups and session validation
-- **Monitoring**: Add logging and monitoring for authentication events
-- **Compliance**: Ensure compliance with relevant regulations if storing personal data
-
-For other authentication approaches, check the [Authentication Overview](./authentication-overview.md). For specific integration help, explore our [working examples](https://github.com/TanStack/router/tree/main/examples/react).
----
-id: path-aliases
-title: Path Aliases
----
-
-Path aliases are a useful feature of TypeScript that allows you to define a shortcut for a path that could be distant in your project's directory structure. This can help you avoid long relative imports in your code and make it easier to refactor your project's structure. This is especially useful for avoiding long relative imports in your code.
-
-By default, TanStack Start does not include path aliases. However, you can easily add them to your project by updating your `tsconfig.json` file in the root of your project and adding the following configuration:
-
-```json
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "~/*": ["./src/*"]
-    }
-  }
-}
-```
-
-In this example, we've defined the path alias `~/*` that maps to the `./src/*` directory. This means that you can now import files from the `src` directory using the `~` prefix.
-
-After updating your `tsconfig.json` file, configure your build tool so it resolves the same path aliases.
-
-<!-- ::start:tabs variant="bundler" -->
-
-# Vite
-
-## Vite 8
-
-Vite 8+ has [built-in support for path aliases](https://vite.dev/config/shared-options#resolve-tsconfigpaths), which is disabled by default. To enable it, simply add the following configuration to your `vite.config.ts` file:
-
-```ts
-// vite.config.ts
-import { defineConfig } from 'vite'
-
-export default defineConfig({
-  resolve: {
-    // This enables built-in support for path aliases defined in tsconfig.json
-    tsconfigPaths: true,
-  },
-})
-```
-
-## Vite 7 and earlier
-
-For Vite 7 and earlier, install the `vite-tsconfig-paths` plugin to enable path aliases in your TanStack Start project. You can do this by running the following command:
-
-```sh
-npm install -D vite-tsconfig-paths
-```
-
-Now, you'll need to update your `vite.config.ts` file to include the following:
-
-```ts
-// vite.config.ts
-import { defineConfig } from 'vite'
-import viteTsConfigPaths from 'vite-tsconfig-paths'
-
-export default defineConfig({
-  plugins: [
-    // this is the plugin that enables path aliases
-    viteTsConfigPaths({
-      projects: ['./tsconfig.json'],
-    }),
-  ],
-})
-```
-
-# Rsbuild
-
-Rsbuild reads the `paths` field from `tsconfig.json` by default. No extra config is needed when your aliases live in the root `tsconfig.json`.
-
-If you use a custom tsconfig file, point Rsbuild at it with `source.tsconfigPath`:
-
-```ts
-// rsbuild.config.ts
-import { defineConfig } from '@rsbuild/core'
-
-export default defineConfig({
-  source: {
-    tsconfigPath: './tsconfig.custom.json',
-  },
-})
-```
-
-<!-- ::end:tabs -->
-
-Once this configuration has completed, you'll now be able to import files using the path alias like so:
-
-```ts
-// app/routes/posts/$postId/edit.tsx
-import { Input } from '~/components/ui/input'
-
-// instead of
-
-import { Input } from '../../../components/ui/input'
-```
-
----
-id: seo
-title: SEO
----
-
-> [!NOTE]
-> Looking to optimize for AI assistants and LLMs? See the [LLM Optimization (LLMO) guide](./llmo).
-
-## What is SEO, really?
-
-SEO (Search Engine Optimization) is often misunderstood as simply "showing up on Google" or a checkbox that a library can magically provide. In reality, SEO is a broad discipline focused on delivering valuable content that people need and making it easy for them to find.
-
-**Technical SEO** is a subset of SEO that developers interact with most directly. It involves using tools and APIs that satisfy the technical requirements of search engines, crawlers, rankers, and even LLMs. When someone says a framework has "good SEO support," they typically mean it provides the tools to make this process straightforward.
-
-TanStack Start provides comprehensive technical SEO capabilities, but you still need to put in the work to use them effectively.
-
-## What TanStack Start Provides
-
-TanStack Start gives you the building blocks for technical SEO:
-
-- **Server-Side Rendering (SSR)** - Ensures crawlers receive fully rendered HTML
-- **Static Prerendering** - Pre-generates pages for optimal performance and crawlability
-- **Document Head Management** - Full control over meta tags, titles, and structured data
-- **Performance** - Fast load times through code-splitting, streaming, and optimized builds
-
-## Document Head Management
-
-The `head` property on routes is your primary tool for SEO. It allows you to set page titles, meta descriptions, Open Graph tags, and more.
-
-### Basic Meta Tags
-
-```tsx
-// src/routes/index.tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/')({
-  head: () => ({
-    meta: [
-      { title: 'My App - Home' },
-      {
-        name: 'description',
-        content: 'Welcome to My App, a platform for...',
-      },
-    ],
-  }),
-  component: HomePage,
-})
-```
-
-### Dynamic Meta Tags
-
-Use loader data to generate dynamic meta tags for content pages:
-
-```tsx
-// src/routes/posts/$postId.tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/posts/$postId')({
-  loader: async ({ params }) => {
-    const post = await fetchPost(params.postId)
-    return { post }
-  },
-  head: ({ loaderData }) => ({
-    meta: [
-      { title: loaderData.post.title },
-      { name: 'description', content: loaderData.post.excerpt },
-    ],
-  }),
-  component: PostPage,
-})
-```
-
-### Open Graph and Social Sharing
-
-Open Graph tags control how your pages appear when shared on social media:
-
-```tsx
-export const Route = createFileRoute('/posts/$postId')({
-  loader: async ({ params }) => {
-    const post = await fetchPost(params.postId)
-    return { post }
-  },
-  head: ({ loaderData }) => ({
-    meta: [
-      { title: loaderData.post.title },
-      { name: 'description', content: loaderData.post.excerpt },
-      // Open Graph
-      { property: 'og:title', content: loaderData.post.title },
-      { property: 'og:description', content: loaderData.post.excerpt },
-      { property: 'og:image', content: loaderData.post.coverImage },
-      { property: 'og:type', content: 'article' },
-      // Twitter Card
-      { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'twitter:title', content: loaderData.post.title },
-      { name: 'twitter:description', content: loaderData.post.excerpt },
-      { name: 'twitter:image', content: loaderData.post.coverImage },
-    ],
-  }),
-  component: PostPage,
-})
-```
-
-### Canonical URLs
-
-Canonical URLs help prevent duplicate content issues:
-
-```tsx
-export const Route = createFileRoute('/posts/$postId')({
-  head: ({ params }) => ({
-    links: [
-      {
-        rel: 'canonical',
-        href: `https://myapp.com/posts/${params.postId}`,
-      },
-    ],
-  }),
-  component: PostPage,
-})
-```
-
-## Structured Data (JSON-LD)
-
-Structured data helps search engines understand your content and can enable rich results in search:
-
-```tsx
-export const Route = createFileRoute('/posts/$postId')({
-  loader: async ({ params }) => {
-    const post = await fetchPost(params.postId)
-    return { post }
-  },
-  head: ({ loaderData }) => ({
-    meta: [{ title: loaderData.post.title }],
-    scripts: [
-      {
-        type: 'application/ld+json',
-        children: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'Article',
-          headline: loaderData.post.title,
-          description: loaderData.post.excerpt,
-          image: loaderData.post.coverImage,
-          author: {
-            '@type': 'Person',
-            name: loaderData.post.author.name,
-          },
-          datePublished: loaderData.post.publishedAt,
-        }),
-      },
-    ],
-  }),
-  component: PostPage,
-})
-```
-
-## Server-Side Rendering
-
-SSR is enabled by default in TanStack Start. This ensures that search engine crawlers receive fully rendered HTML content, which is critical for SEO.
-
-```tsx
-// SSR is automatic - your pages are rendered on the server
-export const Route = createFileRoute('/about')({
-  component: AboutPage,
-})
-```
-
-For routes that don't need SSR, you can disable it selectively. However, be aware this may impact SEO for those pages:
-
-```tsx
-// Only disable SSR for pages that don't need SEO
-export const Route = createFileRoute('/dashboard')({
-  ssr: false, // Dashboard doesn't need to be indexed
-  component: DashboardPage,
-})
-```
-
-See the [Selective SSR guide](./selective-ssr) for more details.
-
-## Static Prerendering
-
-For content that doesn't change frequently, static prerendering generates HTML at build time for optimal performance:
-
-<!-- ::start:tabs variant="bundler" -->
-
-# Vite
-
-```ts title="vite.config.ts"
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-
-export default defineConfig({
-  plugins: [
-    tanstackStart({
-      prerender: {
-        enabled: true,
-        crawlLinks: true,
-      },
-    }),
-  ],
-})
-```
-
-# Rsbuild
-
-```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
-
-export default defineConfig({
-  plugins: [
-    tanstackStart({
-      prerender: {
-        enabled: true,
-        crawlLinks: true,
-      },
-    }),
-  ],
-})
-```
-
-<!-- ::end:tabs -->
-
-Prerendered pages load faster and are easily crawlable. See the [Static Prerendering guide](./static-prerendering) for configuration options.
-
-## Sitemaps
-
-### Built-in Sitemap Generation
-
-TanStack Start can automatically generate a sitemap when you enable prerendering with link crawling:
-
-<!-- ::start:tabs variant="bundler" -->
-
-# Vite
-
-```ts title="vite.config.ts"
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-
-export default defineConfig({
-  plugins: [
-    tanstackStart({
-      prerender: {
-        enabled: true,
-        crawlLinks: true, // Discovers all linkable pages
-      },
-      sitemap: {
-        enabled: true,
-        host: 'https://myapp.com',
-      },
-    }),
-  ],
-})
-```
-
-# Rsbuild
-
-```ts title="rsbuild.config.ts"
-import { defineConfig } from '@rsbuild/core'
-import { tanstackStart } from '@tanstack/react-start/plugin/rsbuild'
-
-export default defineConfig({
-  plugins: [
-    tanstackStart({
-      prerender: {
-        enabled: true,
-        crawlLinks: true, // Discovers all linkable pages
-      },
-      sitemap: {
-        enabled: true,
-        host: 'https://myapp.com',
-      },
-    }),
-  ],
-})
-```
-
-<!-- ::end:tabs -->
-
-The sitemap is generated at build time by crawling all discoverable pages from your routes. This is the recommended approach for static or mostly-static sites.
-
-### Static Sitemap
-
-For simple sites, you can also place a static `sitemap.xml` file in your `public` directory:
-
-```xml
-<!-- public/sitemap.xml -->
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://myapp.com/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://myapp.com/about</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-</urlset>
-```
-
-This approach works well when your site structure is known and doesn't change often.
-
-### Dynamic Sitemap
-
-For sites with dynamic content that can't be discovered at build time, you can create a dynamic sitemap using a [server route](./server-routes). Consider caching this at your CDN for performance:
-
-```ts
-// src/routes/sitemap[.]xml.ts
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/sitemap.xml')({
-  server: {
-    handlers: {
-      GET: async () => {
-        const posts = await fetchAllPosts()
-
-        const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://myapp.com/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  ${posts
-    .map(
-      (post) => `
-  <url>
-    <loc>https://myapp.com/posts/${post.id}</loc>
-    <lastmod>${post.updatedAt}</lastmod>
-    <changefreq>weekly</changefreq>
-  </url>`,
-    )
-    .join('')}
-</urlset>`
-
-        return new Response(sitemap, {
-          headers: {
-            'Content-Type': 'application/xml',
-          },
-        })
-      },
-    },
-  },
-})
-```
-
-## robots.txt
-
-### Static robots.txt
-
-The simplest approach is to place a static `robots.txt` file in your `public` directory:
-
-```txt
-// public/robots.txt
-User-agent: *
-Allow: /
-
-Sitemap: https://myapp.com/sitemap.xml
-```
-
-This file will be served automatically at `/robots.txt`. This is the most common approach for most sites.
-
-### Dynamic robots.txt
-
-For more complex scenarios (e.g., different rules per environment), you can create a robots.txt file using a [server route](./server-routes):
-
-```ts
-// src/routes/robots[.]txt.ts
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/robots.txt')({
-  server: {
-    handlers: {
-      GET: async () => {
-        const robots = `User-agent: *
-Allow: /
-
-Sitemap: https://myapp.com/sitemap.xml`
-
-        return new Response(robots, {
-          headers: {
-            'Content-Type': 'text/plain',
-          },
-        })
-      },
-    },
-  },
-})
-```
-
-## Best Practices
-
-### Performance Matters
-
-Page speed is a ranking factor. TanStack Start helps with:
-
-- **Automatic code-splitting** - Only load the JavaScript needed for each page
-- **Streaming SSR** - Start sending HTML to the browser immediately
-- **Preloading** - Prefetch routes before users navigate to them
-
-### Content is King
-
-Technical SEO is just one piece of the puzzle. The most important factors are:
-
-- **Quality content** - Create content that provides value to users
-- **Clear site structure** - Organize your routes logically
-- **Descriptive URLs** - Use meaningful path segments (`/posts/my-great-article` vs `/posts/123`)
-- **Internal linking** - Help users and crawlers discover your content
-
-### Test Your Implementation
-
-Use these tools to verify your SEO implementation:
-
-- [Google Search Console](https://search.google.com/search-console) - Monitor indexing and search performance
-- [Google Rich Results Test](https://search.google.com/test/rich-results) - Validate structured data
-- [Open Graph Debugger](https://developers.facebook.com/tools/debug/) - Preview social sharing cards
-- Browser DevTools - Inspect rendered HTML and meta tags
-
-### Track Your Rankings
-
-To monitor your SEO performance over time, we recommend [Nozzle.io](https://nozzle.io?utm_source=tanstack). Nozzle provides enterprise-grade rank tracking that lets you monitor unlimited keywords, track SERP features, and analyze your visibility against competitors. Unlike traditional rank trackers, Nozzle stores the entire SERP for every query, giving you complete data to understand how your pages perform in search results.
-
----
-id: llmo
-title: LLM Optimization (LLMO)
----
-
-> [!NOTE]
-> Looking for traditional search engine optimization? See the [SEO guide](./seo).
-
-## What is LLMO?
-
-**LLM Optimization (LLMO)**, also known as **AI Optimization (AIO)** or **Generative Engine Optimization (GEO)**, is the practice of structuring your content and data so that AI systems—like ChatGPT, Claude, Perplexity, and other LLM-powered tools—can accurately understand, cite, and recommend your content.
-
-While traditional SEO focuses on ranking in search engine results pages, LLMO focuses on being accurately represented in AI-generated responses. As more users get information through AI assistants rather than traditional search, this is becoming increasingly important.
-
-## How LLMO Differs from SEO
-
-| Aspect             | SEO                         | LLMO                                 |
-| ------------------ | --------------------------- | ------------------------------------ |
-| **Goal**           | Rank in search results      | Be cited/recommended by AI           |
-| **Audience**       | Search engine crawlers      | LLM training & retrieval systems     |
-| **Key signals**    | Links, keywords, page speed | Structured data, clarity, authority  |
-| **Content format** | Optimized for snippets      | Optimized for extraction & synthesis |
-
-The good news: many LLMO best practices overlap with SEO. Clear structure, authoritative content, and good metadata help both.
-
-## What TanStack Start Provides
-
-TanStack Start's features that support LLMO:
-
-- **Server-Side Rendering** - Ensures AI crawlers see fully rendered content
-- **Structured Data** - JSON-LD support for machine-readable content
-- **Document Head Management** - Meta tags that AI systems can parse
-- **Server Routes** - Create machine-readable endpoints (APIs, feeds)
-
-## Structured Data for AI
-
-Structured data using schema.org vocabulary helps AI systems understand your content's meaning and context. This is perhaps the most important LLMO technique.
-
-### Article Schema
-
-```tsx
-// src/routes/posts/$postId.tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/posts/$postId')({
-  loader: async ({ params }) => {
-    const post = await fetchPost(params.postId)
-    return { post }
-  },
-  head: ({ loaderData }) => ({
-    meta: [{ title: loaderData.post.title }],
-    scripts: [
-      {
-        type: 'application/ld+json',
-        children: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'Article',
-          headline: loaderData.post.title,
-          description: loaderData.post.excerpt,
-          image: loaderData.post.coverImage,
-          author: {
-            '@type': 'Person',
-            name: loaderData.post.author.name,
-            url: loaderData.post.author.url,
-          },
-          publisher: {
-            '@type': 'Organization',
-            name: 'My Company',
-            logo: {
-              '@type': 'ImageObject',
-              url: 'https://myapp.com/logo.png',
-            },
-          },
-          datePublished: loaderData.post.publishedAt,
-          dateModified: loaderData.post.updatedAt,
-        }),
-      },
-    ],
-  }),
-  component: PostPage,
-})
-```
-
-### Product Schema
-
-For e-commerce, product schema helps AI assistants provide accurate product information:
-
-```tsx
-export const Route = createFileRoute('/products/$productId')({
-  loader: async ({ params }) => {
-    const product = await fetchProduct(params.productId)
-    return { product }
-  },
-  head: ({ loaderData }) => ({
-    meta: [{ title: loaderData.product.name }],
-    scripts: [
-      {
-        type: 'application/ld+json',
-        children: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'Product',
-          name: loaderData.product.name,
-          description: loaderData.product.description,
-          image: loaderData.product.images,
-          brand: {
-            '@type': 'Brand',
-            name: loaderData.product.brand,
-          },
-          offers: {
-            '@type': 'Offer',
-            price: loaderData.product.price,
-            priceCurrency: 'USD',
-            availability: loaderData.product.inStock
-              ? 'https://schema.org/InStock'
-              : 'https://schema.org/OutOfStock',
-          },
-          aggregateRating: loaderData.product.rating
-            ? {
-                '@type': 'AggregateRating',
-                ratingValue: loaderData.product.rating,
-                reviewCount: loaderData.product.reviewCount,
-              }
-            : undefined,
-        }),
-      },
-    ],
-  }),
-  component: ProductPage,
-})
-```
-
-### Organization and Website Schema
-
-Add organization schema to your root route for site-wide context:
-
-```tsx
-// src/routes/__root.tsx
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-    ],
-    scripts: [
-      {
-        type: 'application/ld+json',
-        children: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'WebSite',
-          name: 'My App',
-          url: 'https://myapp.com',
-          publisher: {
-            '@type': 'Organization',
-            name: 'My Company',
-            url: 'https://myapp.com',
-            logo: 'https://myapp.com/logo.png',
-            sameAs: [
-              'https://twitter.com/mycompany',
-              'https://github.com/mycompany',
-            ],
-          },
-        }),
-      },
-    ],
-  }),
-  component: RootComponent,
-})
-```
-
-### FAQ Schema
-
-FAQ schema is particularly effective for LLMO—AI systems often extract Q&A pairs:
-
-```tsx
-export const Route = createFileRoute('/faq')({
-  loader: async () => {
-    const faqs = await fetchFAQs()
-    return { faqs }
-  },
-  head: ({ loaderData }) => ({
-    meta: [{ title: 'Frequently Asked Questions' }],
-    scripts: [
-      {
-        type: 'application/ld+json',
-        children: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'FAQPage',
-          mainEntity: loaderData.faqs.map((faq) => ({
-            '@type': 'Question',
-            name: faq.question,
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: faq.answer,
-            },
-          })),
-        }),
-      },
-    ],
-  }),
-  component: FAQPage,
-})
-```
-
-## Machine-Readable Endpoints
-
-Create API endpoints that AI systems and developers can consume directly:
-
-```ts
-// src/routes/api/products.ts
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/api/products')({
-  server: {
-    handlers: {
-      GET: async ({ request }) => {
-        const url = new URL(request.url)
-        const category = url.searchParams.get('category')
-
-        const products = await fetchProducts({ category })
-
-        return Response.json({
-          '@context': 'https://schema.org',
-          '@type': 'ItemList',
-          itemListElement: products.map((product, index) => ({
-            '@type': 'ListItem',
-            position: index + 1,
-            item: {
-              '@type': 'Product',
-              name: product.name,
-              description: product.description,
-              url: `https://myapp.com/products/${product.id}`,
-            },
-          })),
-        })
-      },
-    },
-  },
-})
-```
-
-## Content Best Practices
-
-Beyond technical implementation, content structure matters for LLMO:
-
-### Clear, Factual Statements
-
-AI systems extract factual claims. Make your key information explicit:
-
-```tsx
-// Good: Clear, extractable facts
-function ProductDetails({ product }) {
-  return (
-    <article>
-      <h1>{product.name}</h1>
-      <p>
-        {product.name} is a {product.category} made by {product.brand}. It costs
-        ${product.price} and is available in {product.colors.join(', ')}.
-      </p>
-    </article>
-  )
-}
-```
-
-### Hierarchical Structure
-
-Use proper heading hierarchy—AI systems use this to understand content organization:
-
-```tsx
-function DocumentationPage() {
-  return (
-    <article>
-      <h1>Getting Started with TanStack Start</h1>
-
-      <section>
-        <h2>Installation</h2>
-        <p>Install TanStack Start using npm...</p>
-
-        <h3>Prerequisites</h3>
-        <p>You'll need Node.js 18 or later...</p>
-      </section>
-
-      <section>
-        <h2>Configuration</h2>
-        <p>Configure your app in your build tool config...</p>
-      </section>
-    </article>
-  )
-}
-```
-
-### Authoritative Attribution
-
-Include author information and sources—AI systems consider authority signals:
-
-```tsx
-export const Route = createFileRoute('/posts/$postId')({
-  head: ({ loaderData }) => ({
-    meta: [
-      { title: loaderData.post.title },
-      { name: 'author', content: loaderData.post.author.name },
-      {
-        property: 'article:author',
-        content: loaderData.post.author.profileUrl,
-      },
-      {
-        property: 'article:published_time',
-        content: loaderData.post.publishedAt,
-      },
-    ],
-  }),
-  component: PostPage,
-})
-```
-
-## llms.txt
-
-Some sites are adopting a `llms.txt` file (similar to `robots.txt`) to provide guidance to AI systems:
-
-```ts
-// src/routes/llms[.]txt.ts
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/llms.txt')({
-  server: {
-    handlers: {
-      GET: async () => {
-        const content = `# My App
-
-> My App is a platform for building modern web applications.
-
-## Documentation
-- Getting Started: https://myapp.com/docs/getting-started
-- API Reference: https://myapp.com/docs/api
-
-## Key Facts
-- Built with TanStack Start
-- Supports React and Solid
-- Full TypeScript support
-
-## Contact
-- Website: https://myapp.com
-- GitHub: https://github.com/mycompany/myapp
-`
-
-        return new Response(content, {
-          headers: {
-            'Content-Type': 'text/plain',
-          },
-        })
-      },
-    },
-  },
-})
-```
-
-## Monitoring AI Citations
-
-Unlike traditional SEO with established analytics, LLMO monitoring is still evolving. Consider:
-
-- **Test with AI assistants** - Ask ChatGPT, Claude, and Perplexity about your product/content
-- **Monitor brand mentions** - Track how AI systems describe your offerings
-- **Validate structured data** - Use [Google's Rich Results Test](https://search.google.com/test/rich-results) and [Schema.org Validator](https://validator.schema.org/)
-- **Check AI search engines** - Monitor presence in Perplexity, Bing Chat, and Google AI Overviews

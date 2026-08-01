@@ -29,7 +29,7 @@ export function siteJsonLd(): JsonLd {
         url: SITE_URL,
         logo: {
           "@type": "ImageObject",
-          url: absoluteUrl("/logo.png"),
+          url: absoluteUrl("/brand/icon-512.png"),
         },
       },
       {

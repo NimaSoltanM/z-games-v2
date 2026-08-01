@@ -59,6 +59,73 @@ func TestValidateEnvironmentRejectsSandboxPaymentsInProduction(t *testing.T) {
 	}
 }
 
+func TestValidateEnvironmentAcceptsProviderApprovalMode(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("FRONTEND_URL", "https://example.com")
+	t.Setenv("API_PUBLIC_URL", "https://api.example.com")
+	t.Setenv("UPLOAD_DIR", "/data/uploads")
+	t.Setenv("RETURN_DIR", "/data/returns")
+	t.Setenv("PROVIDER_APPROVAL_MODE", "true")
+	t.Setenv("ZARINPAL_SANDBOX", "true")
+	t.Setenv("PAYAMAK_PANEL_USERNAME", "")
+	t.Setenv("PAYAMAK_PANEL_API_KEY", "")
+	t.Setenv("PAYAMAK_PANEL_BODY_ID", "")
+
+	if err := validateEnvironment(); err != nil {
+		t.Fatalf("validateEnvironment: %v", err)
+	}
+}
+
+func TestValidateEnvironmentProviderApprovalModeRequiresSandbox(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("FRONTEND_URL", "https://example.com")
+	t.Setenv("API_PUBLIC_URL", "https://api.example.com")
+	t.Setenv("UPLOAD_DIR", "/data/uploads")
+	t.Setenv("RETURN_DIR", "/data/returns")
+	t.Setenv("PROVIDER_APPROVAL_MODE", "true")
+	t.Setenv("ZARINPAL_SANDBOX", "false")
+
+	if err := validateEnvironment(); err == nil || !strings.Contains(err.Error(), "ZARINPAL_SANDBOX") {
+		t.Fatalf("error = %v, want sandbox requirement", err)
+	}
+}
+
+func TestValidateEnvironmentRejectsInvalidProviderApprovalMode(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("PROVIDER_APPROVAL_MODE", "yes")
+
+	if err := validateEnvironment(); err == nil || !strings.Contains(err.Error(), "PROVIDER_APPROVAL_MODE") {
+		t.Fatalf("error = %v, want invalid provider approval mode", err)
+	}
+}
+
+func TestValidateEnvironmentRequiresPayamakConfigInProduction(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("FRONTEND_URL", "https://example.com")
+	t.Setenv("API_PUBLIC_URL", "https://api.example.com")
+	t.Setenv("UPLOAD_DIR", "/data/uploads")
+	t.Setenv("RETURN_DIR", "/data/returns")
+	t.Setenv("ZARINPAL_SANDBOX", "false")
+	t.Setenv("PAYAMAK_PANEL_USERNAME", "")
+	t.Setenv("PAYAMAK_PANEL_API_KEY", "")
+	t.Setenv("PAYAMAK_PANEL_BODY_ID", "")
+
+	if err := validateEnvironment(); err == nil || !strings.Contains(err.Error(), "PAYAMAK_PANEL_USERNAME") {
+		t.Fatalf("error = %v, want missing Payamak username", err)
+	}
+}
+
+func TestValidateEnvironmentRejectsInvalidPayamakBodyID(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("PAYAMAK_PANEL_BODY_ID", "not-a-number")
+	if err := validateEnvironment(); err == nil || !strings.Contains(err.Error(), "PAYAMAK_PANEL_BODY_ID") {
+		t.Fatalf("error = %v, want invalid body ID", err)
+	}
+}
+
 func TestSplitCSV(t *testing.T) {
 	got := splitCSV(" 127.0.0.1, 10.0.0.0/8, ")
 	if len(got) != 2 || got[0] != "127.0.0.1" || got[1] != "10.0.0.0/8" {

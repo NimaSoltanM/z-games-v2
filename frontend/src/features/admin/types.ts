@@ -2,7 +2,7 @@ import type { Order, Pagination } from "@/features/orders"
 
 // A returned account available to reuse for an order item (same game + console +
 // capacity), offered on the fulfillment screen.
-export type InventoryAccount = {
+type InventoryAccount = {
   return_id: string
   returned_at: string
 }
@@ -35,7 +35,7 @@ export type FulfillItem = {
   passcode: string
 }
 
-export type CredentialMatch = {
+type CredentialMatch = {
   order_id: string
   order_number: number
   item_id: string

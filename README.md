@@ -108,15 +108,21 @@ bun run build
 
 ## Production requirements
 
+Production is deployed to Ubuntu with systemd, Nginx, and local PostgreSQL. See
+[`docs/VPS_DEPLOYMENT.md`](./docs/VPS_DEPLOYMENT.md) for bootstrap, migration,
+TLS, backup, and one-command release instructions.
+
 Set `APP_ENV=production` explicitly. The backend refuses to start without the
 required production URLs and storage paths, a valid encryption key, and
 `ZARINPAL_SANDBOX=false`. If traffic reaches Fiber through a reverse proxy, set
 `TRUSTED_PROXIES` to only the proxy IPs or CIDRs that may supply
 `X-Forwarded-For`; otherwise leave it empty.
 
-Production authentication remains unavailable until an SMS provider is
-integrated. The API deliberately returns `503` for OTP requests in production so
-it can never report a code as sent when no delivery occurred.
+Production authentication sends OTPs through Payamak Panel's shared service-line
+template endpoint. Set `PAYAMAK_PANEL_USERNAME`, `PAYAMAK_PANEL_API_KEY`, and the
+approved `PAYAMAK_PANEL_BODY_ID`, then allowlist the deployment's outgoing IP in
+the panel. The API returns `503` and removes the undelivered code when the
+provider rejects or cannot complete a request.
 
 Set `VITE_SITE_URL` to the final canonical HTTPS frontend origin. Set
 `VITE_ALLOW_INDEXING=true` only in the production deployment after that domain is

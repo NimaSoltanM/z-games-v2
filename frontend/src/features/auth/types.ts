@@ -1,4 +1,4 @@
-export type UserRole = "user" | "admin" | "super_admin"
+type UserRole = "user" | "admin" | "super_admin"
 
 export type MeResponse = {
   userId: string

@@ -1,19 +1,17 @@
 export type PriceMode = "dynamic" | "fixed"
 
 // Console + capacity codes are arbitrary catalog strings now (ps5, xbox_series,
-// z2, home, …), not a fixed enum. These aliases are kept (as `string`) so existing
-// imports keep resolving; new code can just use `string`.
+// z2, home, …), not fixed enums.
 export type ConsolePlatform = string
 export type Zarfiat = string
-export type Platform = string
 
 // Stored release status vs. the phase the backend derives from it + the release
 // date. The frontend reads `phase`/`purchasable`; it never re-derives the dates.
 export type ReleaseStatus = "released" | "pre_order"
-export type GamePhase = "released" | "pre_order" | "closing_soon"
+type GamePhase = "released" | "pre_order" | "closing_soon"
 export type AlertVariant = "info" | "warning"
 
-export type GameLink = {
+type GameLink = {
   id: string
   url: string
 }
@@ -27,7 +25,7 @@ export type GamePrice = {
   slots: number | null
 }
 
-export type GameBasePrice = {
+type GameBasePrice = {
   platform: ConsolePlatform
   base_usd: string
 }
@@ -78,7 +76,7 @@ export type Game = {
 }
 
 // A capacity (sellable slot) within a console, with its split percentage.
-export type Capacity = {
+type Capacity = {
   code: string
   label_fa: string
   split_pct: number
@@ -104,6 +102,7 @@ export type ExchangeRate = {
 
 export type GamesParams = {
   page?: number
+  limit?: number
   platform?: string
   zarfiat?: string
   search?: string
@@ -238,9 +237,27 @@ export function formatToman(amount: number | null): string {
 // used as-is; a server-relative path is prefixed with the API origin; a missing
 // cover falls back to the local brand image.
 export function gameCoverSrc(coverImage: string | null): string {
-  if (!coverImage) return "/logo.png"
-  if (/^https?:\/\//i.test(coverImage)) return coverImage
+  if (!coverImage) return "/brand/logo-64.webp"
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3002"
+
+  if (/^https?:\/\//i.test(coverImage)) {
+    try {
+      const parsed = new URL(coverImage)
+      if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+        if (parsed.pathname.startsWith("/uploads/")) {
+          return `${apiUrl}${parsed.pathname}`
+        }
+        if (parsed.pathname === "/gta.webp") {
+          return "/catalog/gta-card.webp"
+        }
+        return parsed.pathname
+      }
+    } catch {
+      return coverImage
+    }
+    return coverImage
+  }
+
   return `${apiUrl}${coverImage}`
 }
 
@@ -325,14 +342,6 @@ export function passcodeLabel(consoleCode: string): string {
   return "کد امنیتی"
 }
 
-// Capacities offered for a console in the catalog, ordered for display.
-export function consoleCapacities(
-  rate: ExchangeRate,
-  consoleCode: string
-): Capacity[] {
-  return rate?.consoles.find((c) => c.code === consoleCode)?.capacities ?? []
-}
-
 // Default search params for the games list — used by every "browse games" link
 // so they all land on the same unfiltered, newest-first view.
 export const GAMES_DEFAULT_SEARCH = {
@@ -354,14 +363,6 @@ const PLATFORM_BADGE_CLASS: Record<string, string | undefined> = {
   xbox_series: "bg-green-700/15 text-green-500 border-green-700/30",
 }
 
-// Used for glow effects (detail page cover)
-const PLATFORM_GLOW_CLASS: Record<string, string | undefined> = {
-  ps4: "bg-blue-600",
-  ps5: "bg-white",
-  xbox_one: "bg-green-400",
-  xbox_series: "bg-green-700",
-}
-
 // Used for accent borders (cart items)
 const PLATFORM_ACCENT_CLASS: Record<string, string | undefined> = {
   ps4: "border-r-blue-500/70",
@@ -376,10 +377,6 @@ export function platformBadgeClass(code: string): string {
   return (
     PLATFORM_BADGE_CLASS[code] ?? "bg-muted text-muted-foreground border-border"
   )
-}
-
-export function platformGlowClass(code: string): string {
-  return PLATFORM_GLOW_CLASS[code] ?? "bg-muted-foreground"
 }
 
 export function platformAccentClass(code: string): string {
@@ -415,10 +412,6 @@ function familyFromCode(code: string): string {
   if (code.startsWith("xbox")) return "xbox"
   if (code.startsWith("ps")) return "playstation"
   return code
-}
-
-export function familyLabel(family: string): string {
-  return FAMILY_LABEL[family] ?? family
 }
 
 export function familyTextClass(family: string): string {

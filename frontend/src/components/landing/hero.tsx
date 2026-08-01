@@ -12,7 +12,6 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Spotlight } from "@/components/ui/spotlight"
 import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 
 const TRUST_POINTS = [
@@ -31,22 +30,14 @@ const CYCLE = [
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-background bg-grid-lines">
-      <Spotlight
-        className="-top-40 left-0 md:-top-20 md:left-1/4"
-        fill="white"
-      />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-linear-to-b from-primary/6 to-transparent" />
 
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 right-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
-        <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+        <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
           <div>
             <Badge
               variant="outline"
-              className="h-7 gap-2 border-border/60 bg-card/60 px-3 text-muted-foreground backdrop-blur-sm"
+              className="h-7 gap-2 border-border/60 bg-card/80 px-3 text-muted-foreground"
             >
               <span className="size-1.5 rounded-full bg-blue-500" />
               PlayStation
@@ -55,7 +46,7 @@ export function Hero() {
               Xbox
             </Badge>
 
-            <h1 className="mt-6 max-w-3xl pb-2 text-4xl leading-[1.4] font-black tracking-tight sm:text-6xl lg:leading-[1.35]">
+            <h1 className="mt-6 max-w-3xl pb-2 text-4xl leading-[1.4] font-black tracking-tight sm:text-5xl lg:leading-[1.35]">
               بازی کن. تمومش کن.
               <br />
               <span className="bg-linear-to-l from-foreground to-foreground/45 bg-clip-text text-transparent">
@@ -92,9 +83,8 @@ export function Hero() {
           </div>
 
           <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
-            <div className="pointer-events-none absolute inset-x-10 inset-y-8 rounded-full bg-violet-500/10 blur-3xl" />
-            <div className="relative rounded-3xl border border-border/60 bg-card/75 p-3 shadow-2xl shadow-primary/5 backdrop-blur-md sm:p-5">
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-5 sm:p-6">
+            <div className="relative rounded-3xl border border-border/60 bg-card/90 p-3 shadow-lg sm:p-5">
+              <div className="rounded-2xl border border-border/60 bg-background/80 p-5 sm:p-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
@@ -142,7 +132,7 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="mt-14 grid overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-12 grid overflow-hidden rounded-2xl border border-border/60 bg-card/80 sm:grid-cols-2 lg:grid-cols-4">
           {TRUST_POINTS.map((point) => (
             <div
               key={point.label}

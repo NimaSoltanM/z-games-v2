@@ -3,10 +3,6 @@ export { adminOrdersQueryOptions, adminOrderQueryOptions } from "./queries"
 export type {
   AdminOrder,
   FulfillItem,
-  AdminOrdersPage,
-  AdminOrdersQuery,
-  InventoryAccount,
-  CredentialMatch,
   CredentialWarning,
   DuplicateCredentialsError,
 } from "./types"

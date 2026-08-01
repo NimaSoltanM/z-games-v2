@@ -32,7 +32,7 @@ func TestRequestOTPProductionFailsWhenDeliveryUnavailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read response: %v", err)
 	}
-	if !strings.Contains(string(body), "ارسال کد تأیید هنوز فعال نشده است") {
+	if !strings.Contains(string(body), "ارسال کد تأیید در حال حاضر در دسترس نیست") {
 		t.Fatalf("response does not explain unavailable OTP delivery: %s", body)
 	}
 }

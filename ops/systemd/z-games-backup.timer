@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly Z-Games backup
+
+[Timer]
+OnCalendar=*-*-* 03:20:00 Asia/Tehran
+Persistent=true
+RandomizedDelaySec=15m
+Unit=z-games-backup.service
+
+[Install]
+WantedBy=timers.target

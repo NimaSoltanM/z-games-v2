@@ -10,7 +10,13 @@ const config = defineConfig({
   plugins: [
     devtools(),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      server: {
+        build: {
+          inlineCss: true,
+        },
+      },
+    }),
     viteReact(),
     babel({ presets: [reactCompilerPreset()] }),
   ],

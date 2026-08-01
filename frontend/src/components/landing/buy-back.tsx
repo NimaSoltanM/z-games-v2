@@ -33,18 +33,13 @@ export function BuyBack() {
   return (
     <section
       id="buy-back"
-      className="relative scroll-mt-20 overflow-hidden bg-background py-20 sm:py-28"
+      className="relative scroll-mt-20 overflow-hidden bg-background py-16 sm:py-24"
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/3 -right-40 h-96 w-96 rounded-full bg-primary/8 blur-3xl" />
-        <div className="absolute bottom-0 -left-40 h-80 w-80 rounded-full bg-violet-500/8 blur-3xl" />
-      </div>
-
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
           <div className="relative order-2 mx-auto w-full max-w-xl lg:max-w-none">
-            <div className="rounded-3xl border border-border/60 bg-card/75 p-4 backdrop-blur-sm sm:p-6">
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-5 sm:p-7">
+            <div className="rounded-3xl border border-border/60 bg-card/85 p-4 sm:p-6">
+              <div className="rounded-2xl border border-border/60 bg-background/80 p-5 sm:p-7">
                 <div className="flex items-start justify-between gap-5">
                   <div>
                     <Badge variant="secondary">قابل بازگشت</Badge>
@@ -91,7 +86,7 @@ export function BuyBack() {
 
           <div className="order-1">
             <p className="text-sm font-semibold text-primary">بازخرید اکانت</p>
-            <h2 className="mt-3 max-w-2xl text-3xl leading-[1.45] font-black sm:text-5xl">
+            <h2 className="mt-3 max-w-2xl text-3xl leading-[1.45] font-black sm:text-4xl">
               هزینه‌ی واقعی بازی، قیمتی نیست که روز اول می‌بینی.
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
@@ -103,7 +98,7 @@ export function BuyBack() {
             <div className="mt-8 space-y-5">
               {STEPS.map((step, index) => (
                 <div key={step.title} className="flex gap-4">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-card/75 text-primary backdrop-blur-sm">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-card/85 text-primary">
                     <step.icon className="size-4" />
                   </div>
                   <div>

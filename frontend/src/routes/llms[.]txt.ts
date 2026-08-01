@@ -17,6 +17,7 @@ function llmsText(): string {
 - بازی‌های Xbox Series X|S: ${canonicalUrl("/games/platform/xbox_series")}
 - بازخرید اکانت بازی: ${canonicalUrl("/buyback")}
 - قوانین بازخرید بازی: ${canonicalUrl("/returns/rules")}
+- قوانین و مقررات استفاده و خرید: ${canonicalUrl("/terms")}
 - راهنمای خرید: ${canonicalUrl("/how-it-works")}
 - راهنمای اکانت قانونی: ${canonicalUrl("/legal-accounts")}
 - درباره زد گیمز: ${canonicalUrl("/about")}

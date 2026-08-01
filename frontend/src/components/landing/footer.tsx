@@ -14,7 +14,7 @@ export function Footer() {
         <div className="flex flex-col items-center justify-between gap-7 sm:flex-row">
           <div className="flex items-center gap-3">
             <img
-              src="/logo.png"
+              src="/brand/logo-64.webp"
               alt="Z-Games"
               width={36}
               height={36}
@@ -66,6 +66,12 @@ export function Footer() {
               className="transition-colors hover:text-foreground"
             >
               قوانین بازگشت
+            </Link>
+            <Link
+              to="/terms"
+              className="transition-colors hover:text-foreground"
+            >
+              قوانین و مقررات
             </Link>
             <Link
               to="/auth"

@@ -83,7 +83,9 @@ export function Navbar() {
             className="flex items-center gap-2 text-lg font-bold tracking-tight"
           >
             <img
-              src="/logo.png"
+              src="/brand/logo-32.webp"
+              srcSet="/brand/logo-32.webp 32w, /brand/logo-64.webp 64w"
+              sizes="32px"
               alt="Z-Games"
               width={32}
               height={32}
@@ -139,9 +141,13 @@ export function Navbar() {
             ) : isLoggedIn && me ? (
               <UserMenu me={me} onLogout={handleLogout} />
             ) : (
-              <Link to="/auth" search={{ redirect: undefined }}>
-                <Button size="sm">ورود</Button>
-              </Link>
+              <Button
+                render={<Link to="/auth" search={{ redirect: undefined }} />}
+                nativeButton={false}
+                size="sm"
+              >
+                ورود
+              </Button>
             )}
           </div>
 

@@ -46,13 +46,13 @@ const FEATURES: Feature[] = [
 
 export function Features() {
   return (
-    <section className="relative bg-background py-20 sm:py-28">
+    <section className="relative bg-background py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-semibold text-primary">
             خریدی که پشتش آدم هست
           </p>
-          <h2 className="mt-3 text-3xl leading-[1.45] font-black sm:text-5xl">
+          <h2 className="mt-3 text-3xl leading-[1.45] font-black sm:text-4xl">
             اعتماد با لوگوی درگاه ساخته نمی‌شه.
           </h2>
           <p className="mt-5 text-base leading-8 text-muted-foreground">
@@ -65,7 +65,7 @@ export function Features() {
           {FEATURES.map((feature) => (
             <div
               key={feature.title}
-              className={`group rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 ${
+              className={`group rounded-2xl border border-border/60 bg-card/85 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md ${
                 feature.full
                   ? "lg:col-span-4"
                   : feature.wide

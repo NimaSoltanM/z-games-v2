@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
@@ -45,6 +46,11 @@ import { Route as AdminGamesNewRouteImport } from './routes/admin/games/new'
 import { Route as DashboardGamesItemIdReturnRouteImport } from './routes/dashboard/games/$itemId/return'
 import { Route as AdminGamesIdEditRouteImport } from './routes/admin/games/$id/edit'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -233,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
@@ -269,6 +276,7 @@ export interface FileRoutesByTo {
   '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
@@ -307,6 +315,7 @@ export interface FileRoutesById {
   '/llms.txt': typeof LlmsDottxtRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
@@ -346,6 +355,7 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/terms'
     | '/admin/audit'
     | '/admin/inventory'
     | '/admin/verification-codes'
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/terms'
     | '/admin/audit'
     | '/admin/inventory'
     | '/admin/verification-codes'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/terms'
     | '/admin/audit'
     | '/admin/inventory'
     | '/admin/verification-codes'
@@ -457,6 +469,7 @@ export interface RootRouteChildren {
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   PaymentResultRoute: typeof PaymentResultRoute
   ReturnsRulesRoute: typeof ReturnsRulesRoute
   AuthIndexRoute: typeof AuthIndexRoute
@@ -468,6 +481,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -783,6 +803,7 @@ const rootRouteChildren: RootRouteChildren = {
   LlmsDottxtRoute: LlmsDottxtRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   PaymentResultRoute: PaymentResultRoute,
   ReturnsRulesRoute: ReturnsRulesRoute,
   AuthIndexRoute: AuthIndexRoute,

@@ -1,6 +1,6 @@
 export type ReturnStatus = "pending" | "approved" | "rejected" | "refused"
 
-export type Pagination = {
+type Pagination = {
   page: number
   limit: number
   total: number
@@ -10,7 +10,7 @@ export type Pagination = {
 // The money preview for a return. `available` is false when the game/capacity is
 // delisted — then no numbers are shown and the admin sets the credit by hand.
 // `promo` is true when a reduced-fee window is live (net_credit > normal_credit).
-export type CreditEstimate = {
+type CreditEstimate = {
   available: boolean
   current_price: number
   fee_pct: number

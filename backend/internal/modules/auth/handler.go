@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -31,13 +32,14 @@ func authCookie(token string) *fiber.Cookie {
 }
 
 type handler struct {
-	db *pgxpool.Pool
+	db        *pgxpool.Pool
+	otpSender otpSender
 }
 
 func (h *handler) requestOTP(c fiber.Ctx) error {
-	if os.Getenv("APP_ENV") == "production" {
+	if os.Getenv("APP_ENV") == "production" && h.otpSender == nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"message": "ارسال کد تأیید هنوز فعال نشده است. لطفاً بعداً دوباره تلاش کنید",
+			"message": "ارسال کد تأیید در حال حاضر در دسترس نیست. لطفاً بعداً دوباره تلاش کنید",
 		})
 	}
 
@@ -52,7 +54,7 @@ func (h *handler) requestOTP(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "شماره تلفن نامعتبر است"})
 	}
 
-	code, err := requestOTP(c.Context(), h.db, body.Phone)
+	issued, err := requestOTP(c.Context(), h.db, body.Phone)
 	if errors.Is(err, ErrRateLimited) {
 		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 			"message": "درخواست‌های زیادی ارسال شده‌اید. لطفاً چند دقیقه بعد تلاش کنید",
@@ -61,10 +63,21 @@ func (h *handler) requestOTP(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	if h.otpSender != nil {
+		if err := h.otpSender.Send(c.Context(), body.Phone, issued.code); err != nil {
+			if discardErr := discardOTP(c.Context(), h.db, issued.id); discardErr != nil {
+				return fmt.Errorf("send OTP: %v; discard undelivered OTP: %w", err, discardErr)
+			}
+			log.Printf("auth: OTP delivery failed: %v", err)
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"message": "ارسال کد تأیید انجام نشد. لطفاً کمی بعد دوباره تلاش کنید",
+			})
+		}
+	}
 
 	resp := fiber.Map{"message": "کد تأیید ارسال شد"}
 	if os.Getenv("APP_ENV") != "production" {
-		resp["dev_code"] = code
+		resp["dev_code"] = issued.code
 	}
 	return c.JSON(resp)
 }

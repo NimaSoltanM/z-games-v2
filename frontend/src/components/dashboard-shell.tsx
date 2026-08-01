@@ -19,7 +19,7 @@ export type DashNavItem = {
 // correct item highlighted on nested routes (e.g. /dashboard/$orderId →
 // "سفارش‌ها") without a parent route (/dashboard) also lighting up while a
 // sibling child (/dashboard/profile) is open.
-export function useActiveNavTo(items: readonly DashNavItem[]): string | null {
+function useActiveNavTo(items: readonly DashNavItem[]): string | null {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   let best: string | null = null
   for (const item of items) {

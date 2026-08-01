@@ -13,10 +13,11 @@ func TestVerifyOTP_WrongAttemptsThenBurn(t *testing.T) {
 	db := testdb.New(t)
 	phone := "09120000001"
 
-	code, err := requestOTP(ctx, db, phone)
+	issued, err := requestOTP(ctx, db, phone)
 	if err != nil {
 		t.Fatalf("requestOTP: %v", err)
 	}
+	code := issued.code
 	const wrong = "00000" // real codes are 10000-99999, so this is always wrong
 	if code == wrong {
 		t.Fatal("generated code collided with the test's wrong code")
@@ -42,10 +43,11 @@ func TestVerifyOTP_NewThenExisting(t *testing.T) {
 	db := testdb.New(t)
 	phone := "09120000002"
 
-	code, err := requestOTP(ctx, db, phone)
+	issued, err := requestOTP(ctx, db, phone)
 	if err != nil {
 		t.Fatal(err)
 	}
+	code := issued.code
 	res, err := verifyOTP(ctx, db, phone, code)
 	if err != nil {
 		t.Fatal(err)
@@ -58,8 +60,8 @@ func TestVerifyOTP_NewThenExisting(t *testing.T) {
 		t.Fatalf("registerUser: %v", err)
 	}
 
-	code2, _ := requestOTP(ctx, db, phone)
-	res2, err := verifyOTP(ctx, db, phone, code2)
+	issued2, _ := requestOTP(ctx, db, phone)
+	res2, err := verifyOTP(ctx, db, phone, issued2.code)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,5 +98,54 @@ func TestRequestOTP_RateLimited(t *testing.T) {
 	}
 	if _, err := requestOTP(ctx, db, phone); !errors.Is(err, ErrRateLimited) {
 		t.Fatalf("request %d should be rate limited: got %v", otpRateLimit+1, err)
+	}
+}
+
+func TestRequestOTPInvalidatesPreviousCode(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	phone := "09120000006"
+
+	first, err := requestOTP(ctx, db, phone)
+	if err != nil {
+		t.Fatalf("first requestOTP: %v", err)
+	}
+	second, err := requestOTP(ctx, db, phone)
+	if err != nil {
+		t.Fatalf("second requestOTP: %v", err)
+	}
+	var firstWasUsed bool
+	if err := db.QueryRow(ctx, "SELECT used_at IS NOT NULL FROM otp_codes WHERE id = $1", first.id).Scan(&firstWasUsed); err != nil {
+		t.Fatalf("fetch first OTP state: %v", err)
+	}
+	if !firstWasUsed {
+		t.Fatal("first OTP remained active after requesting a replacement")
+	}
+	if _, err := verifyOTP(ctx, db, phone, second.code); err != nil {
+		t.Fatalf("latest code should verify: %v", err)
+	}
+}
+
+func TestDiscardOTPRemovesUndeliveredCode(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	phone := "09120000005"
+
+	issued, err := requestOTP(ctx, db, phone)
+	if err != nil {
+		t.Fatalf("requestOTP: %v", err)
+	}
+	if err := discardOTP(ctx, db, issued.id); err != nil {
+		t.Fatalf("discardOTP: %v", err)
+	}
+	if _, err := verifyOTP(ctx, db, phone, issued.code); !errors.Is(err, ErrOTPNotFound) {
+		t.Fatalf("discarded code verification error = %v, want ErrOTPNotFound", err)
+	}
+
+	// A provider failure must not consume the per-phone request budget.
+	for i := range otpRateLimit {
+		if _, err := requestOTP(ctx, db, phone); err != nil {
+			t.Fatalf("request %d after discard should succeed: %v", i+1, err)
+		}
 	}
 }

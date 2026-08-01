@@ -3,9 +3,14 @@
   "name": "Z-Games | بازی‌های کنسولی",
   "icons": [
     {
-      "src": "logo.png",
+      "src": "/brand/icon-192.png",
       "type": "image/png",
-      "sizes": "1148x928"
+      "sizes": "192x192"
+    },
+    {
+      "src": "/brand/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
