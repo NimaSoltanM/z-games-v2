@@ -1,13 +1,13 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -54,6 +54,14 @@ type payamakPanelResponse struct {
 	StrRetStatus string          `json:"StrRetStatus"`
 }
 
+type payamakPanelRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Text     string `json:"text"`
+	To       string `json:"to"`
+	BodyID   int    `json:"bodyId"`
+}
+
 type payamakPanelError struct {
 	Code      string
 	RetStatus int
@@ -73,18 +81,22 @@ func (s *payamakPanelSender) Send(ctx context.Context, phone, code string) error
 		return errors.New("payamak panel OTP delivery: code must contain exactly five digits")
 	}
 
-	form := url.Values{
-		"username": {s.username},
-		"password": {s.apiKey},
-		"to":       {phone},
-		"text":     {code},
-		"bodyId":   {strconv.Itoa(s.bodyID)},
+	payload, err := json.Marshal(payamakPanelRequest{
+		Username: s.username,
+		Password: s.apiKey,
+		Text:     code,
+		To:       phone,
+		BodyID:   s.bodyID,
+	})
+	if err != nil {
+		return fmt.Errorf("encode payamak panel request: %w", err)
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint, strings.NewReader(form.Encode()))
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create payamak panel request: %w", err)
 	}
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("Content-Type", "application/json; charset=utf-8")
 	request.Header.Set("Accept", "application/json")
 
 	response, err := s.client.Do(request)
