@@ -38,6 +38,32 @@ func TestValidateEnvironmentRequiresProductionPaths(t *testing.T) {
 	}
 }
 
+func TestValidateEnvironmentRejectsInvalidProductionOrigin(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("FRONTEND_URL", "z-games.store")
+	t.Setenv("API_PUBLIC_URL", "https://api.z-games.store")
+	t.Setenv("UPLOAD_DIR", "/data/uploads")
+	t.Setenv("RETURN_DIR", "/data/returns")
+
+	if err := validateEnvironment(); err == nil || !strings.Contains(err.Error(), "FRONTEND_URL") {
+		t.Fatalf("error = %v, want invalid frontend origin", err)
+	}
+}
+
+func TestValidateEnvironmentRequiresAPIUnderFrontendDomain(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("FRONTEND_URL", "https://z-games.store")
+	t.Setenv("API_PUBLIC_URL", "https://api.example.com")
+	t.Setenv("UPLOAD_DIR", "/data/uploads")
+	t.Setenv("RETURN_DIR", "/data/returns")
+
+	if err := validateEnvironment(); err == nil || !strings.Contains(err.Error(), "authentication cookies") {
+		t.Fatalf("error = %v, want incompatible authentication origins", err)
+	}
+}
+
 func TestValidateEnvironmentRejectsInvalidProxy(t *testing.T) {
 	setValidTestEnv(t)
 	t.Setenv("TRUSTED_PROXIES", "not-an-ip")

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -23,11 +25,71 @@ func authCookie(token string) *fiber.Cookie {
 	return &fiber.Cookie{
 		Name:     authCookieName,
 		Value:    token,
+		Domain:   authCookieDomain(),
 		HTTPOnly: true,
 		Secure:   isProd,
 		SameSite: "Lax",
 		MaxAge:   authCookieMaxAge,
 		Path:     "/",
+	}
+}
+
+func authCookieDomain() string {
+	if os.Getenv("APP_ENV") != "production" {
+		return ""
+	}
+
+	frontendURL, err := url.Parse(strings.TrimSpace(os.Getenv("FRONTEND_URL")))
+	if err != nil {
+		return ""
+	}
+	return frontendURL.Hostname()
+}
+
+func expiredAuthCookie(domain string) *fiber.Cookie {
+	isProd := os.Getenv("APP_ENV") == "production"
+	return &fiber.Cookie{
+		Name:     authCookieName,
+		Value:    "",
+		Domain:   domain,
+		HTTPOnly: true,
+		Secure:   isProd,
+		SameSite: "Lax",
+		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
+		Path:     "/",
+	}
+}
+
+func appendAuthCookie(c fiber.Ctx, cookie *fiber.Cookie) {
+	header := (&http.Cookie{
+		Name:     cookie.Name,
+		Value:    cookie.Value,
+		Path:     cookie.Path,
+		Domain:   cookie.Domain,
+		Expires:  cookie.Expires,
+		MaxAge:   cookie.MaxAge,
+		Secure:   cookie.Secure,
+		HttpOnly: cookie.HTTPOnly,
+		SameSite: http.SameSiteLaxMode,
+	}).String()
+	c.RequestCtx().Response.Header.Add(fiber.HeaderSetCookie, header)
+}
+
+func setAuthCookie(c fiber.Ctx, token string) {
+	if authCookieDomain() != "" {
+		// Remove the legacy host-only API cookie before issuing the shared cookie.
+		c.Cookie(expiredAuthCookie(""))
+		appendAuthCookie(c, authCookie(token))
+		return
+	}
+	c.Cookie(authCookie(token))
+}
+
+func clearAuthCookies(c fiber.Ctx) {
+	c.Cookie(expiredAuthCookie(""))
+	if domain := authCookieDomain(); domain != "" {
+		appendAuthCookie(c, expiredAuthCookie(domain))
 	}
 }
 
@@ -115,7 +177,7 @@ func (h *handler) verifyOTP(c fiber.Ctx) error {
 		if err != nil {
 			return fmt.Errorf("sign auth token: %w", err)
 		}
-		c.Cookie(authCookie(token))
+		setAuthCookie(c, token)
 		return c.JSON(fiber.Map{"status": "existing"})
 	}
 
@@ -169,7 +231,7 @@ func (h *handler) register(c fiber.Ctx) error {
 	if err != nil {
 		return fmt.Errorf("sign auth token: %w", err)
 	}
-	c.Cookie(authCookie(token))
+	setAuthCookie(c, token)
 	return c.JSON(fiber.Map{"message": "ثبت‌نام موفق"})
 }
 
@@ -194,11 +256,6 @@ func (h *handler) me(c fiber.Ctx) error {
 }
 
 func (h *handler) logout(c fiber.Ctx) error {
-	c.Cookie(&fiber.Cookie{
-		Name:    authCookieName,
-		Value:   "",
-		Expires: time.Unix(0, 0),
-		Path:    "/",
-	})
+	clearAuthCookies(c)
 	return c.JSON(fiber.Map{"message": "خروج موفق"})
 }

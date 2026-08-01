@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -88,6 +89,19 @@ func validateEnvironment() error {
 				return fmt.Errorf("%s must be set in production", key)
 			}
 		}
+		frontendURL, err := parseProductionOrigin("FRONTEND_URL", os.Getenv("FRONTEND_URL"))
+		if err != nil {
+			return err
+		}
+		apiURL, err := parseProductionOrigin("API_PUBLIC_URL", os.Getenv("API_PUBLIC_URL"))
+		if err != nil {
+			return err
+		}
+		frontendHost := frontendURL.Hostname()
+		apiHost := apiURL.Hostname()
+		if apiHost != frontendHost && !strings.HasSuffix(apiHost, "."+frontendHost) {
+			return errors.New("API_PUBLIC_URL host must equal or be a subdomain of FRONTEND_URL so authentication cookies can be shared")
+		}
 		if providerApprovalMode {
 			if os.Getenv("ZARINPAL_SANDBOX") != "true" {
 				return errors.New("ZARINPAL_SANDBOX must be true in provider approval mode")
@@ -120,6 +134,17 @@ func validateEnvironment() error {
 		}
 	}
 	return nil
+}
+
+func parseProductionOrigin(name, value string) (*url.URL, error) {
+	parsed, err := url.ParseRequestURI(strings.TrimSpace(value))
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil {
+		return nil, fmt.Errorf("%s must be a valid HTTPS origin", name)
+	}
+	if (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return nil, fmt.Errorf("%s must not include a path, query, or fragment", name)
+	}
+	return parsed, nil
 }
 
 func splitCSV(value string) []string {

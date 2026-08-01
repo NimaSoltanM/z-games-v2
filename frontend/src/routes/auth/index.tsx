@@ -313,10 +313,10 @@ function LoginPage() {
                 value={otp}
                 onChange={setOtp}
                 textAlign="center"
-                containerClassName="justify-center"
+                containerClassName="justify-center [direction:ltr]"
                 disabled={loading}
               >
-                <InputOTPGroup className="gap-2.5 rounded-none">
+                <InputOTPGroup dir="ltr" className="gap-2.5 rounded-none">
                   {Array.from({ length: 5 }, (_, i) => (
                     <InputOTPSlot
                       key={i}
