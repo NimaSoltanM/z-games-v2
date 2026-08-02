@@ -11,19 +11,18 @@ import (
 	"time"
 )
 
-// ErrPaymentNotVerified means ZarinPal answered with a definitive failure code
-// for this verify (e.g. -51 not paid, -54 invalid authority) — safe to fail the
-// order. Any OTHER error from verifyPayment (transport, timeout, unreadable
-// body, or the ambiguous -52 "unexpected error") means the outcome is UNKNOWN:
-// the customer may have actually paid, so the order must be left pending for
-// reconciliation rather than marked failed.
+// ErrPaymentNotVerified means ZarinPal answered with code -51: the payment did
+// not succeed. That is the only verify error we treat as safe to fail. Other
+// errors can represent configuration, amount, ownership, or provider problems
+// after money moved, so the order must remain pending for manual reconciliation.
 var ErrPaymentNotVerified = errors.New("zarinpal: payment not verified")
 
 // ZarinPal verify result codes (see docs/zarinpal/llms-full.md error table).
 const (
 	zpCodeVerified        = 100 // verified now
 	zpCodeAlreadyVerified = 101 // verified on a previous call
-	zpCodeUnexpected      = -52 // "Oops, contact support" — ambiguous, not definitive
+	zpCodeNotPaid         = -51 // payment unsuccessful
+	maxResponseBytes      = 1 << 20
 )
 
 // zarinpalClient talks to ZarinPal's v4 payment API. Sandbox just swaps the host.
@@ -89,7 +88,7 @@ func parseEnvelope(body []byte) (zpData, *zpError) {
 
 // requestPayment creates a payment session and returns the authority token.
 // amount is in Toman (currency IRT).
-func (z *zarinpalClient) requestPayment(ctx context.Context, amount int, description, callbackURL string, metadata map[string]string) (string, error) {
+func (z *zarinpalClient) requestPayment(ctx context.Context, amount int, description, callbackURL string, metadata map[string]any) (string, error) {
 	body := map[string]any{
 		"merchant_id":  z.merchantID,
 		"amount":       amount,
@@ -116,9 +115,10 @@ func (z *zarinpalClient) requestPayment(ctx context.Context, amount int, descrip
 	return "", fmt.Errorf("zarinpal request: code=%d msg=%q", code, msg)
 }
 
-// verifyPayment confirms a paid session. Codes 100/101 mean paid. A definitive
-// failure code returns ErrPaymentNotVerified. Transport problems and the
-// ambiguous -52 return a plain error so the caller leaves the order pending.
+// verifyPayment confirms a paid session. Codes 100/101 mean paid. Only -51 is a
+// definitive failed payment; every other failure remains pending because codes
+// such as -50 (amount mismatch) and -53 (merchant mismatch) can still require
+// financial reconciliation.
 func (z *zarinpalClient) verifyPayment(ctx context.Context, amount int, authority string) (int64, error) {
 	body := map[string]any{
 		"merchant_id": z.merchantID,
@@ -141,11 +141,7 @@ func (z *zarinpalClient) verifyPayment(ctx context.Context, amount int, authorit
 		code = zerr.Code
 	}
 
-	// A negative code is ZarinPal stating a definite reason this verify failed —
-	// except -52 ("unexpected error, contact support"), which is ambiguous. A
-	// zero/unrecognized code means we couldn't read a clear answer. Both of those
-	// stay UNKNOWN so we never declare a possibly-paid order failed.
-	if code < 0 && code != zpCodeUnexpected {
+	if code == zpCodeNotPaid {
 		return 0, fmt.Errorf("%w: code=%d", ErrPaymentNotVerified, code)
 	}
 	return 0, fmt.Errorf("zarinpal verify: ambiguous result code=%d", code)
@@ -172,9 +168,12 @@ func (z *zarinpalClient) post(ctx context.Context, path string, body any) ([]byt
 	}
 	defer res.Body.Close()
 
-	data, err := io.ReadAll(res.Body)
+	data, err := io.ReadAll(io.LimitReader(res.Body, maxResponseBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("zarinpal read: %w", err)
+	}
+	if len(data) > maxResponseBytes {
+		return nil, errors.New("zarinpal response exceeds size limit")
 	}
 	return data, nil
 }

@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api-client"
 export type CheckoutResult = {
   payment_url?: string
   paid?: boolean
+  order_id?: string
   order_number?: number
 }
 

@@ -6,6 +6,23 @@ import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 import { noIndexHead } from "@/features/seo"
 
 type ResultStatus = "success" | "failed" | "pending"
+type ResultSearch = {
+  status: ResultStatus
+  order: string | undefined
+  id: string | undefined
+  ref: string | undefined
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function numericSearch(value: unknown): string | undefined {
+  if (typeof value === "string" && /^\d{1,20}$/.test(value)) return value
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
+    return String(value)
+  }
+  return undefined
+}
 
 // status="pending" is returned when ZarinPal's verify call had an unknown
 // outcome (the payment may have succeeded): we tell the customer not to pay
@@ -45,22 +62,25 @@ const RESULT_META: Record<
 
 export const Route = createFileRoute("/payment/result")({
   head: () => noIndexHead("نتیجه پرداخت | زد گیمز"),
-  validateSearch: (
-    search: Record<string, unknown>
-  ): { status: ResultStatus; order: string | undefined } => ({
+  validateSearch: (search: Record<string, unknown>): ResultSearch => ({
     status:
       search.status === "success"
         ? "success"
         : search.status === "pending"
           ? "pending"
           : "failed",
-    order: typeof search.order === "string" ? search.order : undefined,
+    order: numericSearch(search.order),
+    id:
+      typeof search.id === "string" && UUID_PATTERN.test(search.id)
+        ? search.id
+        : undefined,
+    ref: numericSearch(search.ref),
   }),
   component: PaymentResultPage,
 })
 
 function PaymentResultPage() {
-  const { status, order } = Route.useSearch()
+  const { status, order, id, ref } = Route.useSearch()
   const meta = RESULT_META[status]
   const Icon = meta.icon
 
@@ -93,15 +113,39 @@ function PaymentResultPage() {
           </p>
         )}
 
+        {status === "success" && ref && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            کد پیگیری پرداخت:{" "}
+            <span dir="ltr" className="font-mono font-semibold text-foreground">
+              {ref}
+            </span>
+          </p>
+        )}
+
         <div className="mt-8 flex flex-col gap-2.5">
           {status === "success" ? (
-            <Link to="/games" search={GAMES_DEFAULT_SEARCH}>
-              <Button className="w-full">ادامه خرید</Button>
-            </Link>
+            <>
+              {id && (
+                <Link to="/dashboard/$orderId" params={{ orderId: id }}>
+                  <Button className="w-full">مشاهده سفارش</Button>
+                </Link>
+              )}
+              <Link to="/games" search={GAMES_DEFAULT_SEARCH}>
+                <Button variant={id ? "outline" : "default"} className="w-full">
+                  ادامه خرید
+                </Button>
+              </Link>
+            </>
           ) : status === "pending" ? (
-            <Link to="/dashboard" search={{ page: 1, status: "" }}>
-              <Button className="w-full">مشاهده سفارش‌ها</Button>
-            </Link>
+            id ? (
+              <Link to="/dashboard/$orderId" params={{ orderId: id }}>
+                <Button className="w-full">مشاهده وضعیت سفارش</Button>
+              </Link>
+            ) : (
+              <Link to="/dashboard" search={{ page: 1, status: "" }}>
+                <Button className="w-full">مشاهده سفارش‌ها</Button>
+              </Link>
+            )
           ) : (
             <>
               <Link to="/cart">

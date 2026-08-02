@@ -35,6 +35,7 @@ export type Order = {
   order_number: number
   amount: number
   status: OrderStatus
+  ref_id: number | null
   created_at: string
   items: OrderItem[]
 }

@@ -281,18 +281,26 @@ type orderLookup struct {
 	Amount        int
 	WalletApplied int
 	Status        string
+	RefID         *int64
 }
 
 // GatewayAmount is what ZarinPal charged/verifies against: the order total minus
 // the portion paid from the wallet.
 func (o *orderLookup) GatewayAmount() int { return o.Amount - o.WalletApplied }
 
+func (o *orderLookup) ReferenceID() int64 {
+	if o.RefID == nil {
+		return 0
+	}
+	return *o.RefID
+}
+
 func getOrderByAuthority(ctx context.Context, db *pgxpool.Pool, authority string) (*orderLookup, error) {
 	var o orderLookup
 	err := db.QueryRow(ctx,
-		"SELECT id, order_number, user_id, amount, wallet_applied, status FROM orders WHERE authority = $1",
+		"SELECT id, order_number, user_id, amount, wallet_applied, status, ref_id FROM orders WHERE authority = $1",
 		authority,
-	).Scan(&o.ID, &o.OrderNumber, &o.UserID, &o.Amount, &o.WalletApplied, &o.Status)
+	).Scan(&o.ID, &o.OrderNumber, &o.UserID, &o.Amount, &o.WalletApplied, &o.Status, &o.RefID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -342,6 +350,7 @@ type OrderView struct {
 	OrderNumber int64           `json:"order_number"`
 	Amount      int             `json:"amount"`
 	Status      string          `json:"status"`
+	RefID       *int64          `json:"ref_id"`
 	CreatedAt   time.Time       `json:"created_at"`
 	Items       []OrderItemView `json:"items"`
 }
@@ -367,7 +376,7 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cip
 	}
 
 	q := fmt.Sprintf(`
-		SELECT id, order_number, amount, status, created_at FROM orders %s
+		SELECT id, order_number, amount, status, ref_id, created_at FROM orders %s
 		ORDER BY created_at DESC LIMIT $%d OFFSET $%d
 	`, where, len(args)+1, len(args)+2)
 	rows, err := db.Query(ctx, q, append(args, limit, offset)...)
@@ -380,7 +389,7 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cip
 	byID := make(map[string]int)
 	for rows.Next() {
 		var o OrderView
-		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.CreatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.RefID, &o.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("listUserOrders scan: %w", err)
 		}
 		o.Items = []OrderItemView{}
@@ -410,10 +419,10 @@ func listUserOrders(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cip
 func getUserOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cipher, userID, orderID string) (*OrderView, error) {
 	var o OrderView
 	err := db.QueryRow(ctx, `
-		SELECT id, order_number, amount, status, created_at
+		SELECT id, order_number, amount, status, ref_id, created_at
 		FROM orders
 		WHERE id = $1 AND user_id = $2
-	`, orderID, userID).Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.CreatedAt)
+	`, orderID, userID).Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.RefID, &o.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -508,7 +517,7 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ci
 	}
 
 	q := fmt.Sprintf(`
-		SELECT o.id, o.order_number, o.amount, o.status, o.created_at, o.authority,
+		SELECT o.id, o.order_number, o.amount, o.status, o.ref_id, o.created_at, o.authority,
 		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
 		FROM orders o
 		JOIN users u ON u.id = o.user_id
@@ -528,7 +537,7 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ci
 	byID := make(map[string]int)
 	for rows.Next() {
 		var o AdminOrderView
-		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName); err != nil {
+		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.RefID, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName); err != nil {
 			return nil, 0, fmt.Errorf("listAdminOrders scan: %w", err)
 		}
 		o.Items = []OrderItemView{}
@@ -556,12 +565,12 @@ func listAdminOrders(ctx context.Context, db *pgxpool.Pool, cred *credentials.Ci
 func getAdminOrder(ctx context.Context, db *pgxpool.Pool, cred *credentials.Cipher, orderID string) (*AdminOrderView, error) {
 	var o AdminOrderView
 	err := db.QueryRow(ctx, `
-		SELECT o.id, o.order_number, o.amount, o.status, o.created_at, o.authority,
+		SELECT o.id, o.order_number, o.amount, o.status, o.ref_id, o.created_at, o.authority,
 		       u.phone, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
 		FROM orders o
 		JOIN users u ON u.id = o.user_id
 		WHERE o.id = $1
-	`, orderID).Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName)
+	`, orderID).Scan(&o.ID, &o.OrderNumber, &o.Amount, &o.Status, &o.RefID, &o.CreatedAt, &o.Authority, &o.UserPhone, &o.UserName)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

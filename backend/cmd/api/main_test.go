@@ -10,7 +10,7 @@ func setValidTestEnv(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("DATABASE_URL", "postgres://localhost/z_games_test")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
-	t.Setenv("ZARINPAL_MERCHANT_ID", "00000000-0000-0000-0000-000000000000")
+	t.Setenv("ZARINPAL_MERCHANT_ID", "11111111-1111-4111-8111-111111111111")
 	t.Setenv("CREDENTIALS_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	t.Setenv("TRUSTED_PROXIES", "")
 }
@@ -27,6 +27,14 @@ func TestValidateEnvironmentRequiresExplicitMode(t *testing.T) {
 	t.Setenv("APP_ENV", "")
 	if err := validateEnvironment(); err == nil {
 		t.Fatal("expected missing APP_ENV to fail")
+	}
+}
+
+func TestValidateEnvironmentRejectsInvalidMerchantID(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("ZARINPAL_MERCHANT_ID", "not-a-uuid")
+	if err := validateEnvironment(); err == nil || !strings.Contains(err.Error(), "ZARINPAL_MERCHANT_ID") {
+		t.Fatalf("error = %v, want invalid merchant ID", err)
 	}
 }
 
@@ -82,6 +90,21 @@ func TestValidateEnvironmentRejectsSandboxPaymentsInProduction(t *testing.T) {
 	t.Setenv("ZARINPAL_SANDBOX", "true")
 	if err := validateEnvironment(); err == nil {
 		t.Fatal("expected sandbox payments in production to fail")
+	}
+}
+
+func TestValidateEnvironmentRejectsPlaceholderMerchantInProduction(t *testing.T) {
+	setValidTestEnv(t)
+	t.Setenv("ZARINPAL_MERCHANT_ID", "00000000-0000-0000-0000-000000000000")
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("FRONTEND_URL", "https://example.com")
+	t.Setenv("API_PUBLIC_URL", "https://api.example.com")
+	t.Setenv("UPLOAD_DIR", "/data/uploads")
+	t.Setenv("RETURN_DIR", "/data/returns")
+	t.Setenv("ZARINPAL_SANDBOX", "false")
+
+	if err := validateEnvironment(); err == nil || !strings.Contains(err.Error(), "placeholder UUID") {
+		t.Fatalf("error = %v, want production placeholder rejection", err)
 	}
 }
 

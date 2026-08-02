@@ -31,6 +31,7 @@ import { Route as DashboardReturnsRouteImport } from './routes/dashboard/returns
 import { Route as DashboardProfileRouteImport } from './routes/dashboard/profile'
 import { Route as DashboardOrderIdRouteImport } from './routes/dashboard/$orderId'
 import { Route as AdminVerificationCodesRouteImport } from './routes/admin/verification-codes'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminInventoryRouteImport } from './routes/admin/inventory'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as GamesSlugIndexRouteImport } from './routes/games/$slug/index'
@@ -156,6 +157,11 @@ const AdminVerificationCodesRoute = AdminVerificationCodesRouteImport.update({
   path: '/verification-codes',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminInventoryRoute = AdminInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
@@ -318,6 +326,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/verification-codes': typeof AdminVerificationCodesRoute
   '/dashboard/$orderId': typeof DashboardOrderIdRoute
   '/dashboard/profile': typeof DashboardProfileRoute
@@ -358,6 +367,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/audit'
     | '/admin/inventory'
+    | '/admin/users'
     | '/admin/verification-codes'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
@@ -395,6 +405,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/audit'
     | '/admin/inventory'
+    | '/admin/users'
     | '/admin/verification-codes'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
@@ -433,6 +444,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/audit'
     | '/admin/inventory'
+    | '/admin/users'
     | '/admin/verification-codes'
     | '/dashboard/$orderId'
     | '/dashboard/profile'
@@ -635,6 +647,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminVerificationCodesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/inventory': {
       id: '/admin/inventory'
       path: '/inventory'
@@ -739,6 +758,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
   AdminInventoryRoute: typeof AdminInventoryRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminVerificationCodesRoute: typeof AdminVerificationCodesRoute
   AdminGamesNewRoute: typeof AdminGamesNewRoute
   AdminGamesPricingRoute: typeof AdminGamesPricingRoute
@@ -753,6 +773,7 @@ interface AdminRouteRouteChildren {
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
   AdminInventoryRoute: AdminInventoryRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminVerificationCodesRoute: AdminVerificationCodesRoute,
   AdminGamesNewRoute: AdminGamesNewRoute,
   AdminGamesPricingRoute: AdminGamesPricingRoute,

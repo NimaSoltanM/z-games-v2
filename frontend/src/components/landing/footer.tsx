@@ -1,12 +1,47 @@
 import { Link } from "@tanstack/react-router"
+import { useEffect, useRef } from "react"
 
 import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 
 const ENAMAD_TRUST_SEAL =
   "<a referrerpolicy='origin' target='_blank' href='https://trustseal.enamad.ir/?id=764505&Code=eBOU95a3HqvFeOV2PyyMxJqGTn0gzZk0'><img referrerpolicy='origin' src='https://trustseal.enamad.ir/logo.aspx?id=764505&Code=eBOU95a3HqvFeOV2PyyMxJqGTn0gzZk0' alt='' style='cursor:pointer' code='eBOU95a3HqvFeOV2PyyMxJqGTn0gzZk0'></a>"
 
+const ZARINPAL_TRUST_CODE =
+  '<script src="https://www.zarinpal.com/webservice/TrustCode" type="text/javascript"></script>'
+
 export function Footer() {
   const year = new Date().getFullYear()
+  const zarinpalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const container = zarinpalRef.current
+    if (!container || container.querySelector("a")) return
+
+    const trustUrl = `https://www.zarinpal.com/trustPage/${window.location.hostname}`
+    const link = document.createElement("a")
+    link.href = trustUrl
+    link.target = "_blank"
+    link.rel = "noopener noreferrer"
+    link.title = "دروازه پرداخت معتبر"
+
+    const logo = document.createElement("img")
+    logo.src = "https://cdn.zarinpal.com/badges/trustLogo/1.png"
+    logo.alt = "دروازه پرداخت معتبر"
+    link.append(logo)
+
+    const openTrustPage = (event: MouseEvent) => {
+      event.preventDefault()
+      window.open(
+        trustUrl,
+        "zarinpalTrust",
+        "width=450,height=600,scrollbars=no,resizable=no"
+      )
+    }
+    link.addEventListener("click", openTrustPage)
+    container.append(link)
+
+    return () => link.removeEventListener("click", openTrustPage)
+  }, [])
 
   return (
     <footer className="border-t border-border/50 bg-background">
@@ -95,11 +130,18 @@ export function Footer() {
           </nav>
         </div>
 
-        <div className="mt-8 flex justify-center border-t border-border/40 pt-6">
+        <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border/40 pt-6">
           <div
             aria-label="نماد اعتماد الکترونیکی زد گیمز"
             className="flex min-h-24 min-w-24 items-center justify-center rounded-xl border border-border/60 bg-card/75 p-3 backdrop-blur-sm"
             dangerouslySetInnerHTML={{ __html: ENAMAD_TRUST_SEAL }}
+          />
+          <div
+            ref={zarinpalRef}
+            id="zarinpal"
+            aria-label="نشان درگاه پرداخت معتبر زرین‌پال"
+            className="flex min-h-24 min-w-24 items-center justify-center rounded-xl border border-border/60 bg-card/75 p-3 backdrop-blur-sm [&_img]:w-20"
+            dangerouslySetInnerHTML={{ __html: ZARINPAL_TRUST_CODE }}
           />
         </div>
 

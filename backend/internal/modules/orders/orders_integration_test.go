@@ -50,6 +50,29 @@ func oneItem() []orderItem {
 	return []orderItem{{GameID: "g1", GameName: "Test Game", Platform: "ps5", Zarfiat: "z2", Quantity: 1}}
 }
 
+func TestCheckoutAllowedBeforeLaunch(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "owner", prelaunchAllowedPhone)
+	seedUser(t, ctx, db, "customer", "09120000001")
+
+	h := &handler{db: db}
+	allowed, err := h.checkoutAllowed(ctx, "owner")
+	if err != nil || !allowed {
+		t.Fatalf("owner allowed = %v, err = %v; want true", allowed, err)
+	}
+	allowed, err = h.checkoutAllowed(ctx, "customer")
+	if err != nil || allowed {
+		t.Fatalf("customer allowed = %v, err = %v; want false", allowed, err)
+	}
+
+	h.salesEnabled = true
+	allowed, err = h.checkoutAllowed(ctx, "customer")
+	if err != nil || !allowed {
+		t.Fatalf("customer allowed after launch = %v, err = %v; want true", allowed, err)
+	}
+}
+
 func TestCreatePendingOrder_ExpandsQuantity(t *testing.T) {
 	ctx := context.Background()
 	db := testdb.New(t)

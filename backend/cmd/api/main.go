@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/soltanmohammdi/z-games/internal/database"
 	"github.com/soltanmohammdi/z-games/internal/server"
@@ -74,8 +75,13 @@ func validateEnvironment() error {
 	if secret := os.Getenv("JWT_SECRET"); len(secret) < 32 {
 		return errors.New("JWT_SECRET must be set and at least 32 characters")
 	}
-	if os.Getenv("ZARINPAL_MERCHANT_ID") == "" {
-		return errors.New("ZARINPAL_MERCHANT_ID must be set (any UUID works for the sandbox)")
+	merchantID := strings.TrimSpace(os.Getenv("ZARINPAL_MERCHANT_ID"))
+	parsedMerchantID, err := uuid.Parse(merchantID)
+	if err != nil {
+		return errors.New("ZARINPAL_MERCHANT_ID must be a valid UUID")
+	}
+	if appEnv == "production" && parsedMerchantID == uuid.Nil {
+		return errors.New("ZARINPAL_MERCHANT_ID must not use the placeholder UUID in production")
 	}
 	// Losing or changing this key makes delivered credentials unreadable. It must
 	// be backed up separately from the database.
