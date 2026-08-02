@@ -69,16 +69,30 @@ func makePNG(t *testing.T, w, h int) []byte {
 	return b.Bytes()
 }
 
-func decodeDims(t *testing.T, data []byte) (int, int) {
+func decodeImageInfo(t *testing.T, data []byte) (int, int, string) {
 	t.Helper()
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("decode config: %v", err)
 	}
-	if format != "jpeg" {
-		t.Fatalf("output format = %q, want jpeg", format)
+	return cfg.Width, cfg.Height, format
+}
+
+func jpegHeaderWithDimensions(t *testing.T, w, h int) []byte {
+	t.Helper()
+	raw := makeJPEG(t, 8, 8)
+	for i := 0; i+8 < len(raw); i++ {
+		// SOF0 stores the decoded height and width as big-endian uint16 values.
+		if raw[i] == 0xff && raw[i+1] == 0xc0 {
+			raw[i+5] = byte(h >> 8)
+			raw[i+6] = byte(h)
+			raw[i+7] = byte(w >> 8)
+			raw[i+8] = byte(w)
+			return raw
+		}
 	}
-	return cfg.Width, cfg.Height
+	t.Fatal("JPEG fixture has no SOF0 marker")
+	return nil
 }
 
 func mustExec(t *testing.T, db *pgxpool.Pool, sql string, args ...any) {
@@ -90,15 +104,18 @@ func mustExec(t *testing.T, db *pgxpool.Pool, sql string, args ...any) {
 
 // --- processImage -----------------------------------------------------------
 
-func TestProcessImage_ReencodesToJPEG(t *testing.T) {
+func TestProcessImage_UsesWebPWhenMeaningfullySmaller(t *testing.T) {
 	out, err := processImage(makePNG(t, 200, 300))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ct := http.DetectContentType(out); ct != "image/jpeg" {
-		t.Fatalf("output type = %q, want image/jpeg (input was PNG)", ct)
+	if out.ext != ".webp" {
+		t.Fatalf("output extension = %q, want .webp", out.ext)
 	}
-	if w, h := decodeDims(t, out); w != 200 || h != 300 {
+	if ct := http.DetectContentType(out.data); ct != "image/webp" {
+		t.Fatalf("output type = %q, want image/webp", ct)
+	}
+	if w, h, _ := decodeImageInfo(t, out.data); w != 200 || h != 300 {
 		t.Fatalf("small image got resized to %dx%d, want 200x300", w, h)
 	}
 }
@@ -109,7 +126,7 @@ func TestProcessImage_Downscales(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Long edge capped at maxOutputDim, aspect preserved (2000x1500 → 1000x750).
-	if w, h := decodeDims(t, out); w != maxOutputDim || h != 750 {
+	if w, h, _ := decodeImageInfo(t, out.data); w != maxOutputDim || h != 750 {
 		t.Fatalf("downscaled to %dx%d, want %dx750", w, h, maxOutputDim)
 	}
 }
@@ -123,8 +140,8 @@ func TestProcessImage_AcceptsWebP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("webp rejected: %v", err)
 	}
-	if ct := http.DetectContentType(out); ct != "image/jpeg" {
-		t.Fatalf("webp not converted, output type = %q", ct)
+	if ct := http.DetectContentType(out.data); ct != "image/jpeg" && ct != "image/webp" {
+		t.Fatalf("unexpected output type = %q", ct)
 	}
 }
 
@@ -139,25 +156,49 @@ func TestProcessImage_Rejects(t *testing.T) {
 	if _, err := processImage(makeJPEG(t, maxSourceDim+1, 8)); !errors.Is(err, ErrDimensions) {
 		t.Fatalf("huge dims: got %v, want ErrDimensions", err)
 	}
+	// Reject excessive total pixels even when both individual edges are allowed.
+	if _, err := processImage(jpegHeaderWithDimensions(t, 8000, 6000)); !errors.Is(err, ErrDimensions) {
+		t.Fatalf("huge pixel count: got %v, want ErrDimensions", err)
+	}
+}
+
+func TestChooseProcessedImage_RequiresMeaningfulWebPSavings(t *testing.T) {
+	jpegOutput := processedImage{data: make([]byte, 1000), ext: ".jpg"}
+
+	tooClose := processedImage{data: make([]byte, 901), ext: ".webp"}
+	if got := chooseProcessedImage(jpegOutput, tooClose); got.ext != ".jpg" {
+		t.Fatalf("9.9%% savings selected %q, want JPEG", got.ext)
+	}
+
+	meaningful := processedImage{data: make([]byte, 900), ext: ".webp"}
+	if got := chooseProcessedImage(jpegOutput, meaningful); got.ext != ".webp" {
+		t.Fatalf("10%% savings selected %q, want WebP", got.ext)
+	}
 }
 
 // --- SaveImage --------------------------------------------------------------
 
-func TestSaveImage_WritesNormalizedJPEG(t *testing.T) {
+func TestSaveImage_WritesNormalizedImage(t *testing.T) {
 	dir := tempDir(t)
-	name, err := SaveImage(dir, bytes.NewReader(makePNG(t, 400, 600)), int64(len(makePNG(t, 400, 600))))
+	raw := makePNG(t, 400, 600)
+	name, err := SaveImage(dir, bytes.NewReader(raw), int64(len(raw)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if filepath.Ext(name) != ".jpg" {
-		t.Fatalf("name = %q, want .jpg", name)
+	if ext := filepath.Ext(name); ext != ".jpg" && ext != ".webp" {
+		t.Fatalf("name = %q, want .jpg or .webp", name)
 	}
 	stored, err := os.ReadFile(filepath.Join(dir, name))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ct := http.DetectContentType(stored); ct != "image/jpeg" {
-		t.Fatalf("stored type = %q, want image/jpeg", ct)
+	ct := http.DetectContentType(stored)
+	wantType := "image/jpeg"
+	if filepath.Ext(name) == ".webp" {
+		wantType = "image/webp"
+	}
+	if ct != wantType {
+		t.Fatalf("stored type = %q, want %q for %s", ct, wantType, name)
 	}
 	// No leftover temp files from the atomic write.
 	entries, _ := os.ReadDir(dir)
@@ -242,7 +283,10 @@ func TestUploadAndServe_RoundTrip(t *testing.T) {
 	body, contentType := multipartImage(t, "file", "cover.png", makePNG(t, 300, 400))
 	req := httptest.NewRequest(http.MethodPost, "/uploads", body)
 	req.Header.Set("Content-Type", contentType)
-	resp, err := app.Test(req)
+	resp, err := app.Test(req, fiber.TestConfig{
+		Timeout:       10 * time.Second,
+		FailOnTimeout: true,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,9 +299,8 @@ func TestUploadAndServe_RoundTrip(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		t.Fatal(err)
 	}
-	// Stored as a normalized JPEG regardless of the uploaded PNG.
-	if !strings.HasPrefix(out.URL, "/uploads/") || !strings.HasSuffix(out.URL, ".jpg") {
-		t.Fatalf("url = %q, want /uploads/*.jpg", out.URL)
+	if !strings.HasPrefix(out.URL, "/uploads/") || !strings.HasSuffix(out.URL, ".webp") {
+		t.Fatalf("url = %q, want optimized /uploads/*.webp", out.URL)
 	}
 
 	getResp, err := app.Test(httptest.NewRequest(http.MethodGet, out.URL, nil))
@@ -268,11 +311,13 @@ func TestUploadAndServe_RoundTrip(t *testing.T) {
 		t.Fatalf("serve status = %d, want 200", getResp.StatusCode)
 	}
 	served, _ := io.ReadAll(getResp.Body)
-	if w, h := decodeDims(t, served); w != 300 || h != 400 {
+	w, h, format := decodeImageInfo(t, served)
+	if w != 300 || h != 400 {
 		t.Fatalf("served image is %dx%d, want 300x400", w, h)
 	}
-	if ct := getResp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "image/jpeg") {
-		t.Fatalf("served Content-Type = %q, want image/jpeg", ct)
+	wantContentType := "image/" + format
+	if ct := getResp.Header.Get("Content-Type"); !strings.HasPrefix(ct, wantContentType) {
+		t.Fatalf("served Content-Type = %q, want %s", ct, wantContentType)
 	}
 	if crp := getResp.Header.Get("Cross-Origin-Resource-Policy"); crp != "cross-origin" {
 		t.Fatalf("CRP header = %q, want cross-origin", crp)
