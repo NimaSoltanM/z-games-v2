@@ -1,8 +1,9 @@
 // Package uploads stores admin-supplied images on local disk and serves them
 // back. Every upload is validated by its real magic bytes (not the client name
-// or Content-Type), re-encoded to a downscaled JPEG (stripping metadata and
-// capping size), and written under a random server-generated name — so a caller
-// can never choose the path, smuggle a non-image, or store an oversized file.
+// or Content-Type), re-encoded to a downscaled WebP or JPEG (stripping metadata
+// and capping size), and written under a random server-generated name — so a
+// caller can never choose the path, smuggle a non-image, or store an oversized
+// file.
 package uploads
 
 import (
@@ -26,9 +27,9 @@ var (
 	ErrTooLarge = errors.New("UPLOAD_TOO_LARGE")
 )
 
-// SaveImage reads the upload (bounded by MaxUploadBytes), normalizes it to a
-// JPEG via processImage, and writes it atomically into dir under a random name,
-// returning that name (e.g. "a1b2…f9.jpg").
+// SaveImage reads the upload (bounded by MaxUploadBytes), normalizes it via
+// processImage, and writes it atomically into dir under a random name, returning
+// that name (e.g. "a1b2…f9.webp").
 func SaveImage(dir string, r io.Reader, declaredSize int64) (string, error) {
 	if declaredSize <= 0 {
 		return "", ErrEmpty
@@ -46,19 +47,19 @@ func SaveImage(dir string, r io.Reader, declaredSize int64) (string, error) {
 		return "", ErrTooLarge
 	}
 
-	jpegBytes, err := processImage(raw)
+	processed, err := processImage(raw)
 	if err != nil {
 		return "", err
 	}
 
-	name, err := newFilename(".jpg")
+	name, err := newFilename(processed.ext)
 	if err != nil {
 		return "", fmt.Errorf("SaveImage name: %w", err)
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("SaveImage mkdir: %w", err)
 	}
-	if err := atomicWrite(dir, name, jpegBytes); err != nil {
+	if err := atomicWrite(dir, name, processed.data); err != nil {
 		return "", err
 	}
 	return name, nil
