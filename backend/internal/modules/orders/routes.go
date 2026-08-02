@@ -28,6 +28,7 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool) {
 		cred:        cred,
 		frontendURL: strings.TrimRight(frontendURL, "/"),
 		callbackURL: strings.TrimRight(apiURL, "/") + "/payment/callback",
+		salesEnabled: os.Getenv("SALES_ENABLED") == "true",
 	}
 
 	auth := middleware.RequireAuth(db)

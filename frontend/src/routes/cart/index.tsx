@@ -414,7 +414,12 @@ function useCheckout() {
       const result = await checkoutOrder({ referral_code: getReferral() })
       if (result.paid) {
         // Wallet fully covered the order — no gateway step; go straight to the result.
-        window.location.href = `/payment/result?status=success&order=${result.order_number ?? ""}`
+        const params = new URLSearchParams({ status: "success" })
+        if (result.order_id) params.set("id", result.order_id)
+        if (result.order_number !== undefined) {
+          params.set("order", String(result.order_number))
+        }
+        window.location.href = `/payment/result?${params.toString()}`
       } else if (result.payment_url) {
         window.location.href = result.payment_url
       } else {

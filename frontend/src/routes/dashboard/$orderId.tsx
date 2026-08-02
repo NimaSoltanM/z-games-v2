@@ -167,6 +167,19 @@ function OrderDetail() {
             {formatToman(order.amount)}
           </span>
         </div>
+        {order.ref_id !== null && (
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              کد پیگیری پرداخت
+            </span>
+            <span
+              dir="ltr"
+              className="font-mono text-sm font-semibold tabular-nums"
+            >
+              {order.ref_id}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Credentials — delivered by support after the order is prepared. */}

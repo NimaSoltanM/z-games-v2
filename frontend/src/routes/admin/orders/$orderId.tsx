@@ -139,6 +139,14 @@ function OrderSummary({ order }: { order: AdminOrder }) {
           {formatToman(order.amount)}
         </span>
       </div>
+      {order.ref_id !== null && (
+        <div className="mt-2 flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">کد پیگیری پرداخت</span>
+          <span dir="ltr" className="font-mono font-semibold tabular-nums">
+            {order.ref_id}
+          </span>
+        </div>
+      )}
       <div className="mt-2 text-xs text-muted-foreground">
         {formatOrderDate(order.created_at)}
       </div>
@@ -165,7 +173,7 @@ function ReviewPanel({ order }: { order: AdminOrder }) {
         </p>
         {order.authority && (
           <p className="mt-4 text-xs text-muted-foreground">
-            کد پیگیری درگاه:{" "}
+            آتوریتی درگاه:{" "}
             <span dir="ltr" className="font-mono text-foreground">
               {order.authority}
             </span>

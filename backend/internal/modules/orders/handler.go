@@ -1,9 +1,11 @@
 package orders
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -14,17 +16,41 @@ import (
 )
 
 type handler struct {
-	db          *pgxpool.Pool
-	zp          *zarinpalClient
-	cred        *credentials.Cipher
-	frontendURL string
-	callbackURL string
+	db           *pgxpool.Pool
+	zp           *zarinpalClient
+	cred         *credentials.Cipher
+	frontendURL  string
+	callbackURL  string
+	salesEnabled bool
+}
+
+const prelaunchAllowedPhone = "09019697619"
+
+func (h *handler) checkoutAllowed(ctx context.Context, userID string) (bool, error) {
+	if h.salesEnabled {
+		return true, nil
+	}
+
+	var phone string
+	if err := h.db.QueryRow(ctx, "SELECT phone FROM users WHERE id = $1", userID).Scan(&phone); err != nil {
+		return false, err
+	}
+	return phone == prelaunchAllowedPhone, nil
 }
 
 // checkout turns the user's cart into a pending order and starts a ZarinPal
 // payment, returning the gateway URL the client should redirect to.
 func (h *handler) checkout(c fiber.Ctx) error {
 	userID := c.Locals(middleware.LocalUserID).(string)
+	allowed, err := h.checkoutAllowed(c.Context(), userID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "وب‌سایت هنوز به‌صورت رسمی شروع به کار نکرده است",
+		})
+	}
 
 	var body struct {
 		ReferralCode string `json:"referral_code"`
@@ -70,13 +96,30 @@ func (h *handler) checkout(c fiber.Ctx) error {
 		if err := clearUserCart(c.Context(), h.db, userID); err != nil {
 			log.Printf("clear cart after wallet-paid order %s failed: %v", orderID, err)
 		}
-		return c.JSON(fiber.Map{"paid": true, "order_number": orderNumber})
+		return c.JSON(fiber.Map{
+			"paid":         true,
+			"order_id":     orderID,
+			"order_number": orderNumber,
+		})
 	}
 
-	authority, err := h.zp.requestPayment(c.Context(), gateway, "خرید بازی از Z-Games", h.callbackURL,
-		map[string]string{"order_id": orderID})
+	// Keep verification under our control even if the gateway's panel default is
+	// changed later. This prevents a callback/auto-verify race and lets the stale
+	// order reconciler safely recover a lost callback.
+	authority, err := h.zp.requestPayment(
+		c.Context(),
+		gateway,
+		fmt.Sprintf("خرید سفارش %d از زد گیمز", orderNumber),
+		h.callbackURL,
+		map[string]any{
+			"auto_verify": false,
+			"order_id":    strconv.FormatInt(orderNumber, 10),
+		},
+	)
 	if err != nil {
-		_ = failOrder(c.Context(), h.db, orderID) // refunds the reserved wallet
+		if failErr := failOrder(c.Context(), h.db, orderID); failErr != nil {
+			log.Printf("refund after ZarinPal request failure for order %s failed: %v", orderID, failErr)
+		}
 		log.Printf("zarinpal request failed for order %s: %v", orderID, err)
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
 			"message": "خطا در اتصال به درگاه پرداخت. لطفاً دوباره تلاش کنید",
@@ -84,10 +127,19 @@ func (h *handler) checkout(c fiber.Ctx) error {
 	}
 
 	if err := setOrderAuthority(c.Context(), h.db, orderID, authority); err != nil {
+		// The buyer has not received the gateway URL yet, so this session cannot be
+		// paid through our UI. Release any reserved wallet credit immediately.
+		if failErr := failOrder(c.Context(), h.db, orderID); failErr != nil {
+			log.Printf("refund after authority persistence failure for order %s failed: %v", orderID, failErr)
+		}
 		return err
 	}
 
-	return c.JSON(fiber.Map{"payment_url": h.zp.paymentURL(authority)})
+	return c.JSON(fiber.Map{
+		"payment_url":  h.zp.paymentURL(authority),
+		"order_id":     orderID,
+		"order_number": orderNumber,
+	})
 }
 
 // getWalletView returns the user's wallet balance and recent ledger entries.
@@ -362,7 +414,7 @@ func (h *handler) callback(c fiber.Ctx) error {
 	status := c.Query("Status")
 
 	if authority == "" {
-		return h.redirectResult(c, "failed", 0)
+		return h.redirectResult(c, "failed", nil, 0)
 	}
 
 	order, err := getOrderByAuthority(c.Context(), h.db, authority)
@@ -370,52 +422,86 @@ func (h *handler) callback(c fiber.Ctx) error {
 		return err
 	}
 	if order == nil {
-		return h.redirectResult(c, "failed", 0)
+		return h.redirectResult(c, "failed", nil, 0)
 	}
 
 	// Idempotent: if this order is already settled, don't re-verify. ZarinPal can
 	// hit the callback more than once, and re-verifying a paid order would risk a
 	// transient verify error being misread as "pending" for money already taken.
 	if order.Status == "paid" || order.Status == "fulfilled" {
-		return h.redirectResult(c, "success", order.OrderNumber)
+		return h.redirectResult(c, "success", order, order.ReferenceID())
+	}
+	if order.Status == "failed" {
+		return h.redirectResult(c, "failed", order, 0)
 	}
 
 	// The customer cancelled or the gateway reported a non-OK return.
 	if status != "OK" {
-		_ = failOrder(c.Context(), h.db, order.ID)
-		return h.redirectResult(c, "failed", order.OrderNumber)
+		// Do not settle from a browser-controlled query parameter. Keeping the
+		// order pending until the stale reconciler verifies it avoids refunding
+		// wallet credit while a payment session might still be usable elsewhere.
+		return h.redirectResult(c, "failed", order, 0)
 	}
 
 	refID, err := h.zp.verifyPayment(c.Context(), order.GatewayAmount(), authority)
 	switch {
 	case errors.Is(err, ErrPaymentNotVerified):
 		// ZarinPal answered cleanly: the payment did not go through.
-		_ = failOrder(c.Context(), h.db, order.ID)
+		if failErr := failOrder(c.Context(), h.db, order.ID); failErr != nil {
+			log.Printf("fail unverified order %s: %v", order.ID, failErr)
+			return h.redirectResult(c, "pending", order, 0)
+		}
 		log.Printf("zarinpal verify: payment not verified for order %s: %v", order.ID, err)
-		return h.redirectResult(c, "failed", order.OrderNumber)
+		return h.redirectResult(c, "failed", order, 0)
 	case err != nil:
 		// UNKNOWN outcome (timeout/network/gateway error). The customer may have
 		// paid — leave the order pending for reconciliation instead of failing it.
 		log.Printf("zarinpal verify UNKNOWN for order %s (authority %s): %v — leaving pending", order.ID, authority, err)
-		return h.redirectResult(c, "pending", order.OrderNumber)
+		return h.redirectResult(c, "pending", order, 0)
 	}
 
 	transitioned, err := markOrderPaid(c.Context(), h.db, order.ID, refID)
 	if err != nil {
-		return err
+		// Verification succeeded but persistence did not. Never show failure; the
+		// reconciler can repeat verify (101) and settle the order safely.
+		log.Printf("persist verified payment for order %s failed: %v", order.ID, err)
+		return h.redirectResult(c, "pending", order, 0)
 	}
 	if transitioned {
 		if err := clearUserCart(c.Context(), h.db, order.UserID); err != nil {
 			log.Printf("clear cart after paid order %s failed: %v", order.ID, err)
 		}
+		return h.redirectResult(c, "success", order, refID)
 	}
-	return h.redirectResult(c, "success", order.OrderNumber)
+
+	// Another callback/reconciler settled the row while verify was in flight.
+	// Reload before deciding what the buyer should see.
+	current, err := getOrderByAuthority(c.Context(), h.db, authority)
+	if err != nil {
+		log.Printf("reload concurrently settled order %s failed: %v", order.ID, err)
+		return h.redirectResult(c, "pending", order, 0)
+	}
+	if current != nil && (current.Status == "paid" || current.Status == "fulfilled") {
+		return h.redirectResult(c, "success", current, current.ReferenceID())
+	}
+	log.Printf("verified payment for order %s could not transition from status %q", order.ID, order.Status)
+	return h.redirectResult(c, "pending", order, 0)
 }
 
-func (h *handler) redirectResult(c fiber.Ctx, status string, orderNumber int64) error {
-	url := fmt.Sprintf("%s/payment/result?status=%s", h.frontendURL, status)
-	if orderNumber > 0 {
-		url += "&order=" + strconv.FormatInt(orderNumber, 10)
+func (h *handler) redirectResult(c fiber.Ctx, status string, order *orderLookup, refID int64) error {
+	target, err := url.Parse(h.frontendURL + "/payment/result")
+	if err != nil {
+		return fmt.Errorf("payment result URL: %w", err)
 	}
-	return c.Redirect().To(url)
+	query := target.Query()
+	query.Set("status", status)
+	if order != nil {
+		query.Set("id", order.ID)
+		query.Set("order", strconv.FormatInt(order.OrderNumber, 10))
+	}
+	if refID > 0 {
+		query.Set("ref", strconv.FormatInt(refID, 10))
+	}
+	target.RawQuery = query.Encode()
+	return c.Redirect().To(target.String())
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/soltanmohammdi/z-games/internal/modules/orders"
 	"github.com/soltanmohammdi/z-games/internal/modules/returns"
 	"github.com/soltanmohammdi/z-games/internal/modules/uploads"
+	"github.com/soltanmohammdi/z-games/internal/modules/users"
 )
 
 func NewApp(db *pgxpool.Pool) *fiber.App {
@@ -76,6 +77,7 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 	returns.RegisterRoutes(app, db)
 	uploads.RegisterRoutes(app, db)
 	audit.RegisterRoutes(app, db)
+	users.RegisterRoutes(app, db)
 
 	return app
 }

@@ -51,18 +51,19 @@ Keep `/etc/z-games/api.env` mode `0640`, owner `root`, group `zgames`. Never
 commit it. Preserve the existing production `CREDENTIALS_KEY` when migrating a
 database; changing it makes existing fulfilled credentials unreadable.
 
-During payment/SMS provider review, use:
+Normal live production uses:
 
 ```text
-PROVIDER_APPROVAL_MODE=true
-ZARINPAL_SANDBOX=true
+PROVIDER_APPROVAL_MODE=false
+ZARINPAL_SANDBOX=false
 VITE_ALLOW_INDEXING=true
 ```
 
 Indexing is enabled because `https://z-games.store` is the final public canonical
-domain. Provider approval mode and payment sandboxing remain independent safety
-switches. After both providers issue production credentials, configure them, set
-`PROVIDER_APPROVAL_MODE=false` and `ZARINPAL_SANDBOX=false`, then deploy again.
+domain. During payment/SMS provider review, temporarily set
+`PROVIDER_APPROVAL_MODE=true` and `ZARINPAL_SANDBOX=true`. Provider approval mode
+and payment sandboxing remain independent safety switches; switch both back to
+the live values above only after the production credentials are configured.
 
 ## Database migration
 

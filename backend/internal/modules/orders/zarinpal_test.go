@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -46,14 +47,26 @@ func TestVerifyPayment_AlreadyVerified(t *testing.T) {
 }
 
 func TestVerifyPayment_DefiniteFailures(t *testing.T) {
-	// ZarinPal returns these inside a non-2xx body (the sandbox uses 401). Each is
-	// a definitive "not paid" → ErrPaymentNotVerified so the order is failed.
-	for _, code := range []int{-50, -51, -53, -54, -55} {
+	// -51 is the only documented verify result that definitively means the
+	// payment failed. It is safe to fail the order and refund reserved wallet.
+	c := cannedClient(t, 401, `{"data":[],"errors":{"code":-51,"message":"x"}}`)
+	_, err := c.verifyPayment(context.Background(), 1000, "S1")
+	if !errors.Is(err, ErrPaymentNotVerified) {
+		t.Fatalf("want ErrPaymentNotVerified, got %v", err)
+	}
+}
+
+func TestVerifyPayment_ReconciliationFailuresStayUnknown(t *testing.T) {
+	// These can indicate an amount, merchant, authority, or provider-side problem
+	// after money moved. Never fail/refund the order automatically.
+	for _, code := range []int{-50, -52, -53, -54, -55} {
 		body := fmt.Sprintf(`{"data":[],"errors":{"code":%d,"message":"x"}}`, code)
 		c := cannedClient(t, 401, body)
 		_, err := c.verifyPayment(context.Background(), 1000, "S1")
-		if !errors.Is(err, ErrPaymentNotVerified) {
-			t.Errorf("code %d: want ErrPaymentNotVerified, got %v", code, err)
+		if err == nil {
+			t.Errorf("code %d: want an error", code)
+		} else if errors.Is(err, ErrPaymentNotVerified) {
+			t.Errorf("code %d: must remain UNKNOWN, got %v", code, err)
 		}
 	}
 }
@@ -116,6 +129,43 @@ func TestRequestPayment_Success(t *testing.T) {
 	}
 	if auth == "" {
 		t.Fatal("empty authority on success")
+	}
+}
+
+func TestRequestPayment_SendsTomanAndManualVerification(t *testing.T) {
+	var got struct {
+		Amount   int    `json:"amount"`
+		Currency string `json:"currency"`
+		Metadata struct {
+			AutoVerify *bool  `json:"auto_verify"`
+			OrderID    string `json:"order_id"`
+		} `json:"metadata"`
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"code":100,"authority":"A00000000000000000000000000000abcd"},"errors":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+	c := &zarinpalClient{merchantID: "test", apiBase: srv.URL, http: srv.Client()}
+
+	_, err := c.requestPayment(context.Background(), 12500, "desc", "https://example.com/callback", map[string]any{
+		"auto_verify": false,
+		"order_id":    "100123",
+	})
+	if err != nil {
+		t.Fatalf("requestPayment: %v", err)
+	}
+	if got.Amount != 12500 || got.Currency != "IRT" {
+		t.Fatalf("amount/currency = %d/%q, want 12500/IRT", got.Amount, got.Currency)
+	}
+	if got.Metadata.AutoVerify == nil || *got.Metadata.AutoVerify {
+		t.Fatalf("metadata.auto_verify = %v, want false", got.Metadata.AutoVerify)
+	}
+	if got.Metadata.OrderID != "100123" {
+		t.Fatalf("metadata.order_id = %q, want 100123", got.Metadata.OrderID)
 	}
 }
 
