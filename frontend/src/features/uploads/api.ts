@@ -1,6 +1,11 @@
 // Allowed image types + size cap, mirrored from the backend so the UI can reject
 // bad files before spending a round trip. Keep in sync with internal/modules/uploads.
-export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
+export const ACCEPTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+]
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 export type UploadOptions = {

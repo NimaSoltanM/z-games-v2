@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 
+	_ "github.com/gen2brain/avif" // register the AVIF decoder
 	webpencode "github.com/gen2brain/webp"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp" // register the WebP decoder
@@ -58,6 +59,7 @@ var allowedInputTypes = map[string]bool{
 	"image/jpeg": true,
 	"image/png":  true,
 	"image/webp": true,
+	"image/avif": true,
 }
 
 // processImage validates raw as an allowed image, rejects oversized dimensions,
@@ -68,7 +70,7 @@ func processImage(raw []byte) (processedImage, error) {
 	if len(raw) == 0 {
 		return processedImage{}, ErrEmpty
 	}
-	if !allowedInputTypes[http.DetectContentType(raw)] {
+	if !isAllowedInputType(raw) {
 		return processedImage{}, ErrBadType
 	}
 
@@ -116,6 +118,21 @@ func processImage(raw []byte) (processedImage, error) {
 		data: webpBuf.Bytes(),
 		ext:  ".webp",
 	}), nil
+}
+
+func isAllowedInputType(raw []byte) bool {
+	if allowedInputTypes[http.DetectContentType(raw)] {
+		return true
+	}
+
+	// Go's HTTP content sniffer does not currently identify AVIF. Validate the
+	// ISO-BMFF major brand used by still and animated AVIF before invoking the
+	// registered decoder. The decoder performs the full structural validation.
+	if len(raw) < 12 || !bytes.Equal(raw[4:8], []byte("ftyp")) {
+		return false
+	}
+	brand := raw[8:12]
+	return bytes.Equal(brand, []byte("avif")) || bytes.Equal(brand, []byte("avis"))
 }
 
 func usableCoverDimensions(width, height int) (int, int) {

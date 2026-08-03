@@ -55,7 +55,7 @@ export function ImageUpload({
   async function handleFile(file: File) {
     setError(null)
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setError("فقط فایل تصویری (JPEG، PNG یا WebP) مجاز است")
+      setError("فقط فایل تصویری (JPEG، PNG، WebP یا AVIF) مجاز است")
       return
     }
     if (file.size > MAX_IMAGE_BYTES) {
@@ -226,7 +226,7 @@ export function ImageUpload({
                 انتخاب، کشیدن یا چسباندن تصویر
               </span>
               <span className="text-[11px] text-muted-foreground">
-                JPEG، PNG یا WebP تا ۵ مگابایت
+                JPEG، PNG، WebP یا AVIF تا ۵ مگابایت
               </span>
               <span className="text-[11px] text-muted-foreground">
                 حداقل وضوح ۶۰۰×۸۰۰ پیکسل

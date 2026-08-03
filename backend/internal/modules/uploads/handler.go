@@ -42,7 +42,7 @@ func (h *handler) upload(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "فایل تصویر خالی است"})
 	case errors.Is(err, ErrBadType):
 		return c.Status(fiber.StatusUnsupportedMediaType).JSON(fiber.Map{
-			"message": "فقط فایل تصویری (JPEG، PNG یا WebP) مجاز است",
+			"message": "فقط فایل تصویری (JPEG، PNG، WebP یا AVIF) مجاز است",
 		})
 	case errors.Is(err, ErrDimensions):
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{

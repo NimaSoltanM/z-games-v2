@@ -6,6 +6,9 @@ dist
 *.log
 .seo-cache/
 
+# Local source cover images
+covers/
+
 # Go
 backend/tmp/
 backend/*.exe

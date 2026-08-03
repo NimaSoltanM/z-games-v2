@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	avifencode "github.com/gen2brain/avif"
 	webpencode "github.com/gen2brain/webp"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
@@ -74,6 +75,15 @@ func makeWebP(t *testing.T, w, h int) []byte {
 	t.Helper()
 	var b bytes.Buffer
 	if err := webpencode.Encode(&b, solidImage(w, h), webpencode.Options{Quality: 90, Method: 4}); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+func makeAVIF(t *testing.T, w, h int) []byte {
+	t.Helper()
+	var b bytes.Buffer
+	if err := avifencode.Encode(&b, solidImage(w, h), avifencode.Options{Quality: 80, Speed: 10}); err != nil {
 		t.Fatal(err)
 	}
 	return b.Bytes()
@@ -148,6 +158,33 @@ func TestProcessImage_AcceptsWebP(t *testing.T) {
 	}
 	if ct := http.DetectContentType(out.data); ct != "image/jpeg" && ct != "image/webp" {
 		t.Fatalf("unexpected output type = %q", ct)
+	}
+}
+
+func TestProcessImage_AcceptsAVIF(t *testing.T) {
+	raw := makeAVIF(t, 600, 800)
+	if !isAllowedInputType(raw) {
+		t.Fatal("valid AVIF was not recognized by its file signature")
+	}
+	out, err := processImage(raw)
+	if err != nil {
+		t.Fatalf("AVIF rejected: %v", err)
+	}
+	if ct := http.DetectContentType(out.data); ct != "image/jpeg" && ct != "image/webp" {
+		t.Fatalf("unexpected output type = %q", ct)
+	}
+	if w, h, _ := decodeImageInfo(t, out.data); w != 600 || h != 800 {
+		t.Fatalf("AVIF output is %dx%d, want 600x800", w, h)
+	}
+}
+
+func TestIsAllowedInputType_RejectsFakeAVIF(t *testing.T) {
+	fake := append([]byte{0, 0, 0, 20}, []byte("ftypavifnot-an-image")...)
+	if !isAllowedInputType(fake) {
+		t.Fatal("AVIF signature should reach the decoder")
+	}
+	if _, err := processImage(fake); !errors.Is(err, ErrBadType) {
+		t.Fatalf("fake AVIF: got %v, want ErrBadType", err)
 	}
 }
 
