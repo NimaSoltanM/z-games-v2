@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	webpencode "github.com/gen2brain/webp"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -69,6 +70,15 @@ func makePNG(t *testing.T, w, h int) []byte {
 	return b.Bytes()
 }
 
+func makeWebP(t *testing.T, w, h int) []byte {
+	t.Helper()
+	var b bytes.Buffer
+	if err := webpencode.Encode(&b, solidImage(w, h), webpencode.Options{Quality: 90, Method: 4}); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
 func decodeImageInfo(t *testing.T, data []byte) (int, int, string) {
 	t.Helper()
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
@@ -105,7 +115,7 @@ func mustExec(t *testing.T, db *pgxpool.Pool, sql string, args ...any) {
 // --- processImage -----------------------------------------------------------
 
 func TestProcessImage_UsesWebPWhenMeaningfullySmaller(t *testing.T) {
-	out, err := processImage(makePNG(t, 200, 300))
+	out, err := processImage(makePNG(t, 600, 800))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,8 +125,8 @@ func TestProcessImage_UsesWebPWhenMeaningfullySmaller(t *testing.T) {
 	if ct := http.DetectContentType(out.data); ct != "image/webp" {
 		t.Fatalf("output type = %q, want image/webp", ct)
 	}
-	if w, h, _ := decodeImageInfo(t, out.data); w != 200 || h != 300 {
-		t.Fatalf("small image got resized to %dx%d, want 200x300", w, h)
+	if w, h, _ := decodeImageInfo(t, out.data); w != 600 || h != 800 {
+		t.Fatalf("image got resized to %dx%d, want 600x800", w, h)
 	}
 }
 
@@ -132,16 +142,40 @@ func TestProcessImage_Downscales(t *testing.T) {
 }
 
 func TestProcessImage_AcceptsWebP(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("testdata", "sample.webp"))
-	if err != nil {
-		t.Fatalf("read fixture: %v", err)
-	}
-	out, err := processImage(raw)
+	out, err := processImage(makeWebP(t, 600, 800))
 	if err != nil {
 		t.Fatalf("webp rejected: %v", err)
 	}
 	if ct := http.DetectContentType(out.data); ct != "image/jpeg" && ct != "image/webp" {
 		t.Fatalf("unexpected output type = %q", ct)
+	}
+}
+
+func TestUsableCoverDimensions(t *testing.T) {
+	tests := []struct {
+		name          string
+		width, height int
+		wantWidth     int
+		wantHeight    int
+	}{
+		{name: "small portrait", width: 177, height: 265, wantWidth: 177, wantHeight: 236},
+		{name: "wide landscape", width: 1920, height: 1080, wantWidth: 810, wantHeight: 1080},
+		{name: "exact cover", width: 600, height: 800, wantWidth: 600, wantHeight: 800},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotWidth, gotHeight := usableCoverDimensions(tt.width, tt.height)
+			if gotWidth != tt.wantWidth || gotHeight != tt.wantHeight {
+				t.Fatalf("usable dimensions = %dx%d, want %dx%d", gotWidth, gotHeight, tt.wantWidth, tt.wantHeight)
+			}
+		})
+	}
+}
+
+func TestProcessImage_RejectsLowResolutionCover(t *testing.T) {
+	if _, err := processImage(makeJPEG(t, 177, 265)); !errors.Is(err, ErrTooSmall) {
+		t.Fatalf("low-resolution cover: got %v, want ErrTooSmall", err)
 	}
 }
 
@@ -180,7 +214,7 @@ func TestChooseProcessedImage_RequiresMeaningfulWebPSavings(t *testing.T) {
 
 func TestSaveImage_WritesNormalizedImage(t *testing.T) {
 	dir := tempDir(t)
-	raw := makePNG(t, 400, 600)
+	raw := makePNG(t, 600, 800)
 	name, err := SaveImage(dir, bytes.NewReader(raw), int64(len(raw)))
 	if err != nil {
 		t.Fatal(err)
@@ -225,7 +259,7 @@ func TestSaveImage_RejectsSizeBounds(t *testing.T) {
 
 func TestSaveImage_UniqueNames(t *testing.T) {
 	dir := tempDir(t)
-	jpg := makeJPEG(t, 50, 50)
+	jpg := makeJPEG(t, 600, 800)
 	a, err := SaveImage(dir, bytes.NewReader(jpg), int64(len(jpg)))
 	if err != nil {
 		t.Fatal(err)
@@ -280,7 +314,7 @@ func TestUploadAndServe_RoundTrip(t *testing.T) {
 	dir := tempDir(t)
 	app := testApp(dir, nil)
 
-	body, contentType := multipartImage(t, "file", "cover.png", makePNG(t, 300, 400))
+	body, contentType := multipartImage(t, "file", "cover.png", makePNG(t, 600, 800))
 	req := httptest.NewRequest(http.MethodPost, "/uploads", body)
 	req.Header.Set("Content-Type", contentType)
 	resp, err := app.Test(req, fiber.TestConfig{
@@ -312,8 +346,8 @@ func TestUploadAndServe_RoundTrip(t *testing.T) {
 	}
 	served, _ := io.ReadAll(getResp.Body)
 	w, h, format := decodeImageInfo(t, served)
-	if w != 300 || h != 400 {
-		t.Fatalf("served image is %dx%d, want 300x400", w, h)
+	if w != 600 || h != 800 {
+		t.Fatalf("served image is %dx%d, want 600x800", w, h)
 	}
 	wantContentType := "image/" + format
 	if ct := getResp.Header.Get("Content-Type"); !strings.HasPrefix(ct, wantContentType) {
@@ -337,6 +371,31 @@ func TestUpload_RejectsNonImage(t *testing.T) {
 	}
 	if resp.StatusCode != fiber.StatusUnsupportedMediaType {
 		t.Fatalf("status = %d, want 415", resp.StatusCode)
+	}
+}
+
+func TestUpload_RejectsLowResolutionCover(t *testing.T) {
+	dir := tempDir(t)
+	app := testApp(dir, nil)
+
+	body, contentType := multipartImage(t, "file", "cover.jpg", makeJPEG(t, 177, 265))
+	req := httptest.NewRequest(http.MethodPost, "/uploads", body)
+	req.Header.Set("Content-Type", contentType)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422", resp.StatusCode)
+	}
+	var out struct {
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Message != "وضوح تصویر کافی نیست (حداقل ۶۰۰×۸۰۰ پیکسل)" {
+		t.Fatalf("message = %q", out.Message)
 	}
 }
 
@@ -392,7 +451,7 @@ func TestUpload_Audited(t *testing.T) {
 		return c.Next()
 	}, h.upload)
 
-	body, contentType := multipartImage(t, "file", "cover.jpg", makeJPEG(t, 100, 100))
+	body, contentType := multipartImage(t, "file", "cover.jpg", makeJPEG(t, 600, 800))
 	req := httptest.NewRequest(http.MethodPost, "/uploads", body)
 	req.Header.Set("Content-Type", contentType)
 	resp, err := app.Test(req)

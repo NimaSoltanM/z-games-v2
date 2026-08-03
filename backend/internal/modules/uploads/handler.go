@@ -48,6 +48,10 @@ func (h *handler) upload(c fiber.Ctx) error {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"message": "ابعاد تصویر بیش از حد مجاز است",
 		})
+	case errors.Is(err, ErrTooSmall):
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"message": "وضوح تصویر کافی نیست (حداقل ۶۰۰×۸۰۰ پیکسل)",
+		})
 	case errors.Is(err, ErrTooLarge):
 		return c.Status(fiber.StatusRequestEntityTooLarge).JSON(fiber.Map{
 			"message": "حجم تصویر بیش از حد مجاز است (حداکثر ۵ مگابایت)",

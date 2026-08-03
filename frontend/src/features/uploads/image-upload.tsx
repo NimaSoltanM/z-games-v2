@@ -9,7 +9,12 @@ import {
   resolveMediaUrl,
   uploadImage,
 } from "./api"
-import { downscaleImage } from "./image-utils"
+import {
+  downscaleImage,
+  ImageTooSmallError,
+  MIN_COVER_HEIGHT,
+  MIN_COVER_WIDTH,
+} from "./image-utils"
 
 type Props = {
   /** Stored image path (e.g. "/uploads/x.jpg") or null when none is set. */
@@ -66,6 +71,8 @@ export function ImageUpload({
     try {
       const prepared = await downscaleImage(file, {
         aspect: cropAspect ?? undefined,
+        minWidth: MIN_COVER_WIDTH,
+        minHeight: MIN_COVER_HEIGHT,
       })
       const { url } = await uploadImage(prepared, {
         onProgress: setProgress,
@@ -77,7 +84,12 @@ export function ImageUpload({
       if (e instanceof DOMException && e.name === "AbortError") {
         setStatus("بارگذاری لغو شد")
       } else {
-        const msg = e instanceof Error ? e.message : "خطا در بارگذاری تصویر"
+        const msg =
+          e instanceof ImageTooSmallError
+            ? "وضوح تصویر کافی نیست (حداقل ۶۰۰×۸۰۰ پیکسل)"
+            : e instanceof Error
+              ? e.message
+              : "خطا در بارگذاری تصویر"
         setError(msg)
         setStatus(msg)
       }
@@ -215,6 +227,9 @@ export function ImageUpload({
               </span>
               <span className="text-[11px] text-muted-foreground">
                 JPEG، PNG یا WebP تا ۵ مگابایت
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                حداقل وضوح ۶۰۰×۸۰۰ پیکسل
               </span>
             </>
           )}

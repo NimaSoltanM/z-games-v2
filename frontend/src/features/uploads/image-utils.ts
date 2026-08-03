@@ -4,6 +4,9 @@
 // re-encodes — this is an optimization, not a security boundary. Any failure
 // falls back to uploading the original file untouched.
 
+export const MIN_COVER_WIDTH = 600
+export const MIN_COVER_HEIGHT = 800
+
 type DownscaleOpts = {
   /** Cap for the longest edge of the result, in pixels. */
   maxDim?: number
@@ -11,6 +14,41 @@ type DownscaleOpts = {
   quality?: number
   /** Center-crop to this width/height ratio (e.g. 3/4). Omit to keep aspect. */
   aspect?: number
+  /** Minimum usable source width after applying the requested crop. */
+  minWidth?: number
+  /** Minimum usable source height after applying the requested crop. */
+  minHeight?: number
+}
+
+export class ImageTooSmallError extends Error {
+  constructor(
+    readonly usableWidth: number,
+    readonly usableHeight: number,
+    readonly minWidth: number,
+    readonly minHeight: number
+  ) {
+    super(
+      `Usable image dimensions ${usableWidth}x${usableHeight} are below the required ${minWidth}x${minHeight}`
+    )
+    this.name = "ImageTooSmallError"
+  }
+}
+
+export function usableImageDimensions(
+  width: number,
+  height: number,
+  aspect?: number
+): { width: number; height: number } {
+  if (!aspect || aspect <= 0) return { width, height }
+
+  const currentAspect = width / height
+  if (currentAspect > aspect) {
+    return { width: Math.round(height * aspect), height }
+  }
+  if (currentAspect < aspect) {
+    return { width, height: Math.round(width / aspect) }
+  }
+  return { width, height }
 }
 
 type Drawable = {
@@ -59,52 +97,52 @@ export async function downscaleImage(
   file: File,
   opts: DownscaleOpts = {}
 ): Promise<File> {
-  const { maxDim = 1600, quality = 0.85, aspect } = opts
+  const { maxDim = 1600, quality = 0.85, aspect, minWidth, minHeight } = opts
   try {
     const { img, w: iw, h: ih, cleanup } = await loadDrawable(file)
+    try {
+      // Center-crop the source rect to the target aspect, if requested.
+      let sx = 0
+      let sy = 0
+      const usable = usableImageDimensions(iw, ih, aspect)
+      const sw = usable.width
+      const sh = usable.height
+      if (sw !== iw) sx = Math.round((iw - sw) / 2)
+      if (sh !== ih) sy = Math.round((ih - sh) / 2)
 
-    // Center-crop the source rect to the target aspect, if requested.
-    let sx = 0
-    let sy = 0
-    let sw = iw
-    let sh = ih
-    if (aspect && aspect > 0) {
-      const cur = iw / ih
-      if (cur > aspect) {
-        sw = Math.round(ih * aspect)
-        sx = Math.round((iw - sw) / 2)
-      } else if (cur < aspect) {
-        sh = Math.round(iw / aspect)
-        sy = Math.round((ih - sh) / 2)
+      if (
+        (minWidth !== undefined && sw < minWidth) ||
+        (minHeight !== undefined && sh < minHeight)
+      ) {
+        throw new ImageTooSmallError(sw, sh, minWidth ?? 0, minHeight ?? 0)
       }
-    }
 
-    // Scale so the long edge is at most maxDim.
-    const longEdge = Math.max(sw, sh)
-    const scale = longEdge > maxDim ? maxDim / longEdge : 1
-    const dw = Math.max(1, Math.round(sw * scale))
-    const dh = Math.max(1, Math.round(sh * scale))
+      // Scale so the long edge is at most maxDim.
+      const longEdge = Math.max(sw, sh)
+      const scale = longEdge > maxDim ? maxDim / longEdge : 1
+      const dw = Math.max(1, Math.round(sw * scale))
+      const dh = Math.max(1, Math.round(sh * scale))
 
-    const canvas = document.createElement("canvas")
-    canvas.width = dw
-    canvas.height = dh
-    const ctx = canvas.getContext("2d")
-    if (!ctx) {
+      const canvas = document.createElement("canvas")
+      canvas.width = dw
+      canvas.height = dh
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return file
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh)
+
+      const blob = await canvasToBlob(canvas, "image/jpeg", quality)
+      if (!blob) return file
+      // With no crop, keep the original if processing didn't actually shrink it
+      // (already-tiny images). With a crop we always want the reframed result.
+      if (!aspect && blob.size >= file.size) return file
+
+      const base = file.name.replace(/\.[^.]+$/, "") || "image"
+      return new File([blob], `${base}.jpg`, { type: "image/jpeg" })
+    } finally {
       cleanup()
-      return file
     }
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh)
-    cleanup()
-
-    const blob = await canvasToBlob(canvas, "image/jpeg", quality)
-    if (!blob) return file
-    // With no crop, keep the original if processing didn't actually shrink it
-    // (already-tiny images). With a crop we always want the reframed result.
-    if (!aspect && blob.size >= file.size) return file
-
-    const base = file.name.replace(/\.[^.]+$/, "") || "image"
-    return new File([blob], `${base}.jpg`, { type: "image/jpeg" })
-  } catch {
+  } catch (error) {
+    if (error instanceof ImageTooSmallError) throw error
     return file
   }
 }

@@ -32,6 +32,10 @@ const (
 	// Prefer JPEG unless WebP saves at least 10%. This avoids changing format for
 	// noise-level byte differences while retaining the meaningful bandwidth wins.
 	minWebPSavingsPercent = 10
+	// Covers are displayed at 3:4. Reject sources whose usable center crop is too
+	// small to remain sharp at normal card and detail-page sizes.
+	minCoverWidth  = 600
+	minCoverHeight = 800
 )
 
 type processedImage struct {
@@ -42,6 +46,10 @@ type processedImage struct {
 // ErrDimensions is returned for an image whose pixel dimensions are implausibly
 // large — a cheap guard against decompression bombs.
 var ErrDimensions = errors.New("UPLOAD_DIMENSIONS")
+
+// ErrTooSmall is returned when the usable 3:4 center crop does not contain
+// enough source pixels for a sharp game cover.
+var ErrTooSmall = errors.New("UPLOAD_TOO_SMALL")
 
 // allowedInputTypes is the set of accepted upload formats, matched against the
 // real magic bytes (never the client-supplied name or Content-Type). SVG is
@@ -74,6 +82,10 @@ func processImage(raw []byte) (processedImage, error) {
 		int64(cfg.Width)*int64(cfg.Height) > maxSourcePixels {
 		return processedImage{}, ErrDimensions
 	}
+	usableWidth, usableHeight := usableCoverDimensions(cfg.Width, cfg.Height)
+	if usableWidth < minCoverWidth || usableHeight < minCoverHeight {
+		return processedImage{}, ErrTooSmall
+	}
 
 	src, _, err := image.Decode(bytes.NewReader(raw))
 	if err != nil {
@@ -104,6 +116,17 @@ func processImage(raw []byte) (processedImage, error) {
 		data: webpBuf.Bytes(),
 		ext:  ".webp",
 	}), nil
+}
+
+func usableCoverDimensions(width, height int) (int, int) {
+	// Compare width/height with 3/4 without floating-point rounding.
+	if int64(width)*4 > int64(height)*3 {
+		return height * 3 / 4, height
+	}
+	if int64(width)*4 < int64(height)*3 {
+		return width, width * 4 / 3
+	}
+	return width, height
 }
 
 func chooseProcessedImage(jpegOutput, webpOutput processedImage) processedImage {
