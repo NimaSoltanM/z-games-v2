@@ -30,6 +30,7 @@ import {
   setGameReturnFee,
   updateGame,
 } from "./api"
+import { ReleaseDateInput, releaseDateInputValue } from "./release-date-input"
 import { formatReleaseDate } from "./types"
 import type {
   AlertVariant,
@@ -111,9 +112,7 @@ export function ActiveToggle({ game }: { game: Game }) {
 export function PreorderPopover({ game }: { game: Game }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState<ReleaseStatus>(game.release_status)
-  const [date, setDate] = useState(
-    game.release_date ? game.release_date.slice(0, 10) : ""
-  )
+  const [date, setDate] = useState(releaseDateInputValue(game.release_date))
   const invalidate = useInvalidateGames()
 
   const m = useMutation({
@@ -138,7 +137,7 @@ export function PreorderPopover({ game }: { game: Game }) {
         if (o) {
           // Re-sync to the latest stored values whenever the editor opens.
           setStatus(game.release_status)
-          setDate(game.release_date ? game.release_date.slice(0, 10) : "")
+          setDate(releaseDateInputValue(game.release_date))
         }
       }}
     >
@@ -171,16 +170,12 @@ export function PreorderPopover({ game }: { game: Game }) {
           </ToggleGroupItem>
         </ToggleGroup>
         {status === "pre_order" && (
-          <div className="space-y-1.5">
-            <Label htmlFor={`rd-${game.id}`}>تاریخ انتشار</Label>
-            <Input
-              id={`rd-${game.id}`}
-              type="date"
-              dir="ltr"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
+          <ReleaseDateInput
+            id={`rd-${game.id}`}
+            label="تاریخ انتشار"
+            value={date}
+            onValueChange={setDate}
+          />
         )}
         <Button
           size="sm"

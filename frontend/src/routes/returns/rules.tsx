@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { ShieldAlert, Film, LogOut, Ban } from "lucide-react"
+import { ShieldAlert, Film, LogOut, Ban, Info } from "lucide-react"
 
 import { seoHead } from "@/features/seo"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 // Public terms & conditions for the game buy-back. For now it carries the two core
 // rules; expand with the full guide later.
@@ -44,6 +45,16 @@ function RulesPage() {
             پیش از ارسال درخواست بازگشت، این قوانین را با دقت بخوانید.
           </p>
         </div>
+
+        <Alert variant="info" className="mb-6">
+          <Info />
+          <AlertTitle>این قوانین فعلاً مخصوص PlayStation است</AlertTitle>
+          <AlertDescription>
+            بازخرید بازی‌های Xbox در حال حاضر فعال نیست. اگر روش مطمئنی برای
+            اثبات بازگشت اکانت فراهم شود، این امکان و راهنمای آن در آینده اضافه
+            خواهد شد.
+          </AlertDescription>
+        </Alert>
 
         <div className="space-y-4">
           {RULES.map((r, i) => {

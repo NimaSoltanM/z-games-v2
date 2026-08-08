@@ -20,6 +20,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuidesIndexRouteImport } from './routes/guides/index'
 import { Route as GamesIndexRouteImport } from './routes/games/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as CartIndexRouteImport } from './routes/cart/index'
@@ -39,6 +40,9 @@ import { Route as DashboardGamesIndexRouteImport } from './routes/dashboard/game
 import { Route as AdminReturnsIndexRouteImport } from './routes/admin/returns/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
 import { Route as AdminGamesIndexRouteImport } from './routes/admin/games/index'
+import { Route as GuidesAddAccountXboxRouteImport } from './routes/guides/add-account/xbox'
+import { Route as GuidesAddAccountPs5RouteImport } from './routes/guides/add-account/ps5'
+import { Route as GuidesAddAccountPs4RouteImport } from './routes/guides/add-account/ps4'
 import { Route as GamesPlatformPlatformRouteImport } from './routes/games/platform/$platform'
 import { Route as AdminReturnsIdRouteImport } from './routes/admin/returns/$id'
 import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin/orders/$orderId'
@@ -100,6 +104,11 @@ const AdminRouteRoute = AdminRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GamesIndexRoute = GamesIndexRouteImport.update({
@@ -197,6 +206,21 @@ const AdminGamesIndexRoute = AdminGamesIndexRouteImport.update({
   path: '/games/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const GuidesAddAccountXboxRoute = GuidesAddAccountXboxRouteImport.update({
+  id: '/guides/add-account/xbox',
+  path: '/guides/add-account/xbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesAddAccountPs5Route = GuidesAddAccountPs5RouteImport.update({
+  id: '/guides/add-account/ps5',
+  path: '/guides/add-account/ps5',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesAddAccountPs4Route = GuidesAddAccountPs4RouteImport.update({
+  id: '/guides/add-account/ps4',
+  path: '/guides/add-account/ps4',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GamesPlatformPlatformRoute = GamesPlatformPlatformRouteImport.update({
   id: '/games/platform/$platform',
   path: '/games/platform/$platform',
@@ -260,11 +284,15 @@ export interface FileRoutesByFullPath {
   '/cart/': typeof CartIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/games/': typeof GamesIndexRoute
+  '/guides/': typeof GuidesIndexRoute
   '/admin/games/new': typeof AdminGamesNewRoute
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
   '/games/platform/$platform': typeof GamesPlatformPlatformRoute
+  '/guides/add-account/ps4': typeof GuidesAddAccountPs4Route
+  '/guides/add-account/ps5': typeof GuidesAddAccountPs5Route
+  '/guides/add-account/xbox': typeof GuidesAddAccountXboxRoute
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/returns/': typeof AdminReturnsIndexRoute
@@ -298,11 +326,15 @@ export interface FileRoutesByTo {
   '/cart': typeof CartIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/games': typeof GamesIndexRoute
+  '/guides': typeof GuidesIndexRoute
   '/admin/games/new': typeof AdminGamesNewRoute
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
   '/games/platform/$platform': typeof GamesPlatformPlatformRoute
+  '/guides/add-account/ps4': typeof GuidesAddAccountPs4Route
+  '/guides/add-account/ps5': typeof GuidesAddAccountPs5Route
+  '/guides/add-account/xbox': typeof GuidesAddAccountXboxRoute
   '/admin/games': typeof AdminGamesIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/admin/returns': typeof AdminReturnsIndexRoute
@@ -338,11 +370,15 @@ export interface FileRoutesById {
   '/cart/': typeof CartIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/games/': typeof GamesIndexRoute
+  '/guides/': typeof GuidesIndexRoute
   '/admin/games/new': typeof AdminGamesNewRoute
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
   '/games/platform/$platform': typeof GamesPlatformPlatformRoute
+  '/guides/add-account/ps4': typeof GuidesAddAccountPs4Route
+  '/guides/add-account/ps5': typeof GuidesAddAccountPs5Route
+  '/guides/add-account/xbox': typeof GuidesAddAccountXboxRoute
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/returns/': typeof AdminReturnsIndexRoute
@@ -379,11 +415,15 @@ export interface FileRouteTypes {
     | '/cart/'
     | '/dashboard/'
     | '/games/'
+    | '/guides/'
     | '/admin/games/new'
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
     | '/games/platform/$platform'
+    | '/guides/add-account/ps4'
+    | '/guides/add-account/ps5'
+    | '/guides/add-account/xbox'
     | '/admin/games/'
     | '/admin/orders/'
     | '/admin/returns/'
@@ -417,11 +457,15 @@ export interface FileRouteTypes {
     | '/cart'
     | '/dashboard'
     | '/games'
+    | '/guides'
     | '/admin/games/new'
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
     | '/games/platform/$platform'
+    | '/guides/add-account/ps4'
+    | '/guides/add-account/ps5'
+    | '/guides/add-account/xbox'
     | '/admin/games'
     | '/admin/orders'
     | '/admin/returns'
@@ -456,11 +500,15 @@ export interface FileRouteTypes {
     | '/cart/'
     | '/dashboard/'
     | '/games/'
+    | '/guides/'
     | '/admin/games/new'
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
     | '/games/platform/$platform'
+    | '/guides/add-account/ps4'
+    | '/guides/add-account/ps5'
+    | '/guides/add-account/xbox'
     | '/admin/games/'
     | '/admin/orders/'
     | '/admin/returns/'
@@ -487,7 +535,11 @@ export interface RootRouteChildren {
   AuthIndexRoute: typeof AuthIndexRoute
   CartIndexRoute: typeof CartIndexRoute
   GamesIndexRoute: typeof GamesIndexRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
   GamesPlatformPlatformRoute: typeof GamesPlatformPlatformRoute
+  GuidesAddAccountPs4Route: typeof GuidesAddAccountPs4Route
+  GuidesAddAccountPs5Route: typeof GuidesAddAccountPs5Route
+  GuidesAddAccountXboxRoute: typeof GuidesAddAccountXboxRoute
   GamesSlugIndexRoute: typeof GamesSlugIndexRoute
 }
 
@@ -568,6 +620,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides/'
+      preLoaderRoute: typeof GuidesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/games/': {
@@ -703,6 +762,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGamesIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/guides/add-account/xbox': {
+      id: '/guides/add-account/xbox'
+      path: '/guides/add-account/xbox'
+      fullPath: '/guides/add-account/xbox'
+      preLoaderRoute: typeof GuidesAddAccountXboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/add-account/ps5': {
+      id: '/guides/add-account/ps5'
+      path: '/guides/add-account/ps5'
+      fullPath: '/guides/add-account/ps5'
+      preLoaderRoute: typeof GuidesAddAccountPs5RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/add-account/ps4': {
+      id: '/guides/add-account/ps4'
+      path: '/guides/add-account/ps4'
+      fullPath: '/guides/add-account/ps4'
+      preLoaderRoute: typeof GuidesAddAccountPs4RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/games/platform/$platform': {
       id: '/games/platform/$platform'
       path: '/games/platform/$platform'
@@ -830,7 +910,11 @@ const rootRouteChildren: RootRouteChildren = {
   AuthIndexRoute: AuthIndexRoute,
   CartIndexRoute: CartIndexRoute,
   GamesIndexRoute: GamesIndexRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
   GamesPlatformPlatformRoute: GamesPlatformPlatformRoute,
+  GuidesAddAccountPs4Route: GuidesAddAccountPs4Route,
+  GuidesAddAccountPs5Route: GuidesAddAccountPs5Route,
+  GuidesAddAccountXboxRoute: GuidesAddAccountXboxRoute,
   GamesSlugIndexRoute: GamesSlugIndexRoute,
 }
 export const routeTree = rootRouteImport

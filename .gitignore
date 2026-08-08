@@ -9,6 +9,10 @@ dist
 # Local source cover images
 covers/
 
+# Local guide video sources and server-managed published copies
+clips/
+frontend/public/guides/
+
 # Go
 backend/tmp/
 backend/*.exe

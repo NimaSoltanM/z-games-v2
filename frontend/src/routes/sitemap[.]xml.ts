@@ -53,6 +53,10 @@ function sitemapXml(games: Game[]): string {
     "/terms",
     "/about",
     "/how-it-works",
+    "/guides",
+    "/guides/add-account/ps4",
+    "/guides/add-account/ps5",
+    "/guides/add-account/xbox",
     "/legal-accounts",
   ].map((path) => `  <url><loc>${escapeXml(canonicalUrl(path))}</loc></url>`)
   const gameUrls = games.map(

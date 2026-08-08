@@ -36,11 +36,12 @@ export function CatalogGameCard({
           decoding="async"
           className="aspect-3/4 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
-        {game.returnable && (
-          <span className="absolute top-2 right-2 rounded-full bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
-            قابل بازخرید
-          </span>
-        )}
+        {game.returnable &&
+          game.consoles.some((c) => c === "ps4" || c === "ps5") && (
+            <span className="absolute top-2 right-2 rounded-full bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
+              قابل بازخرید
+            </span>
+          )}
       </div>
       <div className="space-y-2 p-4">
         <h2 className="line-clamp-1 font-semibold">{game.name}</h2>

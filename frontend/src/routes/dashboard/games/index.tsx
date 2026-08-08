@@ -196,6 +196,15 @@ function CardAction({ item, gone }: { item: OwnedItem; gone: boolean }) {
       </p>
     )
   }
+  if (item.console === "xbox_one" || item.console === "xbox_series") {
+    return (
+      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Ban className="size-3.5" />
+        بازخرید بازی‌های Xbox فعلاً در دسترس نیست؛ اگر روش مطمئنی فراهم شود، در
+        آینده اضافه خواهد شد.
+      </p>
+    )
+  }
   if (item.return_status === "rejected") {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">

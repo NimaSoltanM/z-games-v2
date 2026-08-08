@@ -94,6 +94,11 @@ export function BuyBack() {
               بازی واجد شرایط باشه، بعد از تموم کردنش اکانت رو پس می‌گیریم و
               بخشی از ارزش روزش رو برای انتخاب بعدی به کیف پولت برمی‌گردونیم.
             </p>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
+              این امکان فعلاً فقط برای بازی‌های واجد شرایط PlayStation فعاله؛
+              بازخرید Xbox تا پیدا شدن یک روش مطمئن برای اثبات بازگشت اکانت
+              ارائه نمی‌شه.
+            </p>
 
             <div className="mt-8 space-y-5">
               {STEPS.map((step, index) => (

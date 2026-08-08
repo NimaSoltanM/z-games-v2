@@ -2,6 +2,7 @@ package games
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -169,6 +170,103 @@ func TestCreateGame_Dynamic(t *testing.T) {
 	db.QueryRow(ctx, "SELECT COUNT(*) FROM admin_actions WHERE action = 'game.create' AND target_id = $1", id).Scan(&auditN)
 	if auditN != 1 {
 		t.Fatalf("audit rows = %d, want 1", auditN)
+	}
+}
+
+func TestCreateGame_PreorderReleaseDateFromJSONRoundTrips(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	// Start with the exact JSON shape sent by the admin create form. This guards
+	// the DTO field name, YYYY-MM-DD parsing, INSERT binding, and response model.
+	var input gameInput
+	if err := json.Unmarshal([]byte(`{
+		"name":"EA SPORTS FC 27",
+		"slug":"ea-sports-fc-27",
+		"consoles":["ps5"],
+		"price_mode":"dynamic",
+		"active":true,
+		"release_status":"pre_order",
+		"release_date":"2026-09-25",
+		"base_prices":[{"platform":"ps5","base_usd":70}],
+		"links":["https://store.example.com/fc-27"]
+	}`), &input); err != nil {
+		t.Fatal(err)
+	}
+	norm, msg, ok := validateGameInput(input, psCatalog())
+	if !ok {
+		t.Fatalf("validateGameInput rejected create payload: %s", msg)
+	}
+
+	id, err := createGame(ctx, db, "a1", norm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := time.Date(2026, time.September, 25, 0, 0, 0, 0, time.UTC)
+
+	var storedStatus string
+	var storedDate *time.Time
+	if err := db.QueryRow(ctx,
+		"SELECT release_status, release_date FROM games WHERE id = $1", id,
+	).Scan(&storedStatus, &storedDate); err != nil {
+		t.Fatal(err)
+	}
+	if storedStatus != release.StatusPreOrder || storedDate == nil || !storedDate.Equal(want) {
+		t.Fatalf("stored preorder = (%q, %v), want (%q, %v)", storedStatus, storedDate, release.StatusPreOrder, want)
+	}
+
+	adminGame, err := getGameByID(ctx, db, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicGame, err := getGameByIDOrSlug(ctx, db, input.Slug, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for view, game := range map[string]*gameRow{"admin": adminGame, "public": publicGame} {
+		if game == nil || game.ReleaseDate == nil || !game.ReleaseDate.Equal(want) {
+			t.Fatalf("%s response release_date = %v, want %v", view, game, want)
+		}
+	}
+
+	encoded, err := json.Marshal(adminGame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"release_date":"2026-09-25T00:00:00Z"`) {
+		t.Fatalf("admin response does not contain an HTML-date-compatible timestamp: %s", encoded)
+	}
+}
+
+func TestCreateGame_ReleasedWithoutDateStoresNull(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	id, err := createGame(ctx, db, "a1", normalizedGame{
+		Name: "Published Game", Slug: "published-game", Consoles: []string{"ps5"},
+		PriceMode: "dynamic", Active: true, ReleaseStatus: release.StatusReleased,
+		BasePrices: []normalizedBasePrice{{Platform: "ps5", BaseUSD: 40}},
+		Links:      []string{"https://store.example.com/published-game"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var storedDate *time.Time
+	if err := db.QueryRow(ctx, "SELECT release_date FROM games WHERE id = $1", id).Scan(&storedDate); err != nil {
+		t.Fatal(err)
+	}
+	if storedDate != nil {
+		t.Fatalf("release_date = %v, want NULL", storedDate)
+	}
+	game, err := getGameByID(ctx, db, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if game == nil || game.ReleaseDate != nil {
+		t.Fatalf("admin response release_date = %v, want nil", game)
 	}
 }
 
@@ -511,6 +609,55 @@ func TestUpdateGame_SwitchModeAndSetReleaseAlert(t *testing.T) {
 	}
 	if g.AlertMessage == nil || *g.AlertMessage != "نگه‌داری" {
 		t.Fatalf("alert not set: %v", g.AlertMessage)
+	}
+}
+
+func TestUpdateGame_ReplacesAndClearsPreorderDate(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedAdmin(t, ctx, db, "a1")
+
+	firstDate := time.Date(2026, time.September, 25, 0, 0, 0, 0, time.UTC)
+	id, err := createGame(ctx, db, "a1", normalizedGame{
+		Name: "Preorder", Slug: "preorder", Consoles: []string{"ps5"},
+		PriceMode: "dynamic", Active: true, ReleaseStatus: release.StatusPreOrder,
+		ReleaseDate: &firstDate,
+		BasePrices:  []normalizedBasePrice{{Platform: "ps5", BaseUSD: 70}},
+		Links:       []string{"https://store.example.com/preorder"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	replacement := time.Date(2026, time.October, 2, 0, 0, 0, 0, time.UTC)
+	input := normalizedGame{
+		Name: "Preorder", Slug: "preorder", Consoles: []string{"ps5"},
+		PriceMode: "dynamic", Active: true, ReleaseStatus: release.StatusPreOrder,
+		ReleaseDate: &replacement,
+		BasePrices:  []normalizedBasePrice{{Platform: "ps5", BaseUSD: 70}},
+		Links:       []string{"https://store.example.com/preorder"},
+	}
+	if err := updateGame(ctx, db, "a1", id, input); err != nil {
+		t.Fatal(err)
+	}
+	game, err := getGameByID(ctx, db, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if game.ReleaseDate == nil || !game.ReleaseDate.Equal(replacement) {
+		t.Fatalf("replacement release_date = %v, want %v", game.ReleaseDate, replacement)
+	}
+
+	input.ReleaseDate = nil
+	if err := updateGame(ctx, db, "a1", id, input); err != nil {
+		t.Fatal(err)
+	}
+	game, err = getGameByID(ctx, db, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if game.ReleaseDate != nil {
+		t.Fatalf("cleared release_date = %v, want nil", game.ReleaseDate)
 	}
 }
 
