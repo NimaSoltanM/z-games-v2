@@ -17,13 +17,10 @@ WHERE used_at IS NOT NULL OR expires_at <= NOW();
 DELETE FROM otp_codes
 WHERE created_at <= NOW() - INTERVAL '24 hours';
 
-ALTER TABLE otp_codes
-  ADD CONSTRAINT otp_codes_secret_lifecycle_check
-  CHECK (
-    (used_at IS NULL AND code IS NOT NULL)
-    OR (used_at IS NOT NULL AND code IS NULL)
-  );
-
+-- Do not add a code/used_at lifecycle CHECK in this rollout: the previously
+-- deployed API marks codes used before it knows how to clear code. Keeping this
+-- migration backward-compatible avoids an authentication outage between the
+-- migration and service restart; the new API scrubs those rows on startup.
 DROP INDEX IF EXISTS otp_codes_phone_idx;
 CREATE INDEX otp_codes_phone_created_idx
   ON otp_codes (phone, created_at DESC);

@@ -306,8 +306,7 @@ CREATE TABLE public.otp_codes (
     expires_at timestamp without time zone NOT NULL,
     used_at timestamp without time zone,
     attempts integer DEFAULT 0 NOT NULL,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT otp_codes_secret_lifecycle_check CHECK ((((used_at IS NULL) AND (code IS NOT NULL)) OR ((used_at IS NOT NULL) AND (code IS NULL))))
+    created_at timestamp without time zone DEFAULT now() NOT NULL
 );
 
 

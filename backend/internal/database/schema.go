@@ -62,14 +62,6 @@ func ValidateSchema(ctx context.Context, db *pgxpool.Pool) error {
 			('orders_pending_reconcile_idx')
 		) indexes(required_index)
 		WHERE to_regclass('public.' || required_index) IS NULL
-		UNION ALL
-		SELECT 'otp_codes_secret_lifecycle_check'
-		WHERE NOT EXISTS (
-			SELECT 1
-			FROM pg_constraint
-			WHERE conname = 'otp_codes_secret_lifecycle_check'
-			  AND conrelid = 'public.otp_codes'::regclass
-		)
 		ORDER BY 1
 	`)
 	if err != nil {
