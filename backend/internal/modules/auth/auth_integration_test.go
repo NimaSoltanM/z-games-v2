@@ -115,14 +115,60 @@ func TestRequestOTPInvalidatesPreviousCode(t *testing.T) {
 		t.Fatalf("second requestOTP: %v", err)
 	}
 	var firstWasUsed bool
-	if err := db.QueryRow(ctx, "SELECT used_at IS NOT NULL FROM otp_codes WHERE id = $1", first.id).Scan(&firstWasUsed); err != nil {
+	var firstSecretScrubbed bool
+	if err := db.QueryRow(ctx, "SELECT used_at IS NOT NULL, code IS NULL FROM otp_codes WHERE id = $1", first.id).Scan(&firstWasUsed, &firstSecretScrubbed); err != nil {
 		t.Fatalf("fetch first OTP state: %v", err)
 	}
 	if !firstWasUsed {
 		t.Fatal("first OTP remained active after requesting a replacement")
 	}
+	if !firstSecretScrubbed {
+		t.Fatal("first OTP secret remained stored after requesting a replacement")
+	}
 	if _, err := verifyOTP(ctx, db, phone, second.code); err != nil {
 		t.Fatalf("latest code should verify: %v", err)
+	}
+}
+
+func TestCleanupOTPs_ScrubsExpiredAndDeletesRetainedRows(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+
+	expiredID := generateID()
+	if _, err := db.Exec(ctx, `
+		INSERT INTO otp_codes (id, phone, code, expires_at, created_at)
+		VALUES ($1, '09120000007', '12345', NOW() - INTERVAL '1 minute', NOW() - INTERVAL '10 minutes')
+	`, expiredID); err != nil {
+		t.Fatal(err)
+	}
+	oldID := generateID()
+	if _, err := db.Exec(ctx, `
+		INSERT INTO otp_codes (id, phone, code, expires_at, used_at, created_at)
+		VALUES ($1, '09120000008', NULL, NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days')
+	`, oldID); err != nil {
+		t.Fatal(err)
+	}
+
+	scrubbed, deleted, err := cleanupOTPs(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scrubbed != 1 || deleted != 1 {
+		t.Fatalf("cleanup counts = (%d scrubbed, %d deleted), want (1, 1)", scrubbed, deleted)
+	}
+	var secretScrubbed, markedUsed bool
+	if err := db.QueryRow(ctx, "SELECT code IS NULL, used_at IS NOT NULL FROM otp_codes WHERE id=$1", expiredID).Scan(&secretScrubbed, &markedUsed); err != nil {
+		t.Fatal(err)
+	}
+	if !secretScrubbed || !markedUsed {
+		t.Fatal("expired OTP was not scrubbed and marked used")
+	}
+	var oldExists bool
+	if err := db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM otp_codes WHERE id=$1)", oldID).Scan(&oldExists); err != nil {
+		t.Fatal(err)
+	}
+	if oldExists {
+		t.Fatal("retained OTP row older than 24 hours was not deleted")
 	}
 }
 

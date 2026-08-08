@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"regexp"
@@ -22,6 +23,8 @@ const (
 	otpRateLimit           = 3
 	otpRateLimitWindowMins = 10
 	otpMaxAttempts         = 3
+	otpCleanupInterval     = time.Minute
+	otpRetention           = 24 * time.Hour
 )
 
 var (
@@ -68,7 +71,53 @@ type issuedOTP struct {
 	code string
 }
 
+// cleanupOTPs removes secrets as soon as they are no longer usable and keeps
+// only a short window of lifecycle metadata for abuse-rate accounting.
+func cleanupOTPs(ctx context.Context, db *pgxpool.Pool) (scrubbed, deleted int64, err error) {
+	tag, err := db.Exec(ctx, `
+		UPDATE otp_codes
+		SET used_at = COALESCE(used_at, expires_at), code = NULL
+		WHERE code IS NOT NULL AND (used_at IS NOT NULL OR expires_at <= NOW())
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("scrub expired otp secrets: %w", err)
+	}
+	scrubbed = tag.RowsAffected()
+
+	tag, err = db.Exec(ctx, "DELETE FROM otp_codes WHERE created_at <= $1", time.Now().Add(-otpRetention))
+	if err != nil {
+		return scrubbed, 0, fmt.Errorf("delete retained otp rows: %w", err)
+	}
+	return scrubbed, tag.RowsAffected(), nil
+}
+
+func startOTPCleanup(db *pgxpool.Pool) {
+	go func() {
+		run := func() {
+			scrubbed, deleted, err := cleanupOTPs(context.Background(), db)
+			if err != nil {
+				log.Printf("auth: OTP cleanup failed: %v", err)
+				return
+			}
+			if scrubbed > 0 || deleted > 0 {
+				log.Printf("auth: OTP cleanup scrubbed %d secret(s), deleted %d row(s)", scrubbed, deleted)
+			}
+		}
+
+		run()
+		ticker := time.NewTicker(otpCleanupInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			run()
+		}
+	}()
+}
+
 func requestOTP(ctx context.Context, db *pgxpool.Pool, rawPhone string) (issuedOTP, error) {
+	if _, _, err := cleanupOTPs(ctx, db); err != nil {
+		return issuedOTP{}, err
+	}
+
 	phone := normalizePhone(rawPhone)
 	code, err := generateOTPCode()
 	if err != nil {
@@ -103,7 +152,7 @@ func requestOTP(ctx context.Context, db *pgxpool.Pool, rawPhone string) (issuedO
 	// phone. This also prevents an older code from becoming valid again if SMS
 	// delivery of the new code fails and the new row is removed.
 	if _, err := tx.Exec(ctx,
-		"UPDATE otp_codes SET used_at = NOW() WHERE phone = $1 AND used_at IS NULL",
+		"UPDATE otp_codes SET used_at = NOW(), code = NULL WHERE phone = $1 AND used_at IS NULL",
 		phone,
 	); err != nil {
 		return issuedOTP{}, fmt.Errorf("invalidate previous otp codes: %w", err)
@@ -174,7 +223,7 @@ func verifyOTP(ctx context.Context, db *pgxpool.Pool, rawPhone, code string) (ve
 		query := "UPDATE otp_codes SET attempts = $1 WHERE id = $2"
 		if burned {
 			// Burn the code after too many wrong tries so it can't be brute-forced.
-			query = "UPDATE otp_codes SET attempts = $1, used_at = NOW() WHERE id = $2"
+			query = "UPDATE otp_codes SET attempts = $1, used_at = NOW(), code = NULL WHERE id = $2"
 		}
 		if _, err := tx.Exec(ctx, query, newAttempts, otpID); err != nil {
 			return verifyResult{}, fmt.Errorf("record otp attempt: %w", err)
@@ -191,7 +240,7 @@ func verifyOTP(ctx context.Context, db *pgxpool.Pool, rawPhone, code string) (ve
 	// Claim the OTP atomically
 	var claimedID string
 	err = tx.QueryRow(ctx,
-		"UPDATE otp_codes SET used_at = NOW() WHERE id = $1 AND used_at IS NULL RETURNING id",
+		"UPDATE otp_codes SET used_at = NOW(), code = NULL WHERE id = $1 AND used_at IS NULL RETURNING id",
 		otpID,
 	).Scan(&claimedID)
 	if errors.Is(err, pgx.ErrNoRows) {

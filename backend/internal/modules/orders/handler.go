@@ -70,6 +70,23 @@ func (h *handler) checkout(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	fingerprint := cartFingerprint(items, total, referral)
+	pending, err := findPendingCheckout(c.Context(), h.db, userID)
+	if err != nil {
+		return err
+	}
+	if pending != nil {
+		if pending.Fingerprint != nil && *pending.Fingerprint == fingerprint && pending.Authority != nil && *pending.Authority != "" {
+			return c.JSON(fiber.Map{
+				"payment_url":  h.zp.paymentURL(*pending.Authority),
+				"order_id":     pending.OrderID,
+				"order_number": pending.OrderNumber,
+			})
+		}
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"message": "یک پرداخت ناتمام دارید. لطفاً پرداخت قبلی را تکمیل کنید یا چند دقیقه دیگر دوباره تلاش کنید",
+		})
+	}
 
 	// Apply any in-website wallet balance first. If it covers the whole order the
 	// order is created already paid and we skip ZarinPal entirely; otherwise the
@@ -80,10 +97,20 @@ func (h *handler) checkout(c fiber.Ctx) error {
 	}
 	walletApplied, gateway := splitWallet(balance, total)
 
-	orderID, orderNumber, paid, err := createPendingOrder(c.Context(), h.db, userID, total, walletApplied, referral, items)
+	orderID, orderNumber, paid, err := createPendingCheckout(c.Context(), h.db, userID, total, walletApplied, referral, items, fingerprint)
 	if errors.Is(err, ErrInsufficientWallet) {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"message": "موجودی کیف پول شما تغییر کرده است. لطفاً دوباره تلاش کنید",
+		})
+	}
+	if errors.Is(err, ErrCheckoutPending) {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"message": "یک پرداخت ناتمام دارید. لطفاً پرداخت قبلی را تکمیل کنید یا چند دقیقه دیگر دوباره تلاش کنید",
+		})
+	}
+	if errors.Is(err, ErrCheckoutRateLimit) {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+			"message": "تعداد تلاش‌های پرداخت شما بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید",
 		})
 	}
 	if err != nil {

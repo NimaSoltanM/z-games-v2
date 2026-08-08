@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const latestMigration = "020_game_editorial_content.sql"
+const latestMigration = "021_operational_retention.sql"
 
 // ValidateSchema prevents an application binary from starting against a
 // database that has not received the migrations its queries depend on. Keep the
@@ -22,6 +22,7 @@ func ValidateSchema(ctx context.Context, db *pgxpool.Pool) error {
 				('games', 'seo_description'),
 				('game_returns', 'inventory_disabled_at'),
 				('game_returns', 'inventory_disabled_by'),
+				('orders', 'checkout_fingerprint'),
 				('verification_code_requests', 'id'),
 				('verification_code_requests', 'order_item_id'),
 				('verification_code_requests', 'user_id'),
@@ -51,6 +52,16 @@ func ValidateSchema(ctx context.Context, db *pgxpool.Pool) error {
 			WHERE pg_type.typname = 'user_role'
 			  AND pg_enum.enumlabel = 'super_admin'
 		)
+		UNION ALL
+		SELECT required_index
+		FROM (VALUES
+			('otp_codes_phone_created_idx'),
+			('otp_codes_cleanup_idx'),
+			('orders_one_pending_checkout_idx'),
+			('orders_user_created_idx'),
+			('orders_pending_reconcile_idx')
+		) indexes(required_index)
+		WHERE to_regclass('public.' || required_index) IS NULL
 		ORDER BY 1
 	`)
 	if err != nil {

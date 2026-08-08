@@ -951,9 +951,18 @@ func approveReturn(ctx context.Context, db *pgxpool.Pool, adminID, returnID stri
 // or refused (terminal: no credit, account forfeited), storing the Persian reason
 // the buyer will see. Guarded on status='pending'.
 func reviewReturn(ctx context.Context, db *pgxpool.Pool, adminID, returnID, reason string, terminal bool) error {
+	_, err := reviewReturnAndReleaseVideo(ctx, db, adminID, returnID, reason, terminal)
+	return err
+}
+
+// reviewReturnAndReleaseVideo also returns the proof-video filename when a
+// terminal refusal clears its database reference. The caller removes that file
+// only after this transaction commits; the orphan sweeper is the retry path if
+// the filesystem operation fails.
+func reviewReturnAndReleaseVideo(ctx context.Context, db *pgxpool.Pool, adminID, returnID, reason string, terminal bool) (string, error) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
-		return ErrReasonRequired
+		return "", ErrReasonRequired
 	}
 	if len(reason) > maxReasonLen {
 		reason = reason[:maxReasonLen]
@@ -968,28 +977,37 @@ func reviewReturn(ctx context.Context, db *pgxpool.Pool, adminID, returnID, reas
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("reviewReturn begin: %w", err)
+		return "", fmt.Errorf("reviewReturn begin: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	tag, err := tx.Exec(ctx, `
-		UPDATE game_returns
-		SET status = $1, reason = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW()
-		WHERE id = $4 AND status = 'pending'
-	`, newStatus, reason, adminID, returnID)
-	if err != nil {
-		return fmt.Errorf("reviewReturn update: %w", err)
+	var currentStatus string
+	var oldVideo *string
+	err = tx.QueryRow(ctx, `
+		SELECT status, video_filename
+		FROM game_returns
+		WHERE id = $1
+		FOR UPDATE
+	`, returnID).Scan(&currentStatus, &oldVideo)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrReturnNotFound
 	}
-	if tag.RowsAffected() == 0 {
-		// Either the return doesn't exist or it isn't pending anymore.
-		var exists bool
-		if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM game_returns WHERE id = $1)", returnID).Scan(&exists); err != nil {
-			return fmt.Errorf("reviewReturn exists: %w", err)
-		}
-		if !exists {
-			return ErrReturnNotFound
-		}
-		return ErrNotReviewable
+	if err != nil {
+		return "", fmt.Errorf("reviewReturn select: %w", err)
+	}
+	if currentStatus != "pending" {
+		return "", ErrNotReviewable
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE game_returns
+		SET status = $1, reason = $2, reviewed_by = $3, reviewed_at = NOW(),
+		    updated_at = NOW(),
+		    video_filename = CASE WHEN $5 THEN NULL ELSE video_filename END
+		WHERE id = $4
+	`, newStatus, reason, adminID, returnID, terminal)
+	if err != nil {
+		return "", fmt.Errorf("reviewReturn update: %w", err)
 	}
 
 	if err := audit.Record(ctx, tx, audit.Entry{
@@ -999,9 +1017,15 @@ func reviewReturn(ctx context.Context, db *pgxpool.Pool, adminID, returnID, reas
 		TargetID:   returnID,
 		Metadata:   map[string]any{"status": newStatus},
 	}); err != nil {
-		return fmt.Errorf("reviewReturn: %w", err)
+		return "", fmt.Errorf("reviewReturn: %w", err)
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("reviewReturn commit: %w", err)
+	}
+	if terminal && oldVideo != nil {
+		return *oldVideo, nil
+	}
+	return "", nil
 }
 
 // isUniqueViolation reports whether err is a Postgres unique-constraint error.

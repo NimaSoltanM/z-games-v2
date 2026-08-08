@@ -407,8 +407,19 @@ func TestRefuse_TerminalNoCredit(t *testing.T) {
 	itemID := seedDeliveredItem(t, ctx, db, "u1", "g1", "e", "p", "c")
 	retID, _ := insertReturn(ctx, db, "u1", itemID, "vid.mp4")
 
-	if err := reviewReturn(ctx, db, "admin", retID, "ویدیو ویرایش شده است", true); err != nil {
+	oldVideo, err := reviewReturnAndReleaseVideo(ctx, db, "admin", retID, "ویدیو ویرایش شده است", true)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if oldVideo != "vid.mp4" {
+		t.Fatalf("released video = %q, want vid.mp4", oldVideo)
+	}
+	var storedVideo *string
+	if err := db.QueryRow(ctx, "SELECT video_filename FROM game_returns WHERE id=$1", retID).Scan(&storedVideo); err != nil {
+		t.Fatal(err)
+	}
+	if storedVideo != nil {
+		t.Fatalf("video_filename = %q, want NULL after refusal", *storedVideo)
 	}
 	if s := returnStatus(t, ctx, db, retID); s != "refused" {
 		t.Fatalf("status = %q, want refused", s)

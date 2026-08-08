@@ -288,6 +288,7 @@ CREATE TABLE public.orders (
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
     order_number bigint DEFAULT nextval('public.orders_order_number_seq'::regclass) NOT NULL,
     wallet_applied integer DEFAULT 0 NOT NULL,
+    checkout_fingerprint text,
     CONSTRAINT orders_amount_check CHECK ((amount > 0)),
     CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'paid'::text, 'failed'::text, 'fulfilled'::text]))),
     CONSTRAINT orders_wallet_applied_check CHECK (((wallet_applied >= 0) AND (wallet_applied <= amount)))
@@ -301,7 +302,7 @@ CREATE TABLE public.orders (
 CREATE TABLE public.otp_codes (
     id character varying NOT NULL,
     phone character varying(15) NOT NULL,
-    code character varying(5) NOT NULL,
+    code character varying(5),
     expires_at timestamp without time zone NOT NULL,
     used_at timestamp without time zone,
     attempts integer DEFAULT 0 NOT NULL,
@@ -752,10 +753,38 @@ CREATE INDEX orders_user_id_idx ON public.orders USING btree (user_id);
 
 
 --
--- Name: otp_codes_phone_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: orders_one_pending_checkout_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX otp_codes_phone_idx ON public.otp_codes USING btree (phone);
+CREATE UNIQUE INDEX orders_one_pending_checkout_idx ON public.orders USING btree (user_id) WHERE ((status = 'pending'::text) AND (checkout_fingerprint IS NOT NULL));
+
+
+--
+-- Name: orders_pending_reconcile_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX orders_pending_reconcile_idx ON public.orders USING btree (created_at) WHERE (status = 'pending'::text);
+
+
+--
+-- Name: orders_user_created_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX orders_user_created_idx ON public.orders USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: otp_codes_cleanup_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX otp_codes_cleanup_idx ON public.otp_codes USING btree (created_at) WHERE (used_at IS NOT NULL);
+
+
+--
+-- Name: otp_codes_phone_created_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX otp_codes_phone_created_idx ON public.otp_codes USING btree (phone, created_at DESC);
 
 
 --
