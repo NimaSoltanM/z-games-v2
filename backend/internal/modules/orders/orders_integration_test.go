@@ -3,6 +3,7 @@ package orders
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -94,6 +95,58 @@ func TestCreatePendingOrder_ExpandsQuantity(t *testing.T) {
 	}
 	if count != 3 {
 		t.Fatalf("order_items = %d, want 3 (one per unit)", count)
+	}
+}
+
+func TestCartFingerprint_IsOrderIndependent(t *testing.T) {
+	a := []orderItem{
+		{GameID: "g2", GameName: "Second", Platform: "ps5", Zarfiat: "z2", Quantity: 1},
+		{GameID: "g1", GameName: "First", Platform: "ps4", Zarfiat: "z1", Quantity: 2},
+	}
+	b := []orderItem{a[1], a[0]}
+	if cartFingerprint(a, 3000, " ref ") != cartFingerprint(b, 3000, "ref") {
+		t.Fatal("equivalent carts produced different fingerprints")
+	}
+	if cartFingerprint(a, 3000, "ref") == cartFingerprint(a, 3001, "ref") {
+		t.Fatal("different totals produced the same fingerprint")
+	}
+}
+
+func TestCreatePendingCheckout_OnlyOnePendingPerUser(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+
+	firstID, firstNumber, _, err := createPendingCheckout(ctx, db, "u1", 1000, 0, "", oneItem(), "fingerprint-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := findPendingCheckout(ctx, db, "u1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pending == nil || pending.OrderID != firstID || pending.OrderNumber != firstNumber || pending.Fingerprint == nil || *pending.Fingerprint != "fingerprint-1" {
+		t.Fatalf("pending checkout = %+v, want first order", pending)
+	}
+	if _, _, _, err := createPendingCheckout(ctx, db, "u1", 1000, 0, "", oneItem(), "fingerprint-2"); !errors.Is(err, ErrCheckoutPending) {
+		t.Fatalf("second pending checkout error = %v, want ErrCheckoutPending", err)
+	}
+}
+
+func TestCreatePendingCheckout_PerUserRollingLimit(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedUser(t, ctx, db, "u1", "09120000001")
+	mustExec(t, ctx, db, "UPDATE users SET wallet_balance=10000 WHERE id='u1'")
+
+	for i := range checkoutUserLimit {
+		fingerprint := fmt.Sprintf("paid-%d", i)
+		if _, _, paid, err := createPendingCheckout(ctx, db, "u1", 1000, 1000, "", oneItem(), fingerprint); err != nil || !paid {
+			t.Fatalf("checkout %d: paid=%v err=%v", i+1, paid, err)
+		}
+	}
+	if _, _, _, err := createPendingCheckout(ctx, db, "u1", 1000, 1000, "", oneItem(), "over-limit"); !errors.Is(err, ErrCheckoutRateLimit) {
+		t.Fatalf("over-limit checkout error = %v, want ErrCheckoutRateLimit", err)
 	}
 }
 

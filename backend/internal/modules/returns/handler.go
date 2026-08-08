@@ -264,7 +264,7 @@ func (h *handler) review(c fiber.Ctx, terminal bool) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "اطلاعات ورودی نامعتبر است"})
 	}
 
-	err := reviewReturn(c.Context(), h.db, adminID, c.Params("id"), body.Reason, terminal)
+	oldVideo, err := reviewReturnAndReleaseVideo(c.Context(), h.db, adminID, c.Params("id"), body.Reason, terminal)
 	switch {
 	case errors.Is(err, ErrReasonRequired):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "ذکر دلیل الزامی است"})
@@ -275,6 +275,7 @@ func (h *handler) review(c fiber.Ctx, terminal bool) error {
 	case err != nil:
 		return err
 	}
+	h.removeVideo(oldVideo)
 	return h.adminGet(c)
 }
 

@@ -12,11 +12,26 @@ if [[ ! ${release_id} =~ ^[0-9]{14}$ ]]; then
   exit 1
 fi
 
-incoming_dir="/opt/z-games/incoming/${release_id}/source"
+incoming_release_dir="/opt/z-games/incoming/${release_id}"
+incoming_dir="${incoming_release_dir}/source"
 release_dir="/opt/z-games/releases/${release_id}"
 current_link=/opt/z-games/current
 api_env=/etc/z-games/api.env
 frontend_env=/etc/z-games/frontend-build.env
+upload_archive="/tmp/z-games-${release_id}.tar.gz"
+
+cleanup() {
+  rm -f -- "${upload_archive}"
+  if [[ ${incoming_release_dir} == /opt/z-games/incoming/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9] ]]; then
+    rm -rf -- "${incoming_release_dir}"
+  fi
+  active_release=$(readlink -f "${current_link}" 2>/dev/null || true)
+  if [[ ${release_dir} == /opt/z-games/releases/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9] \
+    && -d ${release_dir} && ${active_release} != "${release_dir}" ]]; then
+    rm -rf -- "${release_dir}"
+  fi
+}
+trap cleanup EXIT
 
 for required in \
   "${incoming_dir}/backend/go.mod" \
@@ -119,10 +134,15 @@ rollback() {
     systemctl restart z-games-api.service z-games-frontend.service || true
   else
     systemctl stop z-games-api.service z-games-frontend.service || true
+    rm -f -- "${current_link}"
   fi
+  nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
 }
 
-systemctl restart z-games-api.service z-games-frontend.service
+if ! systemctl restart z-games-api.service z-games-frontend.service; then
+  rollback
+  exit 1
+fi
 
 api_ok=false
 frontend_ok=false
@@ -147,9 +167,35 @@ if [[ ${api_ok} != true || ${frontend_ok} != true ]]; then
   exit 1
 fi
 
-systemctl reload nginx
+if ! systemctl reload nginx; then
+  rollback
+  exit 1
+fi
 rm -f -- "${nginx_backup}"
-rm -f -- "/tmp/z-games-${release_id}.tar.gz"
-rmdir --ignore-fail-on-non-empty "/opt/z-games/incoming/${release_id}" || true
+
+# Bound release storage while retaining the five newest known-good builds.
+# The active and immediately previous targets are protected even if their names
+# somehow fall outside that newest-five set.
+current_release=$(readlink -f "${current_link}")
+mapfile -t release_names < <(
+  find /opt/z-games/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+    | awk '/^[0-9]{14}$/' \
+    | sort -r
+)
+kept=0
+for name in "${release_names[@]}"; do
+  candidate="/opt/z-games/releases/${name}"
+  if [[ ${candidate} == "${current_release}" || ${candidate} == "${previous_release}" ]]; then
+    kept=$((kept + 1))
+    continue
+  fi
+  if (( kept < 5 )); then
+    kept=$((kept + 1))
+    continue
+  fi
+  if [[ ${candidate} == /opt/z-games/releases/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9] ]]; then
+    rm -rf -- "${candidate}"
+  fi
+done
 
 echo "Release ${release_id} is healthy and active."

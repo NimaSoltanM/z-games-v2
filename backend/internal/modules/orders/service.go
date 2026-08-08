@@ -2,12 +2,16 @@ package orders
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/soltanmohammdi/z-games/internal/shared/audit"
 	"github.com/soltanmohammdi/z-games/internal/shared/credentials"
@@ -20,6 +24,13 @@ var (
 	ErrCartEmpty          = errors.New("CART_EMPTY")
 	ErrInvalidCart        = errors.New("CART_INVALID")
 	ErrInsufficientWallet = errors.New("WALLET_INSUFFICIENT")
+	ErrCheckoutPending    = errors.New("CHECKOUT_PENDING")
+	ErrCheckoutRateLimit  = errors.New("CHECKOUT_RATE_LIMITED")
+)
+
+const (
+	checkoutUserLimit  = 5
+	checkoutUserWindow = time.Hour
 )
 
 type orderItem struct {
@@ -29,6 +40,61 @@ type orderItem struct {
 	Zarfiat  string
 	Quantity int
 	PreOrder bool // game was in its pre-order phase at checkout
+}
+
+type pendingCheckout struct {
+	OrderID     string
+	OrderNumber int64
+	Fingerprint *string
+	Authority   *string
+}
+
+func cartFingerprint(items []orderItem, total int, referralCode string) string {
+	canonical := append([]orderItem(nil), items...)
+	sort.Slice(canonical, func(i, j int) bool {
+		a, b := canonical[i], canonical[j]
+		if a.GameID != b.GameID {
+			return a.GameID < b.GameID
+		}
+		if a.Platform != b.Platform {
+			return a.Platform < b.Platform
+		}
+		if a.Zarfiat != b.Zarfiat {
+			return a.Zarfiat < b.Zarfiat
+		}
+		if a.Quantity != b.Quantity {
+			return a.Quantity < b.Quantity
+		}
+		return !a.PreOrder && b.PreOrder
+	})
+	payload, err := json.Marshal(struct {
+		Items        []orderItem `json:"items"`
+		Total        int         `json:"total"`
+		ReferralCode string      `json:"referral_code"`
+	}{canonical, total, strings.TrimSpace(referralCode)})
+	if err != nil {
+		panic(fmt.Sprintf("marshal checkout fingerprint: %v", err))
+	}
+	sum := sha256.Sum256(payload)
+	return fmt.Sprintf("%x", sum)
+}
+
+func findPendingCheckout(ctx context.Context, db *pgxpool.Pool, userID string) (*pendingCheckout, error) {
+	var pending pendingCheckout
+	err := db.QueryRow(ctx, `
+		SELECT id, order_number, checkout_fingerprint, authority
+		FROM orders
+		WHERE user_id = $1 AND status = 'pending'
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, userID).Scan(&pending.OrderID, &pending.OrderNumber, &pending.Fingerprint, &pending.Authority)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find pending checkout: %w", err)
+	}
+	return &pending, nil
 }
 
 // computeCart reads the user's cart and prices every line at CURRENT prices: a
@@ -159,6 +225,14 @@ func unitPrice(active bool, priceMode string, baseUSD *float64, marginOverride *
 // ErrInsufficientWallet means the balance changed under us (a concurrent spend) —
 // the guarded deduct found too little, so nothing was charged.
 func createPendingOrder(ctx context.Context, db *pgxpool.Pool, userID string, amount, walletApplied int, referralCode string, items []orderItem) (orderID string, orderNumber int64, paid bool, err error) {
+	return createOrder(ctx, db, userID, amount, walletApplied, referralCode, items, nil, false)
+}
+
+func createPendingCheckout(ctx context.Context, db *pgxpool.Pool, userID string, amount, walletApplied int, referralCode string, items []orderItem, fingerprint string) (orderID string, orderNumber int64, paid bool, err error) {
+	return createOrder(ctx, db, userID, amount, walletApplied, referralCode, items, &fingerprint, true)
+}
+
+func createOrder(ctx context.Context, db *pgxpool.Pool, userID string, amount, walletApplied int, referralCode string, items []orderItem, fingerprint *string, enforceRateLimit bool) (orderID string, orderNumber int64, paid bool, err error) {
 	paid = walletApplied >= amount
 	status := "pending"
 	if paid {
@@ -170,6 +244,24 @@ func createPendingOrder(ctx context.Context, db *pgxpool.Pool, userID string, am
 		return "", 0, false, fmt.Errorf("createPendingOrder begin: %w", err)
 	}
 	defer tx.Rollback(ctx)
+
+	if enforceRateLimit {
+		// Serialize checkout creation for one buyer across every API instance. This
+		// makes the rolling limit deterministic and complements the partial unique
+		// index that allows only one fingerprinted pending checkout per user.
+		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", userID); err != nil {
+			return "", 0, false, fmt.Errorf("createPendingOrder advisory lock: %w", err)
+		}
+		var recent int
+		if err := tx.QueryRow(ctx, `
+			SELECT COUNT(*) FROM orders WHERE user_id = $1 AND created_at > $2
+		`, userID, time.Now().Add(-checkoutUserWindow)).Scan(&recent); err != nil {
+			return "", 0, false, fmt.Errorf("createPendingOrder rate limit: %w", err)
+		}
+		if recent >= checkoutUserLimit {
+			return "", 0, false, ErrCheckoutRateLimit
+		}
+	}
 
 	if walletApplied > 0 {
 		tag, err := tx.Exec(ctx,
@@ -189,11 +281,15 @@ func createPendingOrder(ctx context.Context, db *pgxpool.Pool, userID string, am
 	}
 
 	err = tx.QueryRow(ctx, `
-		INSERT INTO orders (user_id, amount, status, referral_code, wallet_applied)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO orders (user_id, amount, status, referral_code, wallet_applied, checkout_fingerprint)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, order_number
-	`, userID, amount, status, refArg, walletApplied).Scan(&orderID, &orderNumber)
+	`, userID, amount, status, refArg, walletApplied, fingerprint).Scan(&orderID, &orderNumber)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "orders_one_pending_checkout_idx" {
+			return "", 0, false, ErrCheckoutPending
+		}
 		return "", 0, false, fmt.Errorf("createPendingOrder insert: %w", err)
 	}
 

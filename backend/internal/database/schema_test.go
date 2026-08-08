@@ -24,7 +24,7 @@ func TestValidateSchema(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected outdated schema error")
 	}
-	for _, expected := range []string{"games.seo_title", "020_game_editorial_content.sql"} {
+	for _, expected := range []string{"games.seo_title", "021_operational_retention.sql"} {
 		if !strings.Contains(err.Error(), expected) {
 			t.Fatalf("schema error %q does not contain %q", err, expected)
 		}
