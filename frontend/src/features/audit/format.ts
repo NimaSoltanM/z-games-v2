@@ -14,6 +14,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "return.inventory_disable": "خروج از موجودی",
   "return.inventory_enable": "بازگشت به موجودی",
   "verification_code.send": "ارسال کد ورود",
+  "support.reply": "پاسخ پشتیبانی",
+  "support.status": "وضعیت پشتیبانی",
   "image.upload": "آپلود تصویر",
 }
 
@@ -245,6 +247,22 @@ export function describeAction(row: AuditRow): AuditDescription {
         details.push("با تأیید هشدار کد تکراری")
       }
       return { text: "یک کد ورود مجدد برای مشتری ارسال کرد", details }
+    }
+
+    case "support.reply":
+      return { text: "به یک درخواست پشتیبانی پاسخ داد", details: [] }
+
+    case "support.status": {
+      const statusLabels: Record<string, string> = {
+        awaiting_admin: "نیازمند پاسخ پشتیبانی",
+        awaiting_customer: "در انتظار پاسخ مشتری",
+        resolved: "پاسخ‌داده‌شده",
+      }
+      const status = asString(meta.status)
+      return {
+        text: "وضعیت یک درخواست پشتیبانی را تغییر داد",
+        details: status ? [statusLabels[status] ?? status] : [],
+      }
     }
 
     case "image.upload":

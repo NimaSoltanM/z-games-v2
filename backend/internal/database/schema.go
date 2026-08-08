@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const latestMigration = "021_operational_retention.sql"
+const latestMigration = "022_support_tickets.sql"
 
 // ValidateSchema prevents an application binary from starting against a
 // database that has not received the migrations its queries depend on. Keep the
@@ -32,7 +32,13 @@ func ValidateSchema(ctx context.Context, db *pgxpool.Pool) error {
 				('verification_code_requests', 'delivered_at'),
 				('verification_code_requests', 'expires_at'),
 				('verification_code_requests', 'delivered_by'),
-				('verification_code_requests', 'updated_at')
+				('verification_code_requests', 'updated_at'),
+				('support_tickets', 'ticket_number'),
+				('support_tickets', 'user_id'),
+				('support_tickets', 'status'),
+				('support_ticket_messages', 'ticket_id'),
+				('support_ticket_messages', 'author_id'),
+				('support_ticket_messages', 'body')
 		)
 		SELECT required.table_name || '.' || required.column_name
 		FROM required
@@ -59,7 +65,10 @@ func ValidateSchema(ctx context.Context, db *pgxpool.Pool) error {
 			('otp_codes_cleanup_idx'),
 			('orders_one_pending_checkout_idx'),
 			('orders_user_created_idx'),
-			('orders_pending_reconcile_idx')
+			('orders_pending_reconcile_idx'),
+			('support_tickets_user_updated_idx'),
+			('support_tickets_admin_queue_idx'),
+			('support_ticket_messages_ticket_time_idx')
 		) indexes(required_index)
 		WHERE to_regclass('public.' || required_index) IS NULL
 		ORDER BY 1

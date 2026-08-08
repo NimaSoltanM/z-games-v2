@@ -9,6 +9,7 @@ import {
   ChevronDown,
   LayoutDashboard,
   ShieldCheck,
+  LifeBuoy,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,7 @@ const NAV_LINKS = [
   { to: "/", label: "خانه", exact: true },
   { to: "/games", label: "بازی‌ها", exact: false },
   { to: "/guides", label: "راهنما", exact: false },
+  { to: "/dashboard/support", label: "پشتیبانی", exact: false },
 ] as const
 
 const ADMIN_HOME_SEARCH = { page: 1, status: "", search: "" } as const
@@ -101,7 +103,13 @@ export function Navbar() {
               <Link
                 key={l.to}
                 to={l.to}
-                search={l.to === "/games" ? GAMES_DEFAULT_SEARCH : undefined}
+                search={
+                  l.to === "/games"
+                    ? GAMES_DEFAULT_SEARCH
+                    : l.to === "/dashboard/support"
+                      ? { page: 1 }
+                      : undefined
+                }
                 activeOptions={{ exact: l.exact }}
                 className="relative px-2 py-2 text-sm text-muted-foreground transition-colors after:absolute after:inset-x-2 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-200 hover:text-foreground [&.active]:text-foreground [&.active]:after:scale-x-100"
               >
@@ -177,7 +185,11 @@ export function Navbar() {
                     key={l.to}
                     to={l.to}
                     search={
-                      l.to === "/games" ? GAMES_DEFAULT_SEARCH : undefined
+                      l.to === "/games"
+                        ? GAMES_DEFAULT_SEARCH
+                        : l.to === "/dashboard/support"
+                          ? { page: 1 }
+                          : undefined
                     }
                     activeOptions={{ exact: l.exact }}
                     onClick={() => setMobileOpen(false)}
@@ -332,6 +344,12 @@ function UserMenu({ me, onLogout }: { me: MeResponse; onLogout: () => void }) {
         >
           <LayoutDashboard className="size-4" />
           سفارش‌های من
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          render={<Link to="/dashboard/support" search={{ page: 1 }} />}
+        >
+          <LifeBuoy className="size-4" />
+          پشتیبانی و درخواست‌ها
         </DropdownMenuItem>
         {me.role !== "user" && (
           <DropdownMenuItem

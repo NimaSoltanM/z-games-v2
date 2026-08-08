@@ -36,7 +36,9 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminInventoryRouteImport } from './routes/admin/inventory'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as GamesSlugIndexRouteImport } from './routes/games/$slug/index'
+import { Route as DashboardSupportIndexRouteImport } from './routes/dashboard/support/index'
 import { Route as DashboardGamesIndexRouteImport } from './routes/dashboard/games/index'
+import { Route as AdminSupportIndexRouteImport } from './routes/admin/support/index'
 import { Route as AdminReturnsIndexRouteImport } from './routes/admin/returns/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
 import { Route as AdminGamesIndexRouteImport } from './routes/admin/games/index'
@@ -44,6 +46,9 @@ import { Route as GuidesAddAccountXboxRouteImport } from './routes/guides/add-ac
 import { Route as GuidesAddAccountPs5RouteImport } from './routes/guides/add-account/ps5'
 import { Route as GuidesAddAccountPs4RouteImport } from './routes/guides/add-account/ps4'
 import { Route as GamesPlatformPlatformRouteImport } from './routes/games/platform/$platform'
+import { Route as DashboardSupportNewRouteImport } from './routes/dashboard/support/new'
+import { Route as DashboardSupportIdRouteImport } from './routes/dashboard/support/$id'
+import { Route as AdminSupportIdRouteImport } from './routes/admin/support/$id'
 import { Route as AdminReturnsIdRouteImport } from './routes/admin/returns/$id'
 import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin/orders/$orderId'
 import { Route as AdminGamesPricingRouteImport } from './routes/admin/games/pricing'
@@ -186,10 +191,20 @@ const GamesSlugIndexRoute = GamesSlugIndexRouteImport.update({
   path: '/games/$slug/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardSupportIndexRoute = DashboardSupportIndexRouteImport.update({
+  id: '/support/',
+  path: '/support/',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
 const DashboardGamesIndexRoute = DashboardGamesIndexRouteImport.update({
   id: '/games/',
   path: '/games/',
   getParentRoute: () => DashboardRouteRoute,
+} as any)
+const AdminSupportIndexRoute = AdminSupportIndexRouteImport.update({
+  id: '/support/',
+  path: '/support/',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminReturnsIndexRoute = AdminReturnsIndexRouteImport.update({
   id: '/returns/',
@@ -225,6 +240,21 @@ const GamesPlatformPlatformRoute = GamesPlatformPlatformRouteImport.update({
   id: '/games/platform/$platform',
   path: '/games/platform/$platform',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardSupportNewRoute = DashboardSupportNewRouteImport.update({
+  id: '/support/new',
+  path: '/support/new',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardSupportIdRoute = DashboardSupportIdRouteImport.update({
+  id: '/support/$id',
+  path: '/support/$id',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const AdminSupportIdRoute = AdminSupportIdRouteImport.update({
+  id: '/support/$id',
+  path: '/support/$id',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminReturnsIdRoute = AdminReturnsIdRouteImport.update({
   id: '/returns/$id',
@@ -289,6 +319,9 @@ export interface FileRoutesByFullPath {
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
+  '/admin/support/$id': typeof AdminSupportIdRoute
+  '/dashboard/support/$id': typeof DashboardSupportIdRoute
+  '/dashboard/support/new': typeof DashboardSupportNewRoute
   '/games/platform/$platform': typeof GamesPlatformPlatformRoute
   '/guides/add-account/ps4': typeof GuidesAddAccountPs4Route
   '/guides/add-account/ps5': typeof GuidesAddAccountPs5Route
@@ -296,7 +329,9 @@ export interface FileRoutesByFullPath {
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/returns/': typeof AdminReturnsIndexRoute
+  '/admin/support/': typeof AdminSupportIndexRoute
   '/dashboard/games/': typeof DashboardGamesIndexRoute
+  '/dashboard/support/': typeof DashboardSupportIndexRoute
   '/games/$slug/': typeof GamesSlugIndexRoute
   '/admin/games/$id/edit': typeof AdminGamesIdEditRoute
   '/dashboard/games/$itemId/return': typeof DashboardGamesItemIdReturnRoute
@@ -331,6 +366,9 @@ export interface FileRoutesByTo {
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
+  '/admin/support/$id': typeof AdminSupportIdRoute
+  '/dashboard/support/$id': typeof DashboardSupportIdRoute
+  '/dashboard/support/new': typeof DashboardSupportNewRoute
   '/games/platform/$platform': typeof GamesPlatformPlatformRoute
   '/guides/add-account/ps4': typeof GuidesAddAccountPs4Route
   '/guides/add-account/ps5': typeof GuidesAddAccountPs5Route
@@ -338,7 +376,9 @@ export interface FileRoutesByTo {
   '/admin/games': typeof AdminGamesIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/admin/returns': typeof AdminReturnsIndexRoute
+  '/admin/support': typeof AdminSupportIndexRoute
   '/dashboard/games': typeof DashboardGamesIndexRoute
+  '/dashboard/support': typeof DashboardSupportIndexRoute
   '/games/$slug': typeof GamesSlugIndexRoute
   '/admin/games/$id/edit': typeof AdminGamesIdEditRoute
   '/dashboard/games/$itemId/return': typeof DashboardGamesItemIdReturnRoute
@@ -375,6 +415,9 @@ export interface FileRoutesById {
   '/admin/games/pricing': typeof AdminGamesPricingRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/returns/$id': typeof AdminReturnsIdRoute
+  '/admin/support/$id': typeof AdminSupportIdRoute
+  '/dashboard/support/$id': typeof DashboardSupportIdRoute
+  '/dashboard/support/new': typeof DashboardSupportNewRoute
   '/games/platform/$platform': typeof GamesPlatformPlatformRoute
   '/guides/add-account/ps4': typeof GuidesAddAccountPs4Route
   '/guides/add-account/ps5': typeof GuidesAddAccountPs5Route
@@ -382,7 +425,9 @@ export interface FileRoutesById {
   '/admin/games/': typeof AdminGamesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/returns/': typeof AdminReturnsIndexRoute
+  '/admin/support/': typeof AdminSupportIndexRoute
   '/dashboard/games/': typeof DashboardGamesIndexRoute
+  '/dashboard/support/': typeof DashboardSupportIndexRoute
   '/games/$slug/': typeof GamesSlugIndexRoute
   '/admin/games/$id/edit': typeof AdminGamesIdEditRoute
   '/dashboard/games/$itemId/return': typeof DashboardGamesItemIdReturnRoute
@@ -420,6 +465,9 @@ export interface FileRouteTypes {
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
+    | '/admin/support/$id'
+    | '/dashboard/support/$id'
+    | '/dashboard/support/new'
     | '/games/platform/$platform'
     | '/guides/add-account/ps4'
     | '/guides/add-account/ps5'
@@ -427,7 +475,9 @@ export interface FileRouteTypes {
     | '/admin/games/'
     | '/admin/orders/'
     | '/admin/returns/'
+    | '/admin/support/'
     | '/dashboard/games/'
+    | '/dashboard/support/'
     | '/games/$slug/'
     | '/admin/games/$id/edit'
     | '/dashboard/games/$itemId/return'
@@ -462,6 +512,9 @@ export interface FileRouteTypes {
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
+    | '/admin/support/$id'
+    | '/dashboard/support/$id'
+    | '/dashboard/support/new'
     | '/games/platform/$platform'
     | '/guides/add-account/ps4'
     | '/guides/add-account/ps5'
@@ -469,7 +522,9 @@ export interface FileRouteTypes {
     | '/admin/games'
     | '/admin/orders'
     | '/admin/returns'
+    | '/admin/support'
     | '/dashboard/games'
+    | '/dashboard/support'
     | '/games/$slug'
     | '/admin/games/$id/edit'
     | '/dashboard/games/$itemId/return'
@@ -505,6 +560,9 @@ export interface FileRouteTypes {
     | '/admin/games/pricing'
     | '/admin/orders/$orderId'
     | '/admin/returns/$id'
+    | '/admin/support/$id'
+    | '/dashboard/support/$id'
+    | '/dashboard/support/new'
     | '/games/platform/$platform'
     | '/guides/add-account/ps4'
     | '/guides/add-account/ps5'
@@ -512,7 +570,9 @@ export interface FileRouteTypes {
     | '/admin/games/'
     | '/admin/orders/'
     | '/admin/returns/'
+    | '/admin/support/'
     | '/dashboard/games/'
+    | '/dashboard/support/'
     | '/games/$slug/'
     | '/admin/games/$id/edit'
     | '/dashboard/games/$itemId/return'
@@ -734,12 +794,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GamesSlugIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/support/': {
+      id: '/dashboard/support/'
+      path: '/support'
+      fullPath: '/dashboard/support/'
+      preLoaderRoute: typeof DashboardSupportIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/games/': {
       id: '/dashboard/games/'
       path: '/games'
       fullPath: '/dashboard/games/'
       preLoaderRoute: typeof DashboardGamesIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
+    }
+    '/admin/support/': {
+      id: '/admin/support/'
+      path: '/support'
+      fullPath: '/admin/support/'
+      preLoaderRoute: typeof AdminSupportIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/returns/': {
       id: '/admin/returns/'
@@ -789,6 +863,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/games/platform/$platform'
       preLoaderRoute: typeof GamesPlatformPlatformRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/support/new': {
+      id: '/dashboard/support/new'
+      path: '/support/new'
+      fullPath: '/dashboard/support/new'
+      preLoaderRoute: typeof DashboardSupportNewRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/support/$id': {
+      id: '/dashboard/support/$id'
+      path: '/support/$id'
+      fullPath: '/dashboard/support/$id'
+      preLoaderRoute: typeof DashboardSupportIdRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/admin/support/$id': {
+      id: '/admin/support/$id'
+      path: '/support/$id'
+      fullPath: '/admin/support/$id'
+      preLoaderRoute: typeof AdminSupportIdRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/returns/$id': {
       id: '/admin/returns/$id'
@@ -844,9 +939,11 @@ interface AdminRouteRouteChildren {
   AdminGamesPricingRoute: typeof AdminGamesPricingRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
   AdminReturnsIdRoute: typeof AdminReturnsIdRoute
+  AdminSupportIdRoute: typeof AdminSupportIdRoute
   AdminGamesIndexRoute: typeof AdminGamesIndexRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
   AdminReturnsIndexRoute: typeof AdminReturnsIndexRoute
+  AdminSupportIndexRoute: typeof AdminSupportIndexRoute
   AdminGamesIdEditRoute: typeof AdminGamesIdEditRoute
 }
 
@@ -859,9 +956,11 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminGamesPricingRoute: AdminGamesPricingRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminReturnsIdRoute: AdminReturnsIdRoute,
+  AdminSupportIdRoute: AdminSupportIdRoute,
   AdminGamesIndexRoute: AdminGamesIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   AdminReturnsIndexRoute: AdminReturnsIndexRoute,
+  AdminSupportIndexRoute: AdminSupportIndexRoute,
   AdminGamesIdEditRoute: AdminGamesIdEditRoute,
 }
 
@@ -875,7 +974,10 @@ interface DashboardRouteRouteChildren {
   DashboardReturnsRoute: typeof DashboardReturnsRoute
   DashboardWalletRoute: typeof DashboardWalletRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardSupportIdRoute: typeof DashboardSupportIdRoute
+  DashboardSupportNewRoute: typeof DashboardSupportNewRoute
   DashboardGamesIndexRoute: typeof DashboardGamesIndexRoute
+  DashboardSupportIndexRoute: typeof DashboardSupportIndexRoute
   DashboardGamesItemIdReturnRoute: typeof DashboardGamesItemIdReturnRoute
 }
 
@@ -885,7 +987,10 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardReturnsRoute: DashboardReturnsRoute,
   DashboardWalletRoute: DashboardWalletRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardSupportIdRoute: DashboardSupportIdRoute,
+  DashboardSupportNewRoute: DashboardSupportNewRoute,
   DashboardGamesIndexRoute: DashboardGamesIndexRoute,
+  DashboardSupportIndexRoute: DashboardSupportIndexRoute,
   DashboardGamesItemIdReturnRoute: DashboardGamesItemIdReturnRoute,
 }
 

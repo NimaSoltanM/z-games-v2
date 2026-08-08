@@ -133,6 +133,13 @@ export function Footer() {
             >
               مرکز راهنما
             </Link>
+            <Link
+              to="/dashboard/support"
+              search={{ page: 1 }}
+              className="transition-colors hover:text-foreground"
+            >
+              پشتیبانی و پیگیری درخواست
+            </Link>
           </nav>
         </div>
 

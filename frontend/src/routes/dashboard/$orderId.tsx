@@ -18,6 +18,7 @@ import {
   BookOpenCheck,
   Clock3,
   RefreshCw,
+  LifeBuoy,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -217,6 +218,37 @@ function OrderDetail() {
             )}
           </div>
         )}
+      </div>
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card/75 p-5 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <LifeBuoy className="size-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold">
+              برای این سفارش کمک می‌خواهید؟
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              یک درخواست ثبت کنید؛ شماره سفارش به‌صورت خودکار به آن اضافه
+              می‌شود.
+            </p>
+          </div>
+        </div>
+        <Button
+          render={
+            <Link
+              to="/dashboard/support/new"
+              search={{ order: formatOrderNumber(order.order_number) }}
+            />
+          }
+          nativeButton={false}
+          variant="outline"
+          className="w-full sm:w-auto"
+        >
+          ثبت درخواست پشتیبانی
+          <ArrowLeft className="size-3.5" />
+        </Button>
       </div>
     </div>
   )

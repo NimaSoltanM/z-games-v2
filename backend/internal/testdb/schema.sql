@@ -296,6 +296,50 @@ CREATE TABLE public.orders (
 
 
 --
+-- Name: support_ticket_number_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.support_ticket_number_seq
+    START WITH 1000
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: support_tickets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_tickets (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    ticket_number bigint DEFAULT nextval('public.support_ticket_number_seq'::regclass) NOT NULL,
+    user_id character varying NOT NULL,
+    subject character varying(160) NOT NULL,
+    category text NOT NULL,
+    status text DEFAULT 'awaiting_admin'::text NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT support_tickets_category_check CHECK ((category = ANY (ARRAY['order'::text, 'account'::text, 'payment'::text, 'return'::text, 'other'::text]))),
+    CONSTRAINT support_tickets_status_check CHECK ((status = ANY (ARRAY['awaiting_admin'::text, 'awaiting_customer'::text, 'resolved'::text])))
+);
+
+
+--
+-- Name: support_ticket_messages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_ticket_messages (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    ticket_id uuid NOT NULL,
+    author_id character varying NOT NULL,
+    body text NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT support_ticket_messages_body_check CHECK (((char_length(body) >= 1) AND (char_length(body) <= 4000)))
+);
+
+
+--
 -- Name: otp_codes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -644,6 +688,30 @@ ALTER TABLE ONLY public.orders
 
 
 --
+-- Name: support_ticket_messages support_ticket_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_ticket_messages
+    ADD CONSTRAINT support_ticket_messages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_tickets support_tickets_number_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_tickets
+    ADD CONSTRAINT support_tickets_number_unique UNIQUE (ticket_number);
+
+
+--
+-- Name: support_tickets support_tickets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_tickets
+    ADD CONSTRAINT support_tickets_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: otp_codes otp_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -785,6 +853,27 @@ CREATE INDEX otp_codes_cleanup_idx ON public.otp_codes USING btree (created_at) 
 --
 
 CREATE INDEX otp_codes_phone_created_idx ON public.otp_codes USING btree (phone, created_at DESC);
+
+
+--
+-- Name: support_ticket_messages_ticket_time_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX support_ticket_messages_ticket_time_idx ON public.support_ticket_messages USING btree (ticket_id, created_at, id);
+
+
+--
+-- Name: support_tickets_admin_queue_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX support_tickets_admin_queue_idx ON public.support_tickets USING btree (status, updated_at DESC);
+
+
+--
+-- Name: support_tickets_user_updated_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX support_tickets_user_updated_idx ON public.support_tickets USING btree (user_id, updated_at DESC);
 
 
 --
@@ -944,6 +1033,30 @@ ALTER TABLE ONLY public.order_items
 
 ALTER TABLE ONLY public.orders
     ADD CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_ticket_messages support_ticket_messages_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_ticket_messages
+    ADD CONSTRAINT support_ticket_messages_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.users(id);
+
+
+--
+-- Name: support_ticket_messages support_ticket_messages_ticket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_ticket_messages
+    ADD CONSTRAINT support_ticket_messages_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.support_tickets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_tickets support_tickets_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_tickets
+    ADD CONSTRAINT support_tickets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --

@@ -77,6 +77,7 @@ The current admin interface includes:
   return settings, console/capacity selection, and pricing configuration;
 - paid-order review and credential fulfillment, including returned inventory;
 - return-request review and private proof-video access;
+- customer-support ticket review, replies, and status management;
 - an append-only audit log for privileged actions.
 
 ## Authentication
