@@ -1,5 +1,12 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
-import { Package, User, Gamepad2, RotateCcw, Wallet } from "lucide-react"
+import {
+  Package,
+  User,
+  Gamepad2,
+  RotateCcw,
+  Wallet,
+  LifeBuoy,
+} from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-shell"
 import type { DashNavItem } from "@/components/dashboard-shell"
@@ -26,6 +33,12 @@ const NAV: readonly DashNavItem[] = [
     label: "بازگشت‌ها",
   },
   { to: "/dashboard/wallet", icon: Wallet, label: "کیف پول" },
+  {
+    to: "/dashboard/support",
+    search: { page: 1 },
+    icon: LifeBuoy,
+    label: "پشتیبانی",
+  },
   { to: "/dashboard/profile", icon: User, label: "حساب کاربری" },
 ]
 

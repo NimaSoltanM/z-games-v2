@@ -19,6 +19,7 @@ import (
 	"github.com/soltanmohammdi/z-games/internal/modules/games"
 	"github.com/soltanmohammdi/z-games/internal/modules/orders"
 	"github.com/soltanmohammdi/z-games/internal/modules/returns"
+	"github.com/soltanmohammdi/z-games/internal/modules/support"
 	"github.com/soltanmohammdi/z-games/internal/modules/uploads"
 	"github.com/soltanmohammdi/z-games/internal/modules/users"
 )
@@ -75,6 +76,7 @@ func NewApp(db *pgxpool.Pool) *fiber.App {
 	games.RegisterRoutes(app, db)
 	orders.RegisterRoutes(app, db)
 	returns.RegisterRoutes(app, db)
+	support.RegisterRoutes(app, db)
 	uploads.RegisterRoutes(app, db)
 	audit.RegisterRoutes(app, db)
 	users.RegisterRoutes(app, db)

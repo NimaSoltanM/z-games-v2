@@ -89,6 +89,14 @@ function AboutPage() {
           >
             خرید چطور انجام می‌شود؟
           </Button>
+          <Button
+            render={<Link to="/dashboard/support" search={{ page: 1 }} />}
+            nativeButton={false}
+            variant="outline"
+          >
+            <Headphones className="size-4" />
+            ارتباط با پشتیبانی
+          </Button>
         </div>
       </div>
     </main>

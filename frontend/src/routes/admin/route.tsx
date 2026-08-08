@@ -7,6 +7,7 @@ import {
   ScrollText,
   Coins,
   RotateCcw,
+  LifeBuoy,
 } from "lucide-react"
 
 import { DashboardLayout } from "@/components/dashboard-shell"
@@ -39,6 +40,12 @@ const NAV: readonly DashNavItem[] = [
     search: { page: 1, status: "", search: "" },
     icon: KeyRound,
     label: "کدهای ورود",
+  },
+  {
+    to: "/admin/support",
+    search: { page: 1, status: "", search: "" },
+    icon: LifeBuoy,
+    label: "پشتیبانی",
   },
   { to: "/admin/games/pricing", icon: Coins, label: "قیمت‌گذاری" },
   {

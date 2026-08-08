@@ -30,6 +30,8 @@ const (
 	ActionReturnInventoryDisable = "return.inventory_disable"
 	ActionReturnInventoryEnable  = "return.inventory_enable"
 	ActionVerificationCodeSend   = "verification_code.send"
+	ActionSupportReply           = "support.reply"
+	ActionSupportStatus          = "support.status"
 )
 
 // execer is satisfied by both *pgxpool.Pool and pgx.Tx.
