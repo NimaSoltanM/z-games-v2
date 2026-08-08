@@ -21,6 +21,7 @@ import { MoneyInput } from "@/components/money-input"
 import { ImageUpload } from "@/features/uploads"
 import { checkSlugAvailable, createGame, updateGame } from "./api"
 import { adminPricingQueryOptions } from "./queries"
+import { ReleaseDateInput, releaseDateInputValue } from "./release-date-input"
 import { familyDotClass, formatToman, slugify } from "./types"
 import type {
   AlertVariant,
@@ -132,7 +133,7 @@ function initialValues(catalog: Catalog, game?: Game): FormValues {
     // At least one link is required; start a new game with one empty row.
     links: game?.links.map((l) => ({ url: l.url })) ?? [{ url: "" }],
     release_status: game?.release_status ?? "released",
-    release_date: game?.release_date ? game.release_date.slice(0, 10) : "",
+    release_date: releaseDateInputValue(game?.release_date ?? null),
     alert_message: game?.alert_message ?? "",
     alert_variant: game?.alert_variant ?? "info",
   }
@@ -270,7 +271,10 @@ const schema = z
     }
   })
 
-function toPayload(v: FormValues, active: boolean): GameFormPayload {
+export function gameFormToPayload(
+  v: FormValues,
+  active: boolean
+): GameFormPayload {
   const consoles = v.consoles
   const basePrices: GameBasePriceInput[] = []
   const prices: GamePriceInput[] = []
@@ -396,7 +400,7 @@ export function GameForm({ game }: { game?: Game }) {
     defaultValues: initialValues(pricing, game),
     validators: { onChange: schema },
     onSubmit: ({ value }) =>
-      mutation.mutateAsync(toPayload(value, activeRef.current)),
+      mutation.mutateAsync(gameFormToPayload(value, activeRef.current)),
   })
 
   const submitAs = (active: boolean) => {
@@ -1049,19 +1053,13 @@ export function GameForm({ game }: { game?: Game }) {
               {field.state.value === "pre_order" && (
                 <form.Field name="release_date">
                   {(dateField) => (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="release-date">
-                        تاریخ انتشار (تخمینی)
-                      </Label>
-                      <Input
-                        id="release-date"
-                        type="date"
-                        dir="ltr"
-                        className="w-48"
-                        value={dateField.state.value}
-                        onChange={(e) => dateField.handleChange(e.target.value)}
-                      />
-                    </div>
+                    <ReleaseDateInput
+                      id="release-date"
+                      label="تاریخ انتشار (تخمینی)"
+                      inputClassName="w-48"
+                      value={dateField.state.value}
+                      onValueChange={dateField.handleChange}
+                    />
                   )}
                 </form.Field>
               )}

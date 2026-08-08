@@ -89,6 +89,8 @@ func (h *handler) resubmit(c fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "درخواست موردنظر یافت نشد"})
 	case errors.Is(err, ErrNotResubmittable):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "این درخواست قابل ویرایش نیست"})
+	case errors.Is(err, ErrXboxReturnUnavailable):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "بازخرید بازی‌های Xbox در حال حاضر فعال نیست؛ اگر روش مطمئنی فراهم شود، این امکان در آینده اضافه خواهد شد"})
 	case err != nil:
 		return err
 	}
@@ -333,6 +335,8 @@ func mapCreateError(c fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "حساب موردنظر یافت نشد"})
 	case errors.Is(err, ErrNotReturnable):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "امکان بازگرداندن این بازی وجود ندارد"})
+	case errors.Is(err, ErrXboxReturnUnavailable):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "بازخرید بازی‌های Xbox در حال حاضر فعال نیست؛ اگر روش مطمئنی فراهم شود، این امکان در آینده اضافه خواهد شد"})
 	case errors.Is(err, ErrAlreadyRequested):
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"message": "برای این حساب قبلاً درخواست بازگشت ثبت شده است"})
 	}

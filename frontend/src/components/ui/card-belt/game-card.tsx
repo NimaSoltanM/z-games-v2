@@ -50,7 +50,8 @@ export function GameCard({
             {`٪${game.discount.toLocaleString("fa-IR")}`}
           </span>
         ) : null}
-        {game.returnable ? (
+        {game.returnable &&
+        game.consoles.some((c) => c === "ps4" || c === "ps5") ? (
           <span className="absolute end-2 bottom-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium text-foreground shadow-sm">
             قابل بازخرید
           </span>

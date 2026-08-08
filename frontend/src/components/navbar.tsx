@@ -37,6 +37,7 @@ import { GAMES_DEFAULT_SEARCH } from "@/features/games"
 const NAV_LINKS = [
   { to: "/", label: "خانه", exact: true },
   { to: "/games", label: "بازی‌ها", exact: false },
+  { to: "/guides", label: "راهنما", exact: false },
 ] as const
 
 const ADMIN_HOME_SEARCH = { page: 1, status: "", search: "" } as const

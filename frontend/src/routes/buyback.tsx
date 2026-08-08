@@ -6,12 +6,13 @@ import {
 } from "@tanstack/react-query"
 import { Suspense, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { ArrowLeft, BadgeCheck, Film, WalletCards } from "lucide-react"
+import { ArrowLeft, BadgeCheck, Film, Info, WalletCards } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   CatalogGameCard,
   formatToman,
@@ -132,6 +133,16 @@ function BuybackContent() {
         </div>
         <BuybackCalculator />
       </header>
+
+      <Alert variant="info" className="mt-10">
+        <Info />
+        <AlertTitle>بازخرید Xbox فعلاً فعال نیست</AlertTitle>
+        <AlertDescription>
+          در حال حاضر بازخرید فقط برای بازی‌های واجد شرایط PlayStation انجام
+          می‌شود. هنوز روش قابل‌اتکایی برای ثبت مدرک بازگشت اکانت Xbox نداریم؛
+          اگر راه مطمئنی فراهم شود، این امکان را در آینده اضافه می‌کنیم.
+        </AlertDescription>
+      </Alert>
 
       <section aria-labelledby="buyback-process" className="mt-20">
         <h2 id="buyback-process" className="text-2xl font-bold">

@@ -377,7 +377,7 @@ func listGames(ctx context.Context, db *pgxpool.Pool, filter listFilter, orderBy
 		conds = append(conds, "featured = true")
 	}
 	if filter.onlyReturnable {
-		conds = append(conds, "returnable = true")
+		conds = append(conds, "returnable = true AND EXISTS (SELECT 1 FROM game_consoles WHERE game_id = games.id AND console_code IN ('ps4', 'ps5'))")
 	}
 	platformParam := 0
 	if filter.platform != "" {

@@ -40,6 +40,7 @@ try {
       "--exclude=frontend/node_modules",
       "--exclude=frontend/dist",
       "--exclude=frontend/.tanstack",
+      "--exclude=frontend/public/guides",
       "--exclude=*.log",
       "backend", "frontend", "ops", "README.md", "PROJECT.md"
     )

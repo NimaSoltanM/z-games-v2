@@ -127,6 +127,12 @@ export function Footer() {
             >
               راهنمای خرید
             </Link>
+            <Link
+              to="/guides"
+              className="transition-colors hover:text-foreground"
+            >
+              مرکز راهنما
+            </Link>
           </nav>
         </div>
 

@@ -21,18 +21,19 @@ import (
 )
 
 var (
-	ErrItemNotFound         = errors.New("RETURN_ITEM_NOT_FOUND")    // not owned / not delivered
-	ErrNotReturnable        = errors.New("RETURN_NOT_RETURNABLE")    // admin disabled returns for the game
-	ErrAlreadyRequested     = errors.New("RETURN_ALREADY_REQUESTED") // a return row already exists for the item
-	ErrReturnNotFound       = errors.New("RETURN_NOT_FOUND")
-	ErrNotResubmittable     = errors.New("RETURN_NOT_RESUBMITTABLE") // status != rejected
-	ErrNotReviewable        = errors.New("RETURN_NOT_REVIEWABLE")    // status != pending
-	ErrInvalidCredit        = errors.New("RETURN_INVALID_CREDIT")
-	ErrCreditTooLarge       = errors.New("RETURN_CREDIT_TOO_LARGE")
-	ErrReasonRequired       = errors.New("RETURN_REASON_REQUIRED")
-	ErrInventoryUnavailable = errors.New("RETURN_INVENTORY_UNAVAILABLE")
-	ErrInventoryReused      = errors.New("RETURN_INVENTORY_ALREADY_REUSED")
-	ErrInventoryActive      = errors.New("RETURN_INVENTORY_ACCOUNT_ACTIVE")
+	ErrItemNotFound          = errors.New("RETURN_ITEM_NOT_FOUND")    // not owned / not delivered
+	ErrNotReturnable         = errors.New("RETURN_NOT_RETURNABLE")    // admin disabled returns for the game
+	ErrXboxReturnUnavailable = errors.New("RETURN_XBOX_UNAVAILABLE")  // Xbox buy-back is disabled until a reliable proof flow exists
+	ErrAlreadyRequested      = errors.New("RETURN_ALREADY_REQUESTED") // a return row already exists for the item
+	ErrReturnNotFound        = errors.New("RETURN_NOT_FOUND")
+	ErrNotResubmittable      = errors.New("RETURN_NOT_RESUBMITTABLE") // status != rejected
+	ErrNotReviewable         = errors.New("RETURN_NOT_REVIEWABLE")    // status != pending
+	ErrInvalidCredit         = errors.New("RETURN_INVALID_CREDIT")
+	ErrCreditTooLarge        = errors.New("RETURN_CREDIT_TOO_LARGE")
+	ErrReasonRequired        = errors.New("RETURN_REASON_REQUIRED")
+	ErrInventoryUnavailable  = errors.New("RETURN_INVENTORY_UNAVAILABLE")
+	ErrInventoryReused       = errors.New("RETURN_INVENTORY_ALREADY_REUSED")
+	ErrInventoryActive       = errors.New("RETURN_INVENTORY_ACCOUNT_ACTIVE")
 )
 
 const maxReasonLen = 1000
@@ -105,6 +106,10 @@ func estimateCredit(in priceInputs, console, capacity string, rate int, catalog 
 		NormalCredit: pricing.ApplyDiscount(price, pricing.DefaultReturnFeePct),
 		Promo:        fee < pricing.DefaultReturnFeePct,
 	}
+}
+
+func isXboxConsole(console string) bool {
+	return console == "xbox_one" || console == "xbox_series"
 }
 
 // loadPricing reads the exchange rate + console/capacity catalog used to derive
@@ -210,7 +215,12 @@ func listOwned(ctx context.Context, db *pgxpool.Pool, userID string, limit, offs
 			&it.ReturnID, &it.ReturnStatus, &it.ReturnReason, &it.CreditAmount); err != nil {
 			return nil, 0, fmt.Errorf("listOwned scan: %w", err)
 		}
-		it.Estimate = estimateCredit(pi, it.Console, it.Capacity, rate, catalog, now)
+		if isXboxConsole(it.Console) {
+			it.Returnable = false
+			it.Estimate = creditEstimate{Available: false, NormalFeePct: pricing.DefaultReturnFeePct}
+		} else {
+			it.Estimate = estimateCredit(pi, it.Console, it.Capacity, rate, catalog, now)
+		}
 		items = append(items, it)
 	}
 	if err := rows.Err(); err != nil {
@@ -263,7 +273,12 @@ func getOwnedItem(ctx context.Context, db *pgxpool.Pool, userID, itemID string) 
 	if err != nil {
 		return nil, fmt.Errorf("getOwnedItem: %w", err)
 	}
-	it.Estimate = estimateCredit(pi, it.Console, it.Capacity, rate, catalog, time.Now().UTC())
+	if isXboxConsole(it.Console) {
+		it.Returnable = false
+		it.Estimate = creditEstimate{Available: false, NormalFeePct: pricing.DefaultReturnFeePct}
+	} else {
+		it.Estimate = estimateCredit(pi, it.Console, it.Capacity, rate, catalog, time.Now().UTC())
+	}
 	return &it, nil
 }
 
@@ -277,9 +292,10 @@ func canCreateReturn(ctx context.Context, db *pgxpool.Pool, userID, itemID strin
 	var (
 		returnable bool
 		existing   int
+		console    string
 	)
 	err := db.QueryRow(ctx, `
-		SELECT g.returnable,
+		SELECT g.returnable, oi.platform,
 		       (SELECT COUNT(*) FROM game_returns gr WHERE gr.order_item_id = oi.id)
 		FROM order_items oi
 		JOIN orders o ON o.id = oi.order_id
@@ -287,12 +303,15 @@ func canCreateReturn(ctx context.Context, db *pgxpool.Pool, userID, itemID strin
 		WHERE oi.id = $1 AND o.user_id = $2
 		  AND o.status IN ('paid', 'fulfilled')
 		  AND oi.email IS NOT NULL AND oi.password IS NOT NULL AND oi.passcode IS NOT NULL
-	`, itemID, userID).Scan(&returnable, &existing)
+	`, itemID, userID).Scan(&returnable, &console, &existing)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrItemNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("canCreateReturn: %w", err)
+	}
+	if isXboxConsole(console) {
+		return ErrXboxReturnUnavailable
 	}
 	if !returnable {
 		return ErrNotReturnable
@@ -329,15 +348,22 @@ func getResubmittable(ctx context.Context, db *pgxpool.Pool, userID, returnID st
 	var (
 		status   string
 		oldVideo *string
+		console  string
 	)
-	err := db.QueryRow(ctx,
-		"SELECT status, video_filename FROM game_returns WHERE id = $1 AND user_id = $2",
-		returnID, userID).Scan(&status, &oldVideo)
+	err := db.QueryRow(ctx, `
+		SELECT gr.status, gr.video_filename, oi.platform
+		FROM game_returns gr
+		JOIN order_items oi ON oi.id = gr.order_item_id
+		WHERE gr.id = $1 AND gr.user_id = $2
+	`, returnID, userID).Scan(&status, &oldVideo, &console)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrReturnNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("getResubmittable: %w", err)
+	}
+	if isXboxConsole(console) {
+		return "", ErrXboxReturnUnavailable
 	}
 	if status != "rejected" {
 		return "", ErrNotResubmittable
@@ -356,6 +382,11 @@ func resubmitReturn(ctx context.Context, db *pgxpool.Pool, userID, returnID, vid
 		UPDATE game_returns
 		SET status = 'pending', video_filename = $1, reason = NULL, agreed_terms = true, updated_at = NOW()
 		WHERE id = $2 AND user_id = $3 AND status = 'rejected'
+		  AND NOT EXISTS (
+			SELECT 1 FROM order_items oi
+			WHERE oi.id = game_returns.order_item_id
+			  AND oi.platform IN ('xbox_one', 'xbox_series')
+		  )
 	`, videoFilename, returnID, userID)
 	if err != nil {
 		return fmt.Errorf("resubmitReturn: %w", err)

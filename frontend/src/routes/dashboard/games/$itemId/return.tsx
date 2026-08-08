@@ -93,6 +93,12 @@ function ReturnForm() {
   if (!item) {
     return <Notice text="حساب موردنظر یافت نشد." />
   }
+  const isXbox = item.console === "xbox_one" || item.console === "xbox_series"
+  if (isXbox && (!item.return_status || item.return_status === "rejected")) {
+    return (
+      <Notice text="بازخرید بازی‌های Xbox فعلاً در دسترس نیست. هنوز روش مطمئنی برای ثبت مدرک بازگشت آن نداریم؛ اگر چنین روشی فراهم شود، این امکان در آینده اضافه خواهد شد." />
+    )
+  }
   if (!item.returnable && !item.return_status) {
     return <Notice text="امکان بازگرداندن این بازی وجود ندارد." />
   }

@@ -86,6 +86,13 @@ function HowItWorksPage() {
           >
             اکانت قانونی یعنی چه؟
           </Button>
+          <Button
+            render={<Link to="/guides" />}
+            nativeButton={false}
+            variant="ghost"
+          >
+            راهنمای ورود به اکانت
+          </Button>
         </div>
       </div>
     </main>

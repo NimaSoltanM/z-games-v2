@@ -14,6 +14,8 @@ import {
   Copy,
   Check,
   ArchiveRestore,
+  ArrowLeft,
+  BookOpenCheck,
   Clock3,
   RefreshCw,
 } from "lucide-react"
@@ -304,7 +306,53 @@ function ItemCredentials({ item, label }: { item: OrderItem; label: string }) {
           />
         )}
       </div>
+      {(item.platform === "ps4" || item.platform === "ps5") && (
+        <SetupGuide
+          platform={item.platform}
+          capacity={capacityLabel(item.zarfiat)}
+        />
+      )}
       {item.verification_code?.eligible && <FreshCodeSupport item={item} />}
+    </div>
+  )
+}
+
+function SetupGuide({
+  platform,
+  capacity,
+}: {
+  platform: "ps4" | "ps5"
+  capacity: string
+}) {
+  const consoleName = platform.toUpperCase()
+  const guidePath =
+    platform === "ps4"
+      ? ("/guides/add-account/ps4" as const)
+      : ("/guides/add-account/ps5" as const)
+
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <BookOpenCheck className="mt-0.5 size-5 shrink-0 text-primary" />
+        <div>
+          <p className="text-sm font-semibold">
+            حالا چطور اکانت را روی {consoleName} اضافه کنم؟
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            ویدیو و مراحل مخصوص {capacity} را ببین.
+          </p>
+        </div>
+      </div>
+      <Button
+        render={<Link to={guidePath} />}
+        nativeButton={false}
+        variant="outline"
+        size="sm"
+        className="w-full gap-2 sm:w-auto"
+      >
+        مشاهده راهنما
+        <ArrowLeft className="size-3.5" />
+      </Button>
     </div>
   )
 }

@@ -102,13 +102,27 @@ export function GameTags({
 // of the purchase area (see ClosingSoonNotice).
 export function GameNotices({ game }: { game: Game }) {
   const showPreOrder = game.phase === "pre_order"
-  if (!game.alert_message && !showPreOrder) return null
+  const showXboxReturnNotice =
+    game.returnable &&
+    game.consoles.some((c) => c === "xbox_one" || c === "xbox_series")
+  if (!game.alert_message && !showPreOrder && !showXboxReturnNotice) return null
 
   const days = daysUntilRelease(game.release_date)
   const releaseDate = formatReleaseDate(game.release_date)
 
   return (
     <div className="space-y-3">
+      {showXboxReturnNotice && (
+        <Alert variant="info">
+          <Info />
+          <AlertTitle>بازخرید نسخه Xbox فعلاً فعال نیست</AlertTitle>
+          <AlertDescription>
+            نشان بازخرید این بازی فقط برای گزینه‌های واجد شرایط PlayStation است.
+            اگر روش مطمئنی برای بازگشت Xbox فراهم شود، آن را در آینده اضافه
+            می‌کنیم.
+          </AlertDescription>
+        </Alert>
+      )}
       {game.alert_message && (
         <Alert variant={game.alert_variant ?? "info"}>
           {game.alert_variant === "warning" ? <TriangleAlert /> : <Info />}
