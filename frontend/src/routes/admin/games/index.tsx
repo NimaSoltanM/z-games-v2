@@ -36,7 +36,7 @@ import {
   PreOrderBadge,
   DiscountBadge,
 } from "@/features/games"
-import type { Game } from "@/features/games"
+import type { AdminGame } from "@/features/games"
 import {
   ActiveToggle,
   AlertPopover,
@@ -137,7 +137,7 @@ function AdminGamesContent() {
   // Console filter options come from the live catalog ("all" + each console).
   const consoleFilters = [
     { value: "all", label: "همه" },
-    ...(data.exchange_rate?.consoles ?? []).map((c) => ({
+    ...data.exchange_rate.consoles.map((c) => ({
       value: c.code,
       label: c.label_fa,
     })),
@@ -236,7 +236,7 @@ function AdminGamesContent() {
   )
 }
 
-function GameRow({ game }: { game: Game }) {
+function GameRow({ game }: { game: AdminGame }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/75 p-3 backdrop-blur-sm">
       <img
@@ -304,7 +304,7 @@ function GameRow({ game }: { game: Game }) {
 // return-fee, delete) into a single popover. Each row inside is itself a
 // popover/toggle; Base UI nests them via its floating tree, and the
 // [&_button] rules turn the inner triggers into full-width menu rows.
-function GameMoreMenu({ game }: { game: Game }) {
+function GameMoreMenu({ game }: { game: AdminGame }) {
   return (
     <Popover>
       <PopoverTrigger

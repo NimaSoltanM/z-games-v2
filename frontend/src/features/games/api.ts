@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api-client"
 import type {
-  Game,
+  AdminGame,
   GameDetailResponse,
   GameFormPayload,
   GamesParams,
@@ -65,7 +65,7 @@ export function setPricingConfig(body: PricingConfigInput) {
 
 // Creates a game (definition only — pre-order/alert are set separately).
 export function createGame(body: GameFormPayload) {
-  return apiFetch<{ game: Game }>("/games/admin", {
+  return apiFetch<{ game: AdminGame }>("/games/admin", {
     method: "POST",
     body: JSON.stringify(body),
   })
@@ -74,7 +74,7 @@ export function createGame(body: GameFormPayload) {
 // Replaces a game's definition (and its full price/link sets), preserving its
 // separately-managed pre-order and alert state.
 export function updateGame(id: string, body: GameFormPayload) {
-  return apiFetch<{ game: Game }>(`/games/admin/${id}`, {
+  return apiFetch<{ game: AdminGame }>(`/games/admin/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
   })
@@ -94,7 +94,7 @@ export function setGamePreorder(
   id: string,
   body: { release_status: ReleaseStatus; release_date?: string | null }
 ) {
-  return apiFetch<{ game: Game }>(`/games/admin/${id}/preorder`, {
+  return apiFetch<{ game: AdminGame }>(`/games/admin/${id}/preorder`, {
     method: "PATCH",
     body: JSON.stringify(body),
   })
@@ -105,7 +105,7 @@ export function setGameAlert(
   id: string,
   body: { message: string; variant: AlertVariant }
 ) {
-  return apiFetch<{ game: Game }>(`/games/admin/${id}/alert`, {
+  return apiFetch<{ game: AdminGame }>(`/games/admin/${id}/alert`, {
     method: "PATCH",
     body: JSON.stringify(body),
   })
@@ -117,7 +117,7 @@ export function setGameDiscount(
   id: string,
   body: { percent: number; days: number }
 ) {
-  return apiFetch<{ game: Game }>(`/games/admin/${id}/discount`, {
+  return apiFetch<{ game: AdminGame }>(`/games/admin/${id}/discount`, {
     method: "PATCH",
     body: JSON.stringify(body),
   })
@@ -129,7 +129,7 @@ export function setGameReturnFee(
   id: string,
   body: { percent: number; days: number }
 ) {
-  return apiFetch<{ game: Game }>(`/games/admin/${id}/return-fee`, {
+  return apiFetch<{ game: AdminGame }>(`/games/admin/${id}/return-fee`, {
     method: "PATCH",
     body: JSON.stringify(body),
   })

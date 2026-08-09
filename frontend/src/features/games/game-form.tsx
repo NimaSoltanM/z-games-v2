@@ -24,10 +24,10 @@ import { adminPricingQueryOptions } from "./queries"
 import { ReleaseDateInput, releaseDateInputValue } from "./release-date-input"
 import { familyDotClass, formatToman, slugify } from "./types"
 import type {
+  AdminConsole,
+  AdminGame,
+  AdminPricingConfig,
   AlertVariant,
-  Console,
-  ExchangeRate,
-  Game,
   GameBasePriceInput,
   GameFormPayload,
   GamePriceInput,
@@ -35,7 +35,7 @@ import type {
   ReleaseStatus,
 } from "./types"
 
-type Catalog = NonNullable<ExchangeRate>
+type Catalog = AdminPricingConfig
 
 // The flat (console, capacity) cell list from the catalog, in display order. The
 // form's `prices` array mirrors this order so each cell maps to a stable index.
@@ -79,7 +79,7 @@ type FormValues = {
   alert_variant: AlertVariant
 }
 
-function initialValues(catalog: Catalog, game?: Game): FormValues {
+function initialValues(catalog: Catalog, game?: AdminGame): FormValues {
   const cells: Cell[] = catalogCells(catalog).map((c) => ({
     ...c,
     price: "",
@@ -362,7 +362,7 @@ function collectFormErrors(
 
 type SlugStatus = "idle" | "checking" | "available" | "taken"
 
-export function GameForm({ game }: { game?: Game }) {
+export function GameForm({ game }: { game?: AdminGame }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: pricing } = useSuspenseQuery(adminPricingQueryOptions())
@@ -1245,7 +1245,7 @@ function DerivedPreview({
 }: {
   base: string
   margin: string
-  console: Console
+  console: AdminConsole
   rate: number | null
   enabled: string[]
 }) {

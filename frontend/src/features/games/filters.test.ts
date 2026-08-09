@@ -8,50 +8,44 @@ import {
 import type { ExchangeRate } from "./types"
 
 const catalog: NonNullable<ExchangeRate> = {
-  usd_to_toman: 100_000,
   consoles: [
     {
       code: "ps4",
       family: "playstation",
       label_fa: "پلی‌استیشن ۴",
-      default_margin_pct: 10,
       capacities: [
-        { code: "z1", label_fa: "ظرفیت ۱", split_pct: 15, sort_order: 1 },
-        { code: "z2", label_fa: "ظرفیت ۲", split_pct: 60, sort_order: 2 },
-        { code: "z3", label_fa: "ظرفیت ۳", split_pct: 25, sort_order: 3 },
+        { code: "z1", label_fa: "ظرفیت ۱", sort_order: 1 },
+        { code: "z2", label_fa: "ظرفیت ۲", sort_order: 2 },
+        { code: "z3", label_fa: "ظرفیت ۳", sort_order: 3 },
       ],
     },
     {
       code: "ps5",
       family: "playstation",
       label_fa: "پلی‌استیشن ۵",
-      default_margin_pct: 10,
       capacities: [
-        { code: "z1", label_fa: "ظرفیت ۱", split_pct: 15, sort_order: 1 },
-        { code: "z2", label_fa: "ظرفیت ۲", split_pct: 60, sort_order: 2 },
-        { code: "z3", label_fa: "ظرفیت ۳", split_pct: 25, sort_order: 3 },
+        { code: "z1", label_fa: "ظرفیت ۱", sort_order: 1 },
+        { code: "z2", label_fa: "ظرفیت ۲", sort_order: 2 },
+        { code: "z3", label_fa: "ظرفیت ۳", sort_order: 3 },
       ],
     },
     {
       code: "xbox_series",
       family: "xbox",
       label_fa: "ایکس‌باکس سری X|S",
-      default_margin_pct: 20,
       capacities: [
-        { code: "home", label_fa: "Home", split_pct: 60, sort_order: 1 },
-        { code: "switch", label_fa: "Switch", split_pct: 40, sort_order: 2 },
+        { code: "home", label_fa: "Home", sort_order: 1 },
+        { code: "switch", label_fa: "Switch", sort_order: 2 },
       ],
     },
     {
       code: "steam",
       family: "pc",
       label_fa: "استیم",
-      default_margin_pct: 10,
       capacities: [
         {
           code: "key",
           label_fa: "کلید فعال‌سازی",
-          split_pct: 100,
           sort_order: 1,
         },
       ],

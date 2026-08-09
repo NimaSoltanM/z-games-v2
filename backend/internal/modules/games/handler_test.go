@@ -3,7 +3,27 @@ package games
 import (
 	"errors"
 	"testing"
+
+	"github.com/gofiber/fiber/v3/middleware/paginate"
 )
+
+func TestBuildOrderByUsesOnlyMappedColumns(t *testing.T) {
+	got := buildOrderBy([]paginate.SortField{
+		{Field: "name", Order: paginate.ASC},
+		{Field: "created_at; DROP TABLE games", Order: paginate.DESC},
+		{Field: "created_at", Order: paginate.DESC},
+	})
+	if got != "name ASC, created_at DESC" {
+		t.Fatalf("buildOrderBy() = %q, want mapped columns only", got)
+	}
+}
+
+func TestBuildOrderByFallsBackForUnknownSorts(t *testing.T) {
+	got := buildOrderBy([]paginate.SortField{{Field: "unknown", Order: paginate.ASC}})
+	if got != "created_at DESC" {
+		t.Fatalf("buildOrderBy() = %q, want safe default", got)
+	}
+}
 
 func TestParsePreorderUpdate(t *testing.T) {
 	t.Run("status only preserves date", func(t *testing.T) {

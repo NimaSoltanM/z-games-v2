@@ -2,8 +2,8 @@ import { calcPrice, discountedPrice } from "@/features/games"
 import type { ExchangeRate, Game } from "@/features/games"
 import type { CartItem } from "./types"
 
-// A game plus the exchange rate that was in effect when it was fetched — enough
-// to price any of its lines via calcPrice.
+// A game plus its public display catalog. Final Toman prices are already computed
+// by the backend; the catalog supplies console/capacity labels only.
 export type GamePricing = { game: Game; exchange_rate: ExchangeRate }
 
 // Sum of every *billable* cart line.
@@ -11,8 +11,8 @@ export type GamePricing = { game: Game; exchange_rate: ExchangeRate }
 // A line contributes 0 (and so must never be charged) when it is not actually
 // purchasable: the game is unknown to us, inactive, in its closing pre-order
 // window (`purchasable === false`), missing the requested platform/zarfiat
-// price, or otherwise unpriceable (e.g. a dynamic price with no USD value or no
-// exchange rate). These are exactly the lines the cart marks "unavailable" and
+// price, or otherwise unpriceable (for example, pricing is not configured yet).
+// These are exactly the lines the cart marks "unavailable" and
 // the backend rejects at checkout, so the displayed total must agree.
 export function cartTotal(
   items: CartItem[],

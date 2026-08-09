@@ -40,34 +40,36 @@ describe("SEO primitives", () => {
       slug: "test-game",
       name: "Test Game",
       cover_image: null,
+      description_markdown: "",
+      seo_title: null,
+      seo_description: null,
       consoles: ["ps5"],
-      price_mode: "fixed",
       prices: [
         {
-          id: "price-1",
           platform: "ps5",
           zarfiat: "z2",
-          price_usd: null,
           price_toman: 100_000,
-          slots: 1,
         },
       ],
+      active: true,
+      links: [],
+      release_date: null,
       phase: "released",
       purchasable: true,
+      alert_message: null,
+      alert_variant: null,
+      tags: [],
       returnable: true,
       discount: null,
-    } as Game
+      updated_at: "2026-08-09T00:00:00Z",
+    } satisfies Game
     const rate: ExchangeRate = {
-      usd_to_toman: 90_000,
       consoles: [
         {
           code: "ps5",
           family: "playstation",
           label_fa: "پلی‌استیشن ۵",
-          default_margin_pct: 0,
-          capacities: [
-            { code: "z2", label_fa: "ظرفیت ۲", split_pct: 50, sort_order: 2 },
-          ],
+          capacities: [{ code: "z2", label_fa: "ظرفیت ۲", sort_order: 2 }],
         },
       ],
     }

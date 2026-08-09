@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/soltanmohammdi/z-games/internal/shared/pricing"
 	"github.com/soltanmohammdi/z-games/internal/shared/release"
 	"github.com/soltanmohammdi/z-games/internal/testdb"
 )
@@ -27,6 +28,47 @@ func seedGame(t *testing.T, ctx context.Context, db *pgxpool.Pool, id string) {
 		"INSERT INTO games (id, name, slug, price_mode, active) VALUES ($1, 'Test Game', $1, 'dynamic', true)",
 		id)
 	mustExec(t, ctx, db, "INSERT INTO game_consoles (game_id, console_code) VALUES ($1, 'ps5')", id)
+}
+
+func TestDynamicPricesIncludeServerCalculatedToman(t *testing.T) {
+	ctx := context.Background()
+	db := testdb.New(t)
+	seedGame(t, ctx, db, "g1")
+	mustExec(t, ctx, db,
+		"INSERT INTO game_base_prices (game_id, platform, base_usd) VALUES ('g1', 'ps5', 20)")
+	mustExec(t, ctx, db,
+		"INSERT INTO exchange_rate (id, usd_to_toman) VALUES (1, 100000) ON CONFLICT (id) DO UPDATE SET usd_to_toman = EXCLUDED.usd_to_toman")
+
+	game, err := getGameByID(ctx, db, "g1", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := pricing.LoadCatalog(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	console, ok := catalog.Console("ps5")
+	if !ok {
+		t.Fatal("ps5 console missing from test catalog")
+	}
+	capacity, ok := catalog.Capacity("ps5", "z2")
+	if !ok {
+		t.Fatal("ps5/z2 capacity missing from test catalog")
+	}
+	want := pricing.TierToman(20, console.DefaultMarginPct, capacity.SplitPct, 100_000)
+
+	for _, price := range game.Prices {
+		if price.Platform == "ps5" && price.Zarfiat == "z2" {
+			if price.PriceToman == nil || *price.PriceToman != want {
+				t.Fatalf("price_toman = %v, want %d", price.PriceToman, want)
+			}
+			if price.PriceUSD == nil {
+				t.Fatal("admin dynamic price lost its USD preview")
+			}
+			return
+		}
+	}
+	t.Fatal("ps5/z2 price missing")
 }
 
 func TestSetGamePreorder(t *testing.T) {

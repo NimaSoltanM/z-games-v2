@@ -260,7 +260,7 @@ function GameDetail() {
               <div className="flex flex-wrap gap-2">
                 {game.links.map((link) => (
                   <a
-                    key={link.id}
+                    key={link.url}
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"

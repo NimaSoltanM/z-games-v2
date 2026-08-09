@@ -12,22 +12,18 @@ import type { GamePricing } from "./total"
 import type { CartItem } from "./types"
 
 const RATE: ExchangeRate = {
-  usd_to_toman: 100_000,
   consoles: [],
 }
 
 function priceEntry(
   platform: ConsolePlatform,
   zarfiat: Zarfiat,
-  opts: { usd?: string | null; toman?: number | null } = {}
+  toman: number | null
 ): GamePrice {
   return {
-    id: `${platform}-${zarfiat}`,
     platform,
     zarfiat,
-    price_usd: opts.usd ?? null,
-    price_toman: opts.toman ?? null,
-    slots: null,
+    price_toman: toman,
   }
 }
 
@@ -41,32 +37,17 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     seo_title: null,
     seo_description: null,
     consoles: ["ps5"],
-    price_mode: "dynamic",
     prices: [],
-    base_prices: [],
-    profit_margin_pct: null,
     active: true,
     links: [],
-    release_status: "released",
     release_date: null,
     phase: "released",
     purchasable: true,
     alert_message: null,
     alert_variant: null,
-    featured: false,
     returnable: true,
-    return_fee: null,
-    return_fee_pct: null,
-    return_fee_starts_at: null,
-    return_fee_ends_at: null,
     tags: [],
-    view_count: 0,
     discount: null,
-    discount_pct: null,
-    discount_starts_at: null,
-    discount_ends_at: null,
-    trending_score: 0,
-    created_at: "",
     updated_at: "",
     ...overrides,
   }
@@ -96,16 +77,14 @@ describe("cartTotal", () => {
     expect(cartTotal([], new Map())).toBe(0)
   })
 
-  it("multiplies a dynamic price by quantity (usd * rate)", () => {
-    const game = makeGame({ prices: [priceEntry("ps5", "z2", { usd: "5" })] })
-    // 5 * 100_000 = 500_000, x2 = 1_000_000
+  it("multiplies the server-calculated Toman price by quantity", () => {
+    const game = makeGame({ prices: [priceEntry("ps5", "z2", 500_000)] })
     expect(cartTotal([line({ quantity: 2 })], pricing(game))).toBe(1_000_000)
   })
 
-  it("uses the toman price for fixed games (rate irrelevant)", () => {
+  it("uses the final Toman price without an exchange-rate response", () => {
     const game = makeGame({
-      price_mode: "fixed",
-      prices: [priceEntry("ps5", "z2", { toman: 300_000 })],
+      prices: [priceEntry("ps5", "z2", 300_000)],
     })
     expect(cartTotal([line({ quantity: 3 })], pricing(game, null))).toBe(
       900_000
@@ -115,8 +94,8 @@ describe("cartTotal", () => {
   it("sums multiple lines of the same game (different tiers)", () => {
     const game = makeGame({
       prices: [
-        priceEntry("ps5", "z2", { usd: "5" }), // 500_000
-        priceEntry("ps5", "z3", { usd: "3" }), // 300_000
+        priceEntry("ps5", "z2", 500_000),
+        priceEntry("ps5", "z3", 300_000),
       ],
     })
     const total = cartTotal(
@@ -132,7 +111,7 @@ describe("cartTotal", () => {
   it("excludes an inactive game", () => {
     const game = makeGame({
       active: false,
-      prices: [priceEntry("ps5", "z2", { usd: "5" })],
+      prices: [priceEntry("ps5", "z2", 500_000)],
     })
     expect(cartTotal([line()], pricing(game))).toBe(0)
   })
@@ -140,41 +119,36 @@ describe("cartTotal", () => {
   it("excludes a non-purchasable game (e.g. pre-order closing window)", () => {
     const game = makeGame({
       purchasable: false,
-      prices: [priceEntry("ps5", "z2", { usd: "5" })],
+      prices: [priceEntry("ps5", "z2", 500_000)],
     })
     expect(cartTotal([line()], pricing(game))).toBe(0)
   })
 
   it("excludes a line whose platform/zarfiat has no price entry", () => {
-    const game = makeGame({ prices: [priceEntry("ps5", "z2", { usd: "5" })] })
+    const game = makeGame({ prices: [priceEntry("ps5", "z2", 500_000)] })
     // line asks for z3, which isn't priced
     expect(cartTotal([line({ zarfiat: "z3" })], pricing(game))).toBe(0)
   })
 
   it("excludes a line whose game isn't in the pricing map", () => {
-    const game = makeGame({ prices: [priceEntry("ps5", "z2", { usd: "5" })] })
+    const game = makeGame({ prices: [priceEntry("ps5", "z2", 500_000)] })
     expect(cartTotal([line({ gameId: "unknown" })], pricing(game))).toBe(0)
   })
 
-  it("excludes a dynamic line with no USD value", () => {
-    const game = makeGame({ prices: [priceEntry("ps5", "z2", { usd: null })] })
+  it("excludes a line whose server-calculated price is unavailable", () => {
+    const game = makeGame({ prices: [priceEntry("ps5", "z2", null)] })
     expect(cartTotal([line()], pricing(game))).toBe(0)
-  })
-
-  it("excludes a dynamic line when there is no exchange rate", () => {
-    const game = makeGame({ prices: [priceEntry("ps5", "z2", { usd: "5" })] })
-    expect(cartTotal([line()], pricing(game, null))).toBe(0)
   })
 
   it("counts only the billable lines in a mixed cart", () => {
     const valid = makeGame({
       id: "g1",
-      prices: [priceEntry("ps5", "z2", { usd: "5" })],
+      prices: [priceEntry("ps5", "z2", 500_000)],
     })
     const dead = makeGame({
       id: "g2",
       active: false,
-      prices: [priceEntry("ps5", "z2", { usd: "9" })],
+      prices: [priceEntry("ps5", "z2", 900_000)],
     })
     const map = new Map<string, GamePricing>([
       ["g1", { game: valid, exchange_rate: RATE }],

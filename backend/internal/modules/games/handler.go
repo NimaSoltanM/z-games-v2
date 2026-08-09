@@ -57,8 +57,8 @@ func (h *handler) listGamesHandler(c fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"games":         games,
-		"exchange_rate": rate,
+		"games":         toPublicGames(games),
+		"exchange_rate": toPublicPricing(rate),
 		"pagination": fiber.Map{
 			"page":        pageInfo.Page,
 			"limit":       pageInfo.Limit,
@@ -94,8 +94,8 @@ func (h *handler) getGameHandler(c fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"game":          game,
-		"exchange_rate": rate,
+		"game":          toPublicGame(*game),
+		"exchange_rate": toPublicPricing(rate),
 	})
 }
 
@@ -122,7 +122,10 @@ func (h *handler) relatedGamesHandler(c fiber.Ctx) error {
 		return fmt.Errorf("get exchange rate for related games: %w", err)
 	}
 
-	return c.JSON(fiber.Map{"games": related, "exchange_rate": rate})
+	return c.JSON(fiber.Map{
+		"games":         toPublicGames(related),
+		"exchange_rate": toPublicPricing(rate),
+	})
 }
 
 // slugAvailableHandler powers the admin form's live uniqueness check. It normalizes
@@ -145,7 +148,7 @@ func (h *handler) getExchangeRateHandler(c fiber.Ctx) error {
 	if err != nil {
 		return fmt.Errorf("get exchange rate: %w", err)
 	}
-	return c.JSON(fiber.Map{"exchange_rate": rate})
+	return c.JSON(fiber.Map{"exchange_rate": toPublicPricing(rate)})
 }
 
 // --- admin: pre-order lifecycle & alerts ------------------------------------

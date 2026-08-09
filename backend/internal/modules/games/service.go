@@ -605,6 +605,10 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 	if err != nil {
 		return err
 	}
+	rate, err := pricing.LoadRate(ctx, db)
+	if err != nil {
+		return err
+	}
 
 	ids := make([]string, len(games))
 	idx := make(map[string]int, len(games))
@@ -685,10 +689,16 @@ func attachPrices(ctx context.Context, db *pgxpool.Pool, games []gameRow) error 
 			}
 			usd := strconv.FormatFloat(pricing.TierUSD(baseUSD, margin, cp.SplitPct), 'f', 2, 64)
 			usdCopy := usd
+			var toman *int
+			if rate > 0 {
+				value := pricing.TierToman(baseUSD, margin, cp.SplitPct, rate)
+				toman = &value
+			}
 			games[i].Prices = append(games[i].Prices, gamePriceRow{
-				Platform: platform,
-				Zarfiat:  cp.Code,
-				PriceUSD: &usdCopy,
+				Platform:   platform,
+				Zarfiat:    cp.Code,
+				PriceUSD:   &usdCopy,
+				PriceToman: toman,
 			})
 		}
 	}

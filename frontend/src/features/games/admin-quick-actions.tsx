@@ -34,7 +34,7 @@ import { ReleaseDateInput, releaseDateInputValue } from "./release-date-input"
 import { formatReleaseDate } from "./types"
 import type {
   AlertVariant,
-  Game,
+  AdminGame,
   GameFormPayload,
   ReleaseStatus,
 } from "./types"
@@ -49,7 +49,7 @@ function useInvalidateGames() {
 
 // Rebuilds the full save payload from a loaded game, so a quick active toggle can
 // reuse the update endpoint without a separate form (it preserves pre-order/alert).
-function gameToPayload(game: Game): GameFormPayload {
+function gameToPayload(game: AdminGame): GameFormPayload {
   return {
     name: game.name,
     slug: game.slug,
@@ -90,7 +90,7 @@ function gameToPayload(game: Game): GameFormPayload {
   }
 }
 
-export function ActiveToggle({ game }: { game: Game }) {
+export function ActiveToggle({ game }: { game: AdminGame }) {
   const invalidate = useInvalidateGames()
   const m = useMutation({
     mutationFn: () =>
@@ -109,7 +109,7 @@ export function ActiveToggle({ game }: { game: Game }) {
   )
 }
 
-export function PreorderPopover({ game }: { game: Game }) {
+export function PreorderPopover({ game }: { game: AdminGame }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState<ReleaseStatus>(game.release_status)
   const [date, setDate] = useState(releaseDateInputValue(game.release_date))
@@ -191,7 +191,7 @@ export function PreorderPopover({ game }: { game: Game }) {
   )
 }
 
-export function AlertPopover({ game }: { game: Game }) {
+export function AlertPopover({ game }: { game: AdminGame }) {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState(game.alert_message ?? "")
   const [variant, setVariant] = useState<AlertVariant>(
@@ -268,7 +268,7 @@ export function AlertPopover({ game }: { game: Game }) {
   )
 }
 
-export function FeaturedToggle({ game }: { game: Game }) {
+export function FeaturedToggle({ game }: { game: AdminGame }) {
   const invalidate = useInvalidateGames()
   const m = useMutation({
     mutationFn: () =>
@@ -292,7 +292,7 @@ export function FeaturedToggle({ game }: { game: Game }) {
   )
 }
 
-export function DiscountPopover({ game }: { game: Game }) {
+export function DiscountPopover({ game }: { game: AdminGame }) {
   const [open, setOpen] = useState(false)
   const [percent, setPercent] = useState("")
   const [days, setDays] = useState("")
@@ -411,7 +411,7 @@ export function DiscountPopover({ game }: { game: Game }) {
 // Whether a reduced return-fee window is live for this game right now. The backend
 // keeps the columns after a window ends (like discounts), so check the dates rather
 // than just presence.
-function isReturnFeeLive(game: Game): boolean {
+function isReturnFeeLive(game: AdminGame): boolean {
   if (
     game.return_fee_pct == null ||
     !game.return_fee_starts_at ||
@@ -425,7 +425,7 @@ function isReturnFeeLive(game: Game): boolean {
   )
 }
 
-export function ReturnFeePopover({ game }: { game: Game }) {
+export function ReturnFeePopover({ game }: { game: AdminGame }) {
   const [open, setOpen] = useState(false)
   const [percent, setPercent] = useState("")
   const [days, setDays] = useState("")
@@ -552,7 +552,7 @@ export function ReturnFeePopover({ game }: { game: Game }) {
   )
 }
 
-export function DeleteGameButton({ game }: { game: Game }) {
+export function DeleteGameButton({ game }: { game: AdminGame }) {
   const [open, setOpen] = useState(false)
   const invalidate = useInvalidateGames()
   const m = useMutation({

@@ -12,16 +12,22 @@ type GamePhase = "released" | "pre_order" | "closing_soon"
 export type AlertVariant = "info" | "warning"
 
 type GameLink = {
-  id: string
   url: string
 }
 
 export type GamePrice = {
-  id: string
   platform: ConsolePlatform
   zarfiat: Zarfiat
-  price_usd: string | null
   price_toman: number | null
+}
+
+type AdminGameLink = GameLink & {
+  id: string
+}
+
+type AdminGamePrice = GamePrice & {
+  id: string
+  price_usd: string | null
   slots: number | null
 }
 
@@ -41,64 +47,76 @@ export type Game = {
   // Consoles the game is sold on (ps5, xbox_series, …), ordered for display.
   // Availability is this set; the old single `platform` enum is gone.
   consoles: string[]
-  price_mode: PriceMode
   prices: GamePrice[]
-  base_prices: GameBasePrice[]
-  profit_margin_pct: number | null
   active: boolean
   links: GameLink[]
-  release_status: ReleaseStatus
   release_date: string | null
   phase: GamePhase
   purchasable: boolean
   alert_message: string | null
   alert_variant: AlertVariant | null
-  // Merchandising. `featured` is a manual editorial flag; `tags` double as genres.
-  featured: boolean
   tags: string[]
-  view_count: number
-  // Buy-back: whether customers may return accounts of this game, plus the optional
-  // reduced-fee window. `return_fee` is the fee percent in effect right now.
   returnable: boolean
-  return_fee: number | null
+  // `discount` is only the percentage in effect right now.
+  discount: number | null
+  updated_at: string
+}
+
+// Admin responses retain the pricing inputs and merchandising state required by
+// the editor. These fields never appear in public game responses.
+export type AdminGame = Omit<Game, "prices" | "links"> & {
+  price_mode: PriceMode
+  prices: AdminGamePrice[]
+  links: AdminGameLink[]
+  base_prices: GameBasePrice[]
+  profit_margin_pct: number | null
+  release_status: ReleaseStatus
+  featured: boolean
+  view_count: number
   return_fee_pct: number | null
   return_fee_starts_at: string | null
   return_fee_ends_at: string | null
-  // `discount` is the percent in effect right now (null when no active discount);
-  // the *_at fields describe the stored window. `trending_score` is computed.
-  discount: number | null
   discount_pct: number | null
   discount_starts_at: string | null
   discount_ends_at: string | null
   trending_score: number
   created_at: string
-  updated_at: string
 }
 
-// A capacity (sellable slot) within a console, with its split percentage.
-type Capacity = {
+// Public catalog entries contain display metadata only. Pricing percentages and
+// the exchange rate are available exclusively through authenticated admin APIs.
+export type Capacity = {
   code: string
   label_fa: string
-  split_pct: number
   sort_order: number
 }
 
-// A console the store sells on, with its default margin and capacity catalog.
 export type Console = {
   code: string
   family: string
   label_fa: string
-  default_margin_pct: number
   capacities: Capacity[]
 }
 
-// The "exchange_rate" object: the USD→Toman rate (null until set) plus the live
-// console/capacity catalog the storefront + admin screens read labels and pricing
-// from. The catalog is always present.
+export type AdminCapacity = Capacity & {
+  split_pct: number
+}
+
+export type AdminConsole = Omit<Console, "capacities"> & {
+  default_margin_pct: number
+  capacities: AdminCapacity[]
+}
+
+// The response key remains `exchange_rate` for wire compatibility, but public
+// callers receive only the console/capacity display catalog.
 export type ExchangeRate = {
-  usd_to_toman: number | null
   consoles: Console[]
 } | null
+
+export type AdminPricingConfig = {
+  usd_to_toman: number | null
+  consoles: AdminConsole[]
+}
 
 export type GamesParams = {
   page?: number
@@ -175,23 +193,20 @@ export type GameFormPayload = {
 }
 
 export type AdminGamesResponse = {
-  games: Game[]
-  exchange_rate: ExchangeRate
+  games: AdminGame[]
+  exchange_rate: AdminPricingConfig
 }
 
 export function calcPrice(
   game: Game,
   platform: ConsolePlatform,
   zarfiat: Zarfiat,
-  rate: ExchangeRate
+  _rate: ExchangeRate
 ): number | null {
   const entry = game.prices.find(
     (p) => p.platform === platform && p.zarfiat === zarfiat
   )
-  if (!entry) return null
-  if (game.price_mode === "fixed") return entry.price_toman
-  if (!entry.price_usd || !rate || rate.usd_to_toman == null) return null
-  return Math.round(parseFloat(entry.price_usd) * rate.usd_to_toman)
+  return entry?.price_toman ?? null
 }
 
 export function cheapestPrice(game: Game, rate: ExchangeRate): number | null {
