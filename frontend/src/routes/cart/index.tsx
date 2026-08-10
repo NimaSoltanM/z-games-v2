@@ -238,7 +238,7 @@ function CartItemRow({
         <img
           src={imgSrc}
           alt={game.name}
-          className={`h-16 w-12 shrink-0 rounded-lg object-cover ${!isValid ? "opacity-40" : ""}`}
+          className={`h-16 w-12 shrink-0 rounded-lg bg-muted/30 object-contain ${!isValid ? "opacity-40" : ""}`}
         />
 
         <div className="min-w-0 flex-1 space-y-1.5">

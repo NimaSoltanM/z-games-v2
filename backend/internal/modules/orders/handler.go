@@ -1,7 +1,6 @@
 package orders
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -16,41 +15,17 @@ import (
 )
 
 type handler struct {
-	db           *pgxpool.Pool
-	zp           *zarinpalClient
-	cred         *credentials.Cipher
-	frontendURL  string
-	callbackURL  string
-	salesEnabled bool
-}
-
-const prelaunchAllowedPhone = "09019697619"
-
-func (h *handler) checkoutAllowed(ctx context.Context, userID string) (bool, error) {
-	if h.salesEnabled {
-		return true, nil
-	}
-
-	var phone string
-	if err := h.db.QueryRow(ctx, "SELECT phone FROM users WHERE id = $1", userID).Scan(&phone); err != nil {
-		return false, err
-	}
-	return phone == prelaunchAllowedPhone, nil
+	db          *pgxpool.Pool
+	zp          *zarinpalClient
+	cred        *credentials.Cipher
+	frontendURL string
+	callbackURL string
 }
 
 // checkout turns the user's cart into a pending order and starts a ZarinPal
 // payment, returning the gateway URL the client should redirect to.
 func (h *handler) checkout(c fiber.Ctx) error {
 	userID := c.Locals(middleware.LocalUserID).(string)
-	allowed, err := h.checkoutAllowed(c.Context(), userID)
-	if err != nil {
-		return err
-	}
-	if !allowed {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"message": "وب‌سایت هنوز به‌صورت رسمی شروع به کار نکرده است",
-		})
-	}
 
 	var body struct {
 		ReferralCode string `json:"referral_code"`

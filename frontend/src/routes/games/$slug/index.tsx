@@ -190,7 +190,7 @@ function GameDetail() {
             loading="eager"
             fetchPriority="high"
             decoding="async"
-            className="relative aspect-3/4 w-full rounded-2xl object-cover shadow-2xl shadow-black/40"
+            className="relative aspect-3/4 w-full rounded-2xl bg-muted/30 object-contain shadow-2xl shadow-black/40"
             style={{ viewTransitionName: `game-cover-${game.id}` }}
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />

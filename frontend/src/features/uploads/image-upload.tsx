@@ -25,12 +25,12 @@ type Props = {
   className?: string
   /** Sizing for the preview/dropzone box. Defaults to a cover-friendly 3:4. */
   boxClassName?: string
-  /** Center-crop uploads to this width/height ratio. Defaults to 3:4; pass null to keep aspect. */
+  /** Center-crop uploads to this width/height ratio. Defaults to preserving the source aspect. */
   cropAspect?: number | null
 }
 
-// A self-contained image picker: click, drag-drop, or paste a file; it crops +
-// downscales client-side, uploads with a live progress bar (cancelable), then
+// A self-contained image picker: click, drag-drop, or paste a file; it optionally
+// crops and downscales client-side, uploads with a live progress bar (cancelable), then
 // reports the stored path via onChange. Shows the current image with
 // replace/remove controls once one is set. Validation mirrors the server.
 export function ImageUpload({
@@ -39,7 +39,7 @@ export function ImageUpload({
   disabled,
   className,
   boxClassName = "aspect-3/4 w-40",
-  cropAspect = 3 / 4,
+  cropAspect = null,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -147,7 +147,7 @@ export function ImageUpload({
           <img
             src={resolveMediaUrl(value)}
             alt="تصویر بارگذاری‌شده"
-            className="h-full w-full object-cover"
+            className="h-full w-full bg-muted/30 object-contain"
           />
           {uploading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/75 backdrop-blur-sm">
