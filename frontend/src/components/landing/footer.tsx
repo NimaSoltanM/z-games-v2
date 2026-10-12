@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router"
+import { Phone } from "lucide-react"
 import { useEffect, useRef } from "react"
 
 import { GAMES_DEFAULT_SEARCH } from "@/features/games"
@@ -141,6 +142,20 @@ export function Footer() {
               پشتیبانی و پیگیری درخواست
             </Link>
           </nav>
+        </div>
+
+        <div className="mt-8 flex justify-center border-t border-border/40 pt-6">
+          <a
+            href="tel:+989019697619"
+            aria-label="تماس با مدیریت و پشتیبانی زد گیمز با شماره ۰۹۰۱۹۶۹۷۶۱۹"
+            className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/75 px-4 py-3 text-sm transition-colors hover:border-primary/40 hover:text-primary"
+          >
+            <Phone className="size-4" />
+            <span>تماس با مدیریت و پشتیبانی</span>
+            <span dir="ltr" className="font-mono font-semibold tabular-nums">
+              09019697619
+            </span>
+          </a>
         </div>
 
         <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border/40 pt-6">

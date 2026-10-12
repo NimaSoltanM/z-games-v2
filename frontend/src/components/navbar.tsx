@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ShieldCheck,
   LifeBuoy,
+  Phone,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -78,6 +79,20 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-primary/40 after:to-transparent">
+      <div className="border-b border-border/40 bg-card/60">
+        <a
+          href="tel:+989019697619"
+          aria-label="تماس با مدیریت و پشتیبانی زد گیمز با شماره ۰۹۰۱۹۶۹۷۶۱۹"
+          className="mx-auto flex h-8 max-w-7xl items-center justify-center gap-2 px-4 text-xs text-muted-foreground transition-colors hover:text-primary sm:px-6 lg:px-8"
+        >
+          <Phone className="size-3.5" />
+          <span>تماس با مدیریت و پشتیبانی:</span>
+          <span dir="ltr" className="font-mono font-semibold tabular-nums">
+            09019697619
+          </span>
+        </a>
+      </div>
+
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         {/* Brand + desktop nav */}
         <div className="flex items-center gap-6">
